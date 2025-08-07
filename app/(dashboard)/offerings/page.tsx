@@ -12,9 +12,9 @@ import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
-import { Checkbox } from '@/components/ui/checkbox'
+
 import { formatCurrency, formatDate, formatDateForInput } from '@/lib/utils'
-import { Plus, MoreHorizontal, Edit, Trash2, Calendar, Users, DollarSign, TrendingUp, X } from 'lucide-react'
+import { Plus, MoreHorizontal, Edit, Trash2, Calendar, Users, DollarSign, TrendingUp } from 'lucide-react'
 import { toast } from 'sonner'
 import type { Database } from '@/types/database'
 
@@ -34,15 +34,17 @@ interface OfferingForm {
   type: string
   amount: string
   fund_allocations: Record<string, number>
-  selected_members: string[]
+  selected_member: string
   notes: string
 }
 
 const OFFERING_TYPES = [
-  'tithe',
-  'lords_day',
-  'special',
-  'mission'
+  'Tithe',
+  'Lord\'s Day',
+  'Other Offering',
+  'Special Offering',
+  'Mission Fund Offering',
+  'Building Fund Offering'
 ]
 
 export default function OfferingsPage() {
@@ -57,18 +59,36 @@ export default function OfferingsPage() {
   const [filterType, setFilterType] = useState('all')
   const [filterFund, setFilterFund] = useState('all')
   const [memberSearchTerm, setMemberSearchTerm] = useState('')
+
   const [form, setForm] = useState<OfferingForm>({
     service_date: formatDateForInput(new Date()),
     type: '',
     amount: '',
     fund_allocations: {},
-    selected_members: [],
+    selected_member: 'none',
     notes: ''
   })
 
   useEffect(() => {
     fetchData()
   }, [])
+
+  // Function to automatically determine fund allocation based on offering type
+  const getFundAllocationForOfferingType = (offeringType: string, amount: number): Record<string, number> => {
+    const managementFund = funds.find(f => f.name.toLowerCase().includes('management'))
+    const missionFund = funds.find(f => f.name.toLowerCase().includes('mission'))
+    const buildingFund = funds.find(f => f.name.toLowerCase().includes('building'))
+    
+    switch (offeringType) {
+      case 'Mission Fund Offering':
+        return missionFund ? { [missionFund.id]: amount } : {}
+      case 'Building Fund Offering':
+        return buildingFund ? { [buildingFund.id]: amount } : {}
+      default:
+        // All other offerings go to Management Fund
+        return managementFund ? { [managementFund.id]: amount } : {}
+    }
+  }
 
   const fetchData = async () => {
     try {
@@ -117,17 +137,20 @@ export default function OfferingsPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    if (!form.service_date || !form.type || !form.amount || Object.keys(form.fund_allocations).length === 0) {
+    if (!form.service_date || !form.type || !form.amount) {
       toast.error('Please fill in all required fields')
       return
     }
 
     try {
+      const amount = parseFloat(form.amount)
+      const fundAllocations = getFundAllocationForOfferingType(form.type, amount)
+      
       const offeringData: OfferingInsert = {
         service_date: form.service_date,
-        type: form.type as 'tithe' | 'lords_day' | 'special' | 'mission',
-        amount: parseFloat(form.amount),
-        fund_allocations: form.fund_allocations,
+        type: form.type as any,
+        amount: amount,
+        fund_allocations: fundAllocations,
         notes: form.notes || null
       }
 
@@ -161,16 +184,14 @@ export default function OfferingsPage() {
         toast.success('Offering recorded successfully')
       }
 
-      // Insert member relationships
-      if (form.selected_members.length > 0) {
-        const memberRelations = form.selected_members.map(memberId => ({
-          offering_id: offeringId,
-          member_id: memberId
-        }))
-
+      // Insert member relationship
+      if (form.selected_member && form.selected_member !== 'none') {
         const { error: memberError } = await supabase
           .from('offering_members')
-          .insert(memberRelations)
+          .insert([{
+            offering_id: offeringId,
+            member_id: form.selected_member
+          }])
 
         if (memberError) throw memberError
       }
@@ -188,20 +209,21 @@ export default function OfferingsPage() {
   const handleEdit = async (offering: OfferingWithFund) => {
     setEditingOffering(offering)
     
-    // Fetch member relationships for this offering
+    // Fetch member relationship for this offering
     const { data: memberRelations } = await supabase
       .from('offering_members')
       .select('member_id')
       .eq('offering_id', offering.id)
+      .limit(1)
     
-    const selectedMemberIds = memberRelations?.map(rel => rel.member_id) || []
+    const selectedMemberId = memberRelations?.[0]?.member_id || 'none'
     
     setForm({
       service_date: offering.service_date,
       type: offering.type,
       amount: offering.amount.toString(),
-      fund_allocations: (offering.fund_allocations as Record<string, number>) || {},
-      selected_members: selectedMemberIds,
+      fund_allocations: {},
+      selected_member: selectedMemberId,
       notes: offering.notes || ''
     })
     setDialogOpen(true)
@@ -231,7 +253,7 @@ export default function OfferingsPage() {
       type: '',
       amount: '',
       fund_allocations: {},
-      selected_members: [],
+      selected_member: 'none',
       notes: ''
     })
     setMemberSearchTerm('')
@@ -246,27 +268,23 @@ export default function OfferingsPage() {
     return matchesSearch && matchesType && matchesFund
   })
 
-  // Helper functions for member selection
-  const toggleMember = (memberId: string) => {
+  // Helper function for member selection
+  const selectMember = (memberId: string) => {
     setForm(prev => ({
       ...prev,
-      selected_members: prev.selected_members.includes(memberId)
-        ? prev.selected_members.filter(id => id !== memberId)
-        : [...prev.selected_members, memberId]
+      selected_member: memberId === 'none' ? '' : memberId
     }))
   }
 
-  const removeMember = (memberId: string) => {
-    setForm(prev => ({
-      ...prev,
-      selected_members: prev.selected_members.filter(id => id !== memberId)
-    }))
-  }
+  // Filter members based on search term
+  const filteredMembers = members.filter(member => {
+    if (!memberSearchTerm) return true
+    const searchLower = memberSearchTerm.toLowerCase()
+    return member.name.toLowerCase().includes(searchLower) ||
+           (member.fellowship_name && member.fellowship_name.toLowerCase().includes(searchLower))
+  })
 
-  const filteredMembers = members.filter(member => 
-    member.name.toLowerCase().includes(memberSearchTerm.toLowerCase()) ||
-    member.fellowship_name?.toLowerCase().includes(memberSearchTerm.toLowerCase())
-  )
+
 
   // Calculate summary statistics
   const totalOfferings = filteredOfferings.reduce((sum, offering) => sum + offering.amount, 0)
@@ -350,102 +368,43 @@ export default function OfferingsPage() {
                     </Select>
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="amount">Total Amount *</Label>
+                  <Input
+                    id="amount"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={form.amount}
+                    onChange={(e) => setForm({ ...form, amount: e.target.value })}
+                    required
+                  />
+                  <p className="text-sm text-muted-foreground">
+                    Fund allocation will be determined automatically based on offering type
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="member">Member</Label>
                   <div className="space-y-2">
-                    <Label htmlFor="amount">Total Amount *</Label>
                     <Input
-                      id="amount"
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={form.amount}
-                      onChange={(e) => {
-                        const newAmount = e.target.value
-                        const currentFundId = Object.keys(form.fund_allocations)[0]
-                        const updatedAllocations = currentFundId 
-                          ? { [currentFundId]: parseFloat(newAmount) || 0 }
-                          : {}
-                        setForm({ ...form, amount: newAmount, fund_allocations: updatedAllocations })
-                      }}
-                      required
+                      placeholder="Search members..."
+                      value={memberSearchTerm}
+                      onChange={(e) => setMemberSearchTerm(e.target.value)}
+                      className="mb-2"
                     />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="fund_allocations">Allocate to Fund *</Label>
-                    <Select 
-                      value={Object.keys(form.fund_allocations)[0] || ''} 
-                      onValueChange={(fundId) => {
-                        const amount = parseFloat(form.amount) || 0
-                        setForm({ ...form, fund_allocations: { [fundId]: amount } })
-                      }}
-                    >
+                    <Select value={form.selected_member} onValueChange={selectMember}>
                       <SelectTrigger>
-                        <SelectValue placeholder="Select fund" />
+                        <SelectValue placeholder="Select a member (optional)" />
                       </SelectTrigger>
                       <SelectContent>
-                        {funds.map((fund) => (
-                          <SelectItem key={fund.id} value={fund.id}>{fund.name}</SelectItem>
+                        <SelectItem value="none">No member selected</SelectItem>
+                        {filteredMembers.map((member) => (
+                          <SelectItem key={member.id} value={member.id}>
+                            {member.name}{member.fellowship_name ? ` (${member.fellowship_name})` : ''}
+                          </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label>Contributing Members</Label>
-                  <div className="space-y-2">
-                    {/* Selected Members Display */}
-                    {form.selected_members.length > 0 && (
-                      <div className="flex flex-wrap gap-2 p-2 border rounded-md bg-muted/50">
-                        {form.selected_members.map(memberId => {
-                          const member = members.find(m => m.id === memberId)
-                          return member ? (
-                            <Badge key={memberId} variant="secondary" className="flex items-center gap-1">
-                              {member.name}
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                className="h-4 w-4 p-0 hover:bg-destructive hover:text-destructive-foreground"
-                                onClick={() => removeMember(memberId)}
-                              >
-                                <X className="h-3 w-3" />
-                              </Button>
-                            </Badge>
-                          ) : null
-                        })}
-                      </div>
-                    )}
-                    
-                    {/* Member Search and Selection */}
-                    <div className="space-y-2">
-                      <Input
-                        placeholder="Search members..."
-                        value={memberSearchTerm}
-                        onChange={(e) => setMemberSearchTerm(e.target.value)}
-                      />
-                      <div className="max-h-32 overflow-y-auto border rounded-md">
-                        {filteredMembers.map(member => (
-                          <div key={member.id} className="flex items-center space-x-2 p-2 hover:bg-muted/50">
-                            <Checkbox
-                              id={`member-${member.id}`}
-                              checked={form.selected_members.includes(member.id)}
-                              onCheckedChange={() => toggleMember(member.id)}
-                            />
-                            <Label htmlFor={`member-${member.id}`} className="flex-1 cursor-pointer">
-                              <div className="font-medium">{member.name}</div>
-                              {member.fellowship_name && (
-                                <div className="text-sm text-muted-foreground">{member.fellowship_name}</div>
-                              )}
-                            </Label>
-                          </div>
-                        ))}
-                        {filteredMembers.length === 0 && (
-                          <div className="p-2 text-sm text-muted-foreground text-center">
-                            No members found
-                          </div>
-                        )}
-                      </div>
-                    </div>
                   </div>
                 </div>
                 <div className="space-y-2">
@@ -650,22 +609,11 @@ export default function OfferingsPage() {
                       </td>
                       <td className="p-4">
                         {offering.offering_members && offering.offering_members.length > 0 ? (
-                          <div className="space-y-1">
-                            <div className="text-sm font-medium">
-                              {offering.offering_members.length} member{offering.offering_members.length !== 1 ? 's' : ''}
-                            </div>
-                            <div className="flex flex-wrap gap-1">
-                              {offering.offering_members.slice(0, 3).map((om) => (
-                                <Badge key={om.member.id} variant="secondary" className="text-xs">
-                                  {om.member.name}
-                                </Badge>
-                              ))}
-                              {offering.offering_members.length > 3 && (
-                                <Badge variant="outline" className="text-xs">
-                                  +{offering.offering_members.length - 3} more
-                                </Badge>
-                              )}
-                            </div>
+                          <div className="text-sm">
+                            <div className="font-medium">{offering.offering_members[0].member.name}</div>
+                            {offering.offering_members[0].member.fellowship_name && (
+                              <div className="text-muted-foreground">{offering.offering_members[0].member.fellowship_name}</div>
+                            )}
                           </div>
                         ) : (
                           <span className="text-muted-foreground">-</span>

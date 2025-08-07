@@ -1,7 +1,10 @@
 # TODO:
 
-- [x] fix-1: Remove invalid fund join from fetchData query and update OfferingWithFund interface (priority: High)
-- [x] fix-2: Update OFFERING_TYPES array to match database constraints ('tithe', 'lords_day', 'special', 'mission') (priority: High)
-- [x] fix-3: Fix fund_allocations form handling to properly create and parse JSON objects (priority: High)
-- [x] fix-4: Update fund allocation display logic to work with JSONB data instead of fund relationship (priority: High)
-- [x] fix-5: Fix form validation and submission to handle fund_allocations as proper JSON structure (priority: Medium)
+- [x] cash-1: Create cash_breakdown table in Supabase database with proper schema (priority: High)
+- [x] cash-2: Create new Cash Denomination Breakdown page at /app/(dashboard)/cash-breakdown/page.tsx (priority: High)
+- [x] cash-3: Implement table layout with denomination inputs for all three funds (priority: High)
+- [x] cash-4: Add automatic calculation logic for totals and subtotals (priority: High)
+- [x] cash-5: Implement save/load functionality with Supabase integration (priority: Medium)
+- [x] cash-6: Add CSV export functionality for cash breakdown reports (priority: Medium)
+- [x] cash-7: Add navigation link to cash breakdown page in dashboard layout (priority: Medium)
+- [x] cash-8: Test the complete cash breakdown functionality and fix any issues (priority: Low)

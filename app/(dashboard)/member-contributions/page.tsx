@@ -61,31 +61,50 @@ export default function MemberContributionsPage() {
     try {
       setLoading(true)
       
-      // Fetch all members with their contributions
-      const { data: memberData, error: memberError } = await supabase
-        .from('offering_members')
+      // Fetch all offerings with their member and fund information
+      const { data: offeringsData, error: offeringsError } = await supabase
+        .from('offerings')
         .select(`
-          member:members(*),
-          offering:offerings(
-            id,
-            service_date,
-            type,
-            amount,
-            notes,
-            fund:funds(name)
+          id,
+          service_date,
+          type,
+          amount,
+          notes,
+          fund_allocations,
+          offering_members!inner(
+            member:members(
+              id,
+              name,
+              phone,
+              fellowship_name,
+              job,
+              location
+            )
           )
         `)
+        .order('service_date', { ascending: false })
 
-      if (memberError) throw memberError
+      if (offeringsError) throw offeringsError
+
+      // Fetch funds for fund name lookup
+      const { data: fundsData, error: fundsError } = await supabase
+        .from('funds')
+        .select('id, name')
+
+      if (fundsError) throw fundsError
+
+      const fundsMap = new Map(fundsData?.map(fund => [fund.id, fund.name]) || [])
 
       // Group contributions by member
       const memberMap = new Map<string, MemberContribution>()
       
-      memberData?.forEach((record) => {
-        const member = Array.isArray(record.member) ? record.member[0] : record.member
-        const offering = Array.isArray(record.offering) ? record.offering[0] : record.offering
+      offeringsData?.forEach((offering) => {
+        // Since we use inner join, each offering should have exactly one member
+        const memberRecord = offering.offering_members?.[0]?.member
+        if (!memberRecord) return
         
-        if (!member || !offering) return
+        const member = Array.isArray(memberRecord) ? memberRecord[0] : memberRecord
+        if (!member) return
         
         if (!memberMap.has(member.id)) {
           memberMap.set(member.id, {
@@ -98,12 +117,23 @@ export default function MemberContributionsPage() {
         }
         
         const memberContrib = memberMap.get(member.id)!
+        
+        // Determine fund name from fund_allocations
+        let fundName = 'Unknown'
+        if (offering.fund_allocations && typeof offering.fund_allocations === 'object') {
+          const fundAllocations = offering.fund_allocations as Record<string, number>
+          const fundIds = Object.keys(fundAllocations)
+          if (fundIds.length > 0) {
+            fundName = fundsMap.get(fundIds[0]) || 'Unknown'
+          }
+        }
+        
         memberContrib.contributions.push({
           id: offering.id,
           service_date: offering.service_date,
           type: offering.type,
           amount: offering.amount,
-          fund_name: Array.isArray(offering.fund) ? offering.fund[0]?.name || 'Unknown' : (offering.fund as any)?.name || 'Unknown',
+          fund_name: fundName,
           notes: offering.notes
         })
         

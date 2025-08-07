@@ -28,7 +28,8 @@ import {
   LogOut,
   User,
   Users,
-  TrendingUp
+  TrendingUp,
+  Banknote
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -67,6 +68,12 @@ const navigation = [
     name: 'Fund Management',
     href: '/funds',
     icon: Wallet,
+    roles: ['Treasurer', 'Admin']
+  },
+  {
+    name: 'Cash Breakdown',
+    href: '/cash-breakdown',
+    icon: Banknote,
     roles: ['Treasurer', 'Admin']
   },
   {
