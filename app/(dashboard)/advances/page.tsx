@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -13,14 +13,71 @@ import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { formatCurrency, formatDateForInput } from '@/lib/utils'
-import { Plus, MoreHorizontal, DollarSign, Users, TrendingUp, AlertCircle, TrendingDown } from 'lucide-react'
+import { Plus, MoreHorizontal, DollarSign, Users, TrendingUp, AlertCircle, TrendingDown, CreditCard } from 'lucide-react'
 import { toast } from 'sonner'
 import type { Database } from '@/types/database'
 
 type Advance = Database['public']['Tables']['advances']['Row']
 type Fund = Database['public']['Tables']['funds']['Row']
 
+interface AnimatedCounterProps {
+  value: number
+  duration?: number
+  formatter?: (value: number) => string
+}
 
+function AnimatedCounter({ value, duration = 2000, formatter = (v) => v.toString() }: AnimatedCounterProps) {
+  const [count, setCount] = useState(0)
+  const [isVisible, setIsVisible] = useState(false)
+  const counterRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setIsVisible(true)
+        }
+      },
+      { threshold: 0.1 }
+    )
+
+    if (counterRef.current) {
+      observer.observe(counterRef.current)
+    }
+
+    return () => observer.disconnect()
+  }, [])
+
+  useEffect(() => {
+    if (!isVisible) return
+
+    let startTime: number
+    const startValue = 0
+    const endValue = value
+
+    const animate = (currentTime: number) => {
+      if (!startTime) startTime = currentTime
+      const progress = Math.min((currentTime - startTime) / duration, 1)
+      
+      const easeOutCubic = 1 - Math.pow(1 - progress, 3)
+      const currentValue = startValue + (endValue - startValue) * easeOutCubic
+      
+      setCount(currentValue)
+      
+      if (progress < 1) {
+        requestAnimationFrame(animate)
+      }
+    }
+
+    requestAnimationFrame(animate)
+  }, [isVisible, value, duration])
+
+  return (
+    <div ref={counterRef}>
+      {formatter(count)}
+    </div>
+  )
+}
 
 interface RepaymentForm {
   amount: string
@@ -297,17 +354,24 @@ export default function AdvancesPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-lg">Loading advances...</div>
+        <div className="relative">
+          <div className="w-12 h-12 border-4 border-white/20 border-t-white rounded-full animate-spin"></div>
+          <div className="w-8 h-8 border-4 border-white/40 border-t-transparent rounded-full animate-spin absolute top-2 left-2" style={{animationDirection: 'reverse'}}></div>
+        </div>
+        <div className="text-lg text-white/80 ml-4">Loading advances...</div>
       </div>
     )
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between items-center animate-fade-in animate-slide-in-from-top-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Advances</h1>
-          <p className="text-muted-foreground">Track advance payments and repayments</p>
+          <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent flex items-center gap-3">
+            <CreditCard className="h-8 w-8 text-white" />
+            Advances
+          </h1>
+          <p className="text-white/60">Track advance payments and repayments</p>
         </div>
         {hasRole('Admin') && (
           <Dialog open={advanceDialogOpen} onOpenChange={setAdvanceDialogOpen}>
@@ -317,27 +381,28 @@ export default function AdvancesPage() {
                 New Advance
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[500px]">
+            <DialogContent className="sm:max-w-[500px] bg-white/10 backdrop-blur-xl border-white/20">
               <DialogHeader>
-                <DialogTitle>{editingAdvance ? 'Edit Advance' : 'New Advance'}</DialogTitle>
-                <DialogDescription>
+                <DialogTitle className="text-white/90">{editingAdvance ? 'Edit Advance' : 'New Advance'}</DialogTitle>
+                <DialogDescription className="text-white/60">
                   {editingAdvance ? 'Update advance information' : 'Create a new advance payment'}
                 </DialogDescription>
               </DialogHeader>
               <form onSubmit={handleAdvanceSubmit} className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="recipient">Recipient *</Label>
+                    <Label htmlFor="recipient" className="text-white/90">Recipient *</Label>
                     <Input
                       id="recipient"
                       value={advanceForm.recipient_name}
                       onChange={(e) => setAdvanceForm({ ...advanceForm, recipient_name: e.target.value })}
                       placeholder="Recipient name"
+                      className="bg-white/10 border-white/20 text-white placeholder:text-white/50 focus:border-white/40"
                       required
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="amount">Amount *</Label>
+                    <Label htmlFor="amount" className="text-white/90">Amount *</Label>
                     <Input
                       id="amount"
                       type="number"
@@ -345,30 +410,32 @@ export default function AdvancesPage() {
                       min="0.01"
                       value={advanceForm.amount}
                       onChange={(e) => setAdvanceForm({ ...advanceForm, amount: e.target.value })}
+                      className="bg-white/10 border-white/20 text-white placeholder:text-white/50 focus:border-white/40"
                       required
                     />
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="purpose">Purpose *</Label>
+                  <Label htmlFor="purpose" className="text-white/90">Purpose *</Label>
                   <Textarea
                     id="purpose"
                     value={advanceForm.purpose}
                     onChange={(e) => setAdvanceForm({ ...advanceForm, purpose: e.target.value })}
                     placeholder="What is this advance for?"
+                    className="bg-white/10 border-white/20 text-white placeholder:text-white/50 focus:border-white/40"
                     required
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="fund_id">Fund *</Label>
+                    <Label htmlFor="fund_id" className="text-white/90">Fund *</Label>
                     <Select value={advanceForm.fund_id} onValueChange={(value) => setAdvanceForm({ ...advanceForm, fund_id: value })}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select fund" />
+                      <SelectTrigger className="bg-white/10 border-white/20 text-white focus:border-white/40">
+                        <SelectValue placeholder="Select fund" className="text-white/50" />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="bg-white/10 backdrop-blur-xl border-white/20">
                         {funds.map((fund) => (
-                          <SelectItem key={fund.id} value={fund.id}>
+                          <SelectItem key={fund.id} value={fund.id} className="text-white/90 hover:bg-white/10">
                             {fund.name} ({formatCurrency(fund.current_balance)})
                           </SelectItem>
                         ))}
@@ -376,43 +443,45 @@ export default function AdvancesPage() {
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="expected_return_date">Expected Return Date *</Label>
+                    <Label htmlFor="expected_return_date" className="text-white/90">Expected Return Date *</Label>
                     <Input
                       id="expected_return_date"
                       type="date"
                       value={advanceForm.expected_return_date}
                       onChange={(e) => setAdvanceForm({ ...advanceForm, expected_return_date: e.target.value })}
+                      className="bg-white/10 border-white/20 text-white placeholder:text-white/50 focus:border-white/40"
                       required
                     />
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="status">Status</Label>
+                  <Label htmlFor="status" className="text-white/90">Status</Label>
                   <Select value={advanceForm.status} onValueChange={(value) => setAdvanceForm({ ...advanceForm, status: value as 'outstanding' | 'partial' | 'returned' })}>
-                    <SelectTrigger>
+                    <SelectTrigger className="bg-white/10 border-white/20 text-white focus:border-white/40">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="outstanding">Outstanding</SelectItem>
-                      <SelectItem value="partial">Partial</SelectItem>
-                      <SelectItem value="returned">Returned</SelectItem>
+                    <SelectContent className="bg-white/10 backdrop-blur-xl border-white/20">
+                      <SelectItem value="outstanding" className="text-white/90 hover:bg-white/10">Outstanding</SelectItem>
+                      <SelectItem value="partial" className="text-white/90 hover:bg-white/10">Partial</SelectItem>
+                      <SelectItem value="returned" className="text-white/90 hover:bg-white/10">Returned</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="notes">Notes</Label>
+                  <Label htmlFor="notes" className="text-white/90">Notes</Label>
                   <Textarea
                     id="notes"
                     value={advanceForm.notes}
                     onChange={(e) => setAdvanceForm({ ...advanceForm, notes: e.target.value })}
                     placeholder="Additional notes or conditions"
+                    className="bg-white/10 border-white/20 text-white placeholder:text-white/50 focus:border-white/40"
                   />
                 </div>
                 <DialogFooter>
-                  <Button type="button" variant="outline" onClick={() => setAdvanceDialogOpen(false)}>
+                  <Button type="button" variant="outline" onClick={() => setAdvanceDialogOpen(false)} className="bg-white/10 border-white/20 text-white/90 hover:bg-white/20">
                     Cancel
                   </Button>
-                  <Button type="submit">
+                  <Button type="submit" className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0">
                     {editingAdvance ? 'Update Advance' : 'Create Advance'}
                   </Button>
                 </DialogFooter>
@@ -424,77 +493,108 @@ export default function AdvancesPage() {
 
       {/* Summary Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
+        <Card className="bg-white/10 backdrop-blur-xl border-white/20 hover:bg-white/15 transition-all duration-300 animate-fade-in animate-slide-in-from-bottom-4" style={{animationDelay: '100ms'}}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Outstanding</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-white/90">Total Outstanding</CardTitle>
+            <div className="p-2 bg-red-500/20 backdrop-blur-sm rounded-lg">
+              <DollarSign className="h-4 w-4 text-red-300" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(totalOutstanding)}</div>
-            <p className="text-xs text-muted-foreground">
+            <div className="text-2xl font-bold text-white">
+              <AnimatedCounter 
+                value={totalOutstanding} 
+                formatter={(v) => formatCurrency(v)}
+              />
+            </div>
+            <p className="text-xs text-white/60">
               {formatCurrency(totalAdvances)} total advances
             </p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="bg-white/10 backdrop-blur-xl border-white/20 hover:bg-white/15 transition-all duration-300 animate-fade-in animate-slide-in-from-bottom-4" style={{animationDelay: '200ms'}}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Repaid</CardTitle>
-            <TrendingUp className="h-4 w-4 text-green-500" />
+            <CardTitle className="text-sm font-medium text-white/90">Total Repaid</CardTitle>
+            <div className="p-2 bg-green-500/20 backdrop-blur-sm rounded-lg">
+              <TrendingUp className="h-4 w-4 text-green-300" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">{formatCurrency(totalRepaid)}</div>
-            <p className="text-xs text-muted-foreground">
-              {totalAdvances > 0 ? Math.round((totalRepaid / totalAdvances) * 100) : 0}% repayment rate
+            <div className="text-2xl font-bold text-green-300">
+              <AnimatedCounter 
+                value={totalRepaid} 
+                formatter={(v) => formatCurrency(v)}
+              />
+            </div>
+            <p className="text-xs text-white/60">
+              <AnimatedCounter 
+                value={totalAdvances > 0 ? Math.round((totalRepaid / totalAdvances) * 100) : 0}
+                formatter={(v) => `${Math.round(v)}%`}
+              /> repayment rate
             </p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="bg-white/10 backdrop-blur-xl border-white/20 hover:bg-white/15 transition-all duration-300 animate-fade-in animate-slide-in-from-bottom-4" style={{animationDelay: '300ms'}}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pending Approval</CardTitle>
-            <Users className="h-4 w-4 text-yellow-500" />
+            <CardTitle className="text-sm font-medium text-white/90">Outstanding</CardTitle>
+            <div className="p-2 bg-yellow-500/20 backdrop-blur-sm rounded-lg">
+              <Users className="h-4 w-4 text-yellow-300" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{outstandingAdvances}</div>
-            <p className="text-xs text-muted-foreground">
-                Outstanding advances
-              </p>
+            <div className="text-2xl font-bold text-white">
+              <AnimatedCounter value={outstandingAdvances} />
+            </div>
+            <p className="text-xs text-white/60">
+              Outstanding advances
+            </p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="bg-white/10 backdrop-blur-xl border-white/20 hover:bg-white/15 transition-all duration-300 animate-fade-in animate-slide-in-from-bottom-4" style={{animationDelay: '400ms'}}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Overdue</CardTitle>
-            <AlertCircle className="h-4 w-4 text-red-500" />
+            <CardTitle className="text-sm font-medium text-white/90">Overdue</CardTitle>
+            <div className="p-2 bg-red-500/20 backdrop-blur-sm rounded-lg">
+              <AlertCircle className="h-4 w-4 text-red-300" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600">{overdueAdvances.length}</div>
-            <p className="text-xs text-muted-foreground">
-              {formatCurrency(overdueAdvances.reduce((sum, a) => sum + (a.amount - a.amount_returned), 0))} overdue
+            <div className="text-2xl font-bold text-red-300">
+              <AnimatedCounter value={overdueAdvances.length} />
+            </div>
+            <p className="text-xs text-white/60">
+              <AnimatedCounter 
+                value={overdueAdvances.reduce((sum, a) => sum + (a.amount - a.amount_returned), 0)}
+                formatter={(v) => formatCurrency(v)}
+              /> overdue
             </p>
           </CardContent>
         </Card>
       </div>
 
       {/* Advances Table */}
-      <Card>
+      <Card className="bg-white/10 backdrop-blur-xl border-white/20 animate-fade-in animate-slide-in-from-bottom-4" style={{animationDelay: '500ms'}}>
         <CardHeader>
-          <CardTitle>Advance Records</CardTitle>
-          <CardDescription>Track all advance payments and their repayment status</CardDescription>
+          <CardTitle className="text-white/90 flex items-center gap-2">
+            <CreditCard className="h-5 w-5" />
+            Advance Records
+          </CardTitle>
+          <CardDescription className="text-white/60">Track all advance payments and their repayment status</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="rounded-md border">
+          <div className="rounded-md border border-white/20">
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="border-b bg-muted/50">
-                    <th className="h-12 px-4 text-left align-middle font-medium">Date</th>
-                    <th className="h-12 px-4 text-left align-middle font-medium">Recipient</th>
-                    <th className="h-12 px-4 text-left align-middle font-medium">Purpose</th>
-                    <th className="h-12 px-4 text-left align-middle font-medium">Amount</th>
-                    <th className="h-12 px-4 text-left align-middle font-medium">Repaid</th>
-                    <th className="h-12 px-4 text-left align-middle font-medium">Balance</th>
-                    <th className="h-12 px-4 text-left align-middle font-medium">Return Date</th>
-                    <th className="h-12 px-4 text-left align-middle font-medium">Status</th>
-                    <th className="h-12 px-4 text-left align-middle font-medium">Actions</th>
+                  <tr className="border-b border-white/20 bg-white/5">
+                    <th className="h-12 px-4 text-left align-middle font-medium text-white/70">Date</th>
+                    <th className="h-12 px-4 text-left align-middle font-medium text-white/70">Recipient</th>
+                    <th className="h-12 px-4 text-left align-middle font-medium text-white/70">Purpose</th>
+                    <th className="h-12 px-4 text-left align-middle font-medium text-white/70">Amount</th>
+                    <th className="h-12 px-4 text-left align-middle font-medium text-white/70">Repaid</th>
+                    <th className="h-12 px-4 text-left align-middle font-medium text-white/70">Balance</th>
+                    <th className="h-12 px-4 text-left align-middle font-medium text-white/70">Return Date</th>
+                    <th className="h-12 px-4 text-left align-middle font-medium text-white/70">Status</th>
+                    <th className="h-12 px-4 text-left align-middle font-medium text-white/70">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -504,27 +604,27 @@ export default function AdvancesPage() {
                     const remainingBalance = advance.amount - advance.amount_returned
                     
                     return (
-                      <tr key={advance.id} className="border-b">
-                        <td className="p-4">{new Date(advance.created_at).toLocaleDateString()}</td>
-                        <td className="p-4 font-medium">{advance.recipient_name}</td>
-                        <td className="p-4 max-w-xs truncate">{advance.purpose}</td>
-                        <td className="p-4 font-medium">{formatCurrency(advance.amount)}</td>
+                      <tr key={advance.id} className={`border-b border-white/10 hover:bg-white/5 transition-colors ${isOverdue ? 'bg-red-500/10' : ''}`}>
+                        <td className="p-4 text-white/90">{new Date(advance.created_at).toLocaleDateString()}</td>
+                        <td className="p-4 font-medium text-white/90">{advance.recipient_name}</td>
+                        <td className="p-4 max-w-xs truncate text-white/90">{advance.purpose}</td>
+                        <td className="p-4 font-medium text-white/90">{formatCurrency(advance.amount)}</td>
                         <td className="p-4">
                           <div className="flex items-center gap-1">
-                            <TrendingDown className="w-3 h-3 text-green-500" />
-                            <span className="text-green-600 font-medium">{formatCurrency(advance.amount_returned)}</span>
+                            <TrendingDown className="w-3 h-3 text-green-400" />
+                            <span className="text-green-300 font-medium">{formatCurrency(advance.amount_returned)}</span>
                           </div>
                         </td>
                         <td className="p-4">
                           <div className="flex items-center gap-1">
-                            <TrendingUp className="w-3 h-3 text-red-500" />
-                            <span className={`font-medium ${remainingBalance > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                            <TrendingUp className="w-3 h-3 text-red-400" />
+                            <span className={`font-medium ${remainingBalance > 0 ? 'text-red-300' : 'text-green-300'}`}>
                               {formatCurrency(remainingBalance)}
                             </span>
                           </div>
                         </td>
                         <td className="p-4">
-                          <div className={isOverdue ? 'text-red-600 font-medium' : ''}>
+                          <div className={isOverdue ? 'text-red-300 font-medium' : 'text-white/90'}>
                             {returnDate.toLocaleDateString()}
                             {isOverdue && <AlertCircle className="inline w-4 h-4 ml-1" />}
                           </div>
@@ -536,6 +636,7 @@ export default function AdvancesPage() {
                               isOverdue ? 'destructive' :
                               advance.status === 'partial' ? 'warning' : 'secondary'
                             }
+                            className={`${isOverdue ? 'bg-red-500/20 text-red-300 border-red-500/30' : advance.status === 'returned' ? 'bg-green-500/20 text-green-300 border-green-500/30' : advance.status === 'partial' ? 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30' : 'bg-gray-500/20 text-gray-300 border-gray-500/30'} backdrop-blur-sm`}
                           >
                             {isOverdue && advance.status !== 'returned' ? 'overdue' : advance.status}
                           </Badge>
@@ -544,23 +645,23 @@ export default function AdvancesPage() {
                           {(hasRole('Admin') || hasRole('Treasurer')) && (
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" className="h-8 w-8 p-0">
+                                <Button variant="ghost" className="h-8 w-8 p-0 text-white/70 hover:text-white hover:bg-white/10">
                                   <MoreHorizontal className="h-4 w-4" />
                                 </Button>
                               </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => openAdvanceDialog(advance)}>
+                              <DropdownMenuContent align="end" className="bg-white/10 backdrop-blur-xl border-white/20">
+                                <DropdownMenuItem onClick={() => openAdvanceDialog(advance)} className="text-white/90 hover:bg-white/10">
                                   Edit
                                 </DropdownMenuItem>
                                 {advance.status === 'outstanding' || advance.status === 'partial' ? (
-                                  <DropdownMenuItem onClick={() => openRepaymentDialog(advance)}>
+                                  <DropdownMenuItem onClick={() => openRepaymentDialog(advance)} className="text-white/90 hover:bg-white/10">
                                     Record Repayment
                                   </DropdownMenuItem>
                                 ) : null}
 
                                 <DropdownMenuItem 
                                   onClick={() => deleteAdvance(advance.id)}
-                                  className="text-red-600"
+                                  className="text-red-300 hover:bg-red-500/10"
                                 >
                                   Delete
                                 </DropdownMenuItem>
@@ -575,7 +676,7 @@ export default function AdvancesPage() {
               </table>
             </div>
             {advances.length === 0 && (
-              <div className="text-center py-8 text-muted-foreground">
+              <div className="text-center py-8 text-white/60">
                 No advances found. Create your first advance to get started.
               </div>
             )}
@@ -585,33 +686,33 @@ export default function AdvancesPage() {
 
       {/* Repayment Dialog */}
       <Dialog open={repaymentDialogOpen} onOpenChange={setRepaymentDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-[425px] bg-white/10 backdrop-blur-xl border-white/20">
           <DialogHeader>
-            <DialogTitle>Record Repayment</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="text-white/90">Record Repayment</DialogTitle>
+            <DialogDescription className="text-white/60">
               Record a repayment for {selectedAdvanceForRepayment?.recipient_name}&apos;s advance
             </DialogDescription>
           </DialogHeader>
           {selectedAdvanceForRepayment && (
             <div className="space-y-4">
-              <div className="bg-muted p-4 rounded-lg space-y-2">
+              <div className="bg-white/5 p-4 rounded-lg space-y-2">
                 <div className="flex justify-between">
-                  <span className="text-sm text-muted-foreground">Original Amount:</span>
-                  <span className="font-medium">{formatCurrency(selectedAdvanceForRepayment.amount)}</span>
+                  <span className="text-sm text-white/60">Original Amount:</span>
+                  <span className="font-medium text-white/90">{formatCurrency(selectedAdvanceForRepayment.amount)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-sm text-muted-foreground">Already Repaid:</span>
-                  <span className="font-medium text-green-600">{formatCurrency(selectedAdvanceForRepayment.amount_returned)}</span>
+                  <span className="text-sm text-white/60">Already Repaid:</span>
+                  <span className="font-medium text-green-300">{formatCurrency(selectedAdvanceForRepayment.amount_returned)}</span>
                 </div>
-                <div className="flex justify-between border-t pt-2">
-                  <span className="text-sm font-medium">Remaining Balance:</span>
-                  <span className="font-bold">{formatCurrency(selectedAdvanceForRepayment.amount - selectedAdvanceForRepayment.amount_returned)}</span>
+                <div className="flex justify-between border-t border-white/20 pt-2">
+                  <span className="text-sm font-medium text-white/90">Remaining Balance:</span>
+                  <span className="font-bold text-white">{formatCurrency(selectedAdvanceForRepayment.amount - selectedAdvanceForRepayment.amount_returned)}</span>
                 </div>
               </div>
               
               <form onSubmit={handleRepaymentSubmit} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="repayment_amount">Repayment Amount *</Label>
+                  <Label htmlFor="repayment_amount" className="text-white/90">Repayment Amount *</Label>
                   <Input
                     id="repayment_amount"
                     type="number"
@@ -621,23 +722,25 @@ export default function AdvancesPage() {
                     value={repaymentForm.amount}
                     onChange={(e) => setRepaymentForm({ ...repaymentForm, amount: e.target.value })}
                     placeholder="Enter repayment amount"
+                    className="bg-white/10 border-white/20 text-white placeholder:text-white/50 focus:border-white/40"
                     required
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="repayment_notes">Notes</Label>
+                  <Label htmlFor="repayment_notes" className="text-white/90">Notes</Label>
                   <Textarea
                     id="repayment_notes"
                     value={repaymentForm.notes}
                     onChange={(e) => setRepaymentForm({ ...repaymentForm, notes: e.target.value })}
                     placeholder="Additional notes about this repayment"
+                    className="bg-white/10 border-white/20 text-white placeholder:text-white/50 focus:border-white/40"
                   />
                 </div>
                 <DialogFooter>
-                  <Button type="button" variant="outline" onClick={() => setRepaymentDialogOpen(false)}>
+                  <Button type="button" variant="outline" onClick={() => setRepaymentDialogOpen(false)} className="bg-white/10 border-white/20 text-white/90 hover:bg-white/20">
                     Cancel
                   </Button>
-                  <Button type="submit">
+                  <Button type="submit" className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white border-0">
                     Record Repayment
                   </Button>
                 </DialogFooter>

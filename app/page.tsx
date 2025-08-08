@@ -15,7 +15,6 @@ import {
   Shield,
   Zap,
   Star,
-  Building2,
   Clock
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
@@ -100,11 +99,11 @@ export default function HomePage(): JSX.Element {
   ]
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 relative overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 relative overflow-hidden">
       {/* Animated Background Elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div
-          className="absolute w-96 h-96 bg-gradient-to-r from-blue-400/20 to-purple-400/20 rounded-full blur-3xl animate-pulse"
+          className="absolute w-96 h-96 bg-gradient-to-r from-blue-500/30 to-purple-500/30 rounded-full blur-3xl animate-pulse"
           style={{
             transform: `translate(${mousePosition.x * 0.02}px, ${mousePosition.y * 0.02}px)`,
             top: '10%',
@@ -112,7 +111,7 @@ export default function HomePage(): JSX.Element {
           }}
         />
         <div
-          className="absolute w-80 h-80 bg-gradient-to-r from-pink-400/20 to-orange-400/20 rounded-full blur-3xl animate-pulse"
+          className="absolute w-80 h-80 bg-gradient-to-r from-pink-500/30 to-orange-500/30 rounded-full blur-3xl animate-pulse"
           style={{
             transform: `translate(${mousePosition.x * -0.01}px, ${mousePosition.y * -0.01}px)`,
             top: '60%',
@@ -121,7 +120,7 @@ export default function HomePage(): JSX.Element {
           }}
         />
         <div
-          className="absolute w-64 h-64 bg-gradient-to-r from-green-400/20 to-cyan-400/20 rounded-full blur-3xl animate-pulse"
+          className="absolute w-64 h-64 bg-gradient-to-r from-green-500/30 to-cyan-500/30 rounded-full blur-3xl animate-pulse"
           style={{
             transform: `translate(${mousePosition.x * 0.015}px, ${mousePosition.y * 0.015}px)`,
             bottom: '20%',
@@ -129,6 +128,9 @@ export default function HomePage(): JSX.Element {
             animationDelay: '2s'
           }}
         />
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-900/20 via-purple-900/20 to-pink-900/20 animate-pulse" style={{ animationDuration: '4s' }} />
+        <div className="absolute top-1/4 left-1/4 w-32 h-32 bg-white/5 rounded-full blur-xl animate-bounce" style={{ animationDuration: '3s' }} />
+        <div className="absolute bottom-1/4 right-1/4 w-24 h-24 bg-white/5 rounded-full blur-xl animate-bounce" style={{ animationDuration: '4s', animationDelay: '1s' }} />
       </div>
 
       {/* Hero Section */}
@@ -137,22 +139,22 @@ export default function HomePage(): JSX.Element {
           <div className={`text-center transition-all duration-1000 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
             {/* Main Heading */}
             <div className="mb-8">
-              <h1 className="text-6xl md:text-7xl font-bold bg-gradient-to-r from-gray-900 via-blue-900 to-purple-900 bg-clip-text text-transparent mb-6 leading-tight">
+              <h1 className="text-6xl md:text-7xl font-bold bg-gradient-to-r from-white via-blue-200 to-purple-200 bg-clip-text text-transparent mb-6 leading-tight">
                 Church Finance
                 <br />
-                <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                <span className="bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
                   Management
                 </span>
               </h1>
-              <div className="w-24 h-1 bg-gradient-to-r from-blue-500 to-purple-500 mx-auto mb-8 rounded-full" />
+              <div className="w-24 h-1 bg-gradient-to-r from-blue-400 to-purple-400 mx-auto mb-8 rounded-full shadow-lg" />
             </div>
 
             {/* Subtitle */}
-            <p className="text-xl md:text-2xl text-gray-600 max-w-4xl mx-auto mb-12 leading-relaxed">
+            <p className="text-xl md:text-2xl text-gray-300 max-w-4xl mx-auto mb-12 leading-relaxed">
               Transform your church&apos;s financial operations with our
-              <span className="font-semibold text-blue-600"> award-winning </span>
+              <span className="font-semibold text-blue-400"> award-winning </span>
               management platform. Streamline donations, track expenses, and generate insights
-              <span className="font-semibold text-purple-600"> effortlessly</span>.
+              <span className="font-semibold text-purple-400"> effortlessly</span>.
             </p>
 
             {/* Benefits Grid */}
@@ -162,11 +164,13 @@ export default function HomePage(): JSX.Element {
                 return (
                   <div
                     key={index}
-                    className={`flex flex-col items-center p-4 rounded-2xl bg-white/60 backdrop-blur-sm border border-white/20 shadow-lg hover:shadow-xl transition-all duration-500 hover:scale-105 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}
+                    className={`flex flex-col items-center p-6 rounded-2xl bg-white/10 backdrop-blur-xl border border-white/20 shadow-lg hover:shadow-xl hover:bg-white/15 transition-all duration-500 hover:scale-105 group ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}
                     style={{ animationDelay: `${index * 100 + 500}ms` }}
                   >
-                    <Icon className="h-8 w-8 text-blue-600 mb-2" />
-                    <span className="text-sm font-medium text-gray-700 text-center leading-tight">
+                    <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center mb-3 group-hover:scale-110 transition-transform duration-300 shadow-lg">
+                      <Icon className="h-6 w-6 text-white" />
+                    </div>
+                    <span className="text-sm font-medium text-gray-200 text-center leading-tight group-hover:text-white transition-colors duration-300">
                       {benefit.text}
                     </span>
                   </div>
@@ -188,7 +192,7 @@ export default function HomePage(): JSX.Element {
                 <Button
                   variant="outline"
                   size="lg"
-                  className="px-8 py-4 border-2 border-gray-300 hover:border-blue-500 bg-white/80 backdrop-blur-sm hover:bg-white text-gray-700 hover:text-blue-600 font-semibold rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+                  className="px-8 py-4 border-2 border-white/30 hover:border-white/50 bg-white/10 backdrop-blur-xl hover:bg-white/20 text-gray-200 hover:text-white font-semibold rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
                 >
                   Create Free Account
                 </Button>
@@ -202,10 +206,10 @@ export default function HomePage(): JSX.Element {
       <div className="relative z-10 py-20">
         <div className="container mx-auto px-4">
           <div className={`text-center mb-16 transition-all duration-1000 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
-            <h2 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-gray-900 to-blue-900 bg-clip-text text-transparent mb-6">
+            <h2 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-white to-blue-200 bg-clip-text text-transparent mb-6">
               Powerful Features
             </h2>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+            <p className="text-xl text-gray-300 max-w-3xl mx-auto">
               Everything you need to manage your church finances with confidence and precision
             </p>
           </div>
@@ -221,30 +225,30 @@ export default function HomePage(): JSX.Element {
                   className={`group block transition-all duration-700 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}
                   style={{ animationDelay: `${feature.delay}ms` }}
                 >
-                  <div className="relative h-full p-8 bg-white/70 backdrop-blur-sm border border-white/20 rounded-3xl shadow-lg hover:shadow-2xl transition-all duration-500 hover:scale-[1.02] hover:bg-white/90 overflow-hidden group-hover:border-white/40">
+                  <div className="relative h-full p-8 bg-white/10 backdrop-blur-xl border border-white/20 rounded-3xl shadow-lg hover:shadow-2xl transition-all duration-500 hover:scale-[1.02] hover:bg-white/15 overflow-hidden group-hover:border-white/40">
                     {/* Gradient Background */}
                     <div className={`absolute inset-0 opacity-0 group-hover:opacity-10 transition-all duration-700 bg-gradient-to-br ${feature.gradient}`} />
 
                     {/* Content */}
-                    <div className="relative z-10">
-                      <div className="flex items-center mb-6">
-                        <div className="p-4 bg-gradient-to-br from-blue-500/10 to-purple-500/10 rounded-2xl mr-4 group-hover:scale-110 transition-transform duration-300">
-                          <Icon className="h-8 w-8 text-blue-600 group-hover:text-white transition-colors duration-300" />
+                      <div className="relative z-10">
+                        <div className="flex items-center mb-6">
+                          <div className="p-4 bg-gradient-to-br from-blue-500/20 to-purple-500/20 rounded-2xl mr-4 group-hover:scale-110 transition-transform duration-300 border border-white/10">
+                            <Icon className="h-8 w-8 text-blue-400 group-hover:text-white transition-colors duration-300" />
+                          </div>
+                          <h3 className="text-xl font-bold text-gray-200 group-hover:text-white transition-colors duration-300">
+                            {feature.title}
+                          </h3>
                         </div>
-                        <h3 className="text-xl font-bold text-gray-900 group-hover:text-white transition-colors duration-300">
-                          {feature.title}
-                        </h3>
-                      </div>
-                      <p className="text-gray-600 group-hover:text-white/90 leading-relaxed transition-colors duration-300">
-                        {feature.description}
-                      </p>
+                        <p className="text-gray-300 group-hover:text-white/90 leading-relaxed transition-colors duration-300">
+                          {feature.description}
+                        </p>
 
-                      {/* Hover Arrow */}
-                      <div className="flex items-center mt-6 text-blue-600 group-hover:text-white transition-colors duration-300">
-                        <span className="text-sm font-semibold mr-2">Learn More</span>
-                        <ArrowRight className="h-4 w-4 group-hover:translate-x-2 transition-transform duration-300" />
+                        {/* Hover Arrow */}
+                        <div className="flex items-center mt-6 text-blue-400 group-hover:text-white transition-colors duration-300">
+                          <span className="text-sm font-semibold mr-2">Learn More</span>
+                          <ArrowRight className="h-4 w-4 group-hover:translate-x-2 transition-transform duration-300" />
+                        </div>
                       </div>
-                    </div>
 
                     {/* Decorative Elements */}
                     <div className="absolute -top-4 -right-4 w-24 h-24 bg-gradient-to-br from-blue-400/20 to-purple-400/20 rounded-full blur-xl group-hover:scale-150 transition-transform duration-500" />
@@ -260,29 +264,27 @@ export default function HomePage(): JSX.Element {
 
 
       {/* Stats Section */}
-      <div className="relative z-10 py-20 bg-white/30 backdrop-blur-sm">
+      <div className="relative z-10 py-20 bg-gradient-to-r from-slate-800/50 to-purple-800/50">
         <div className="container mx-auto px-4">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             {[
-              { number: '500+', label: 'Churches Served', icon: Building2 },
-              { number: '৳10M+', label: 'Funds Managed', icon: TrendingUp },
-              { number: '99.9%', label: 'Uptime Guarantee', icon: Shield },
-              { number: '24/7', label: 'Support Available', icon: Clock }
+              { icon: Users, label: "Churches Served", value: "500+", color: "from-blue-500 to-blue-600" },
+              { icon: DollarSign, label: "Funds Managed", value: "$2M+", color: "from-green-500 to-green-600" },
+              { icon: Shield, label: "Security Rating", value: "A+", color: "from-purple-500 to-purple-600" },
+              { icon: Clock, label: "Uptime", value: "99.9%", color: "from-orange-500 to-orange-600" }
             ].map((stat, index) => {
-              const Icon = stat.icon
+              const Icon = stat.icon;
               return (
-                <div
-                  key={index}
-                  className={`text-center transition-all duration-700 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}
-                  style={{ animationDelay: `${index * 100 + 1000}ms` }}
-                >
-                  <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-500 rounded-2xl mb-4 shadow-lg">
-                    <Icon className="h-8 w-8 text-white" />
+                <div key={index} className="text-center group">
+                  <div className="inline-flex items-center justify-center w-16 h-16 mb-4 bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 group-hover:scale-110 transition-transform duration-300">
+                    <div className={`p-3 bg-gradient-to-br ${stat.color} rounded-xl shadow-lg`}>
+                      <Icon className="h-6 w-6 text-white" />
+                    </div>
                   </div>
-                  <div className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">{stat.number}</div>
-                  <div className="text-gray-600 font-medium">{stat.label}</div>
+                  <div className="text-3xl font-bold text-white mb-2">{stat.value}</div>
+                  <div className="text-gray-300">{stat.label}</div>
                 </div>
-              )
+              );
             })}
           </div>
         </div>
@@ -293,14 +295,14 @@ export default function HomePage(): JSX.Element {
         <div className="container mx-auto px-4">
           <div className="max-w-4xl mx-auto text-center">
             <div className={`transition-all duration-1000 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
-              <h2 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-gray-900 to-blue-900 bg-clip-text text-transparent mb-6">
+              <h2 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-white to-blue-200 bg-clip-text text-transparent mb-6">
                 Ready to Transform Your
                 <br />
-                <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                <span className="bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
                   Church Finances?
                 </span>
               </h2>
-              <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
+              <p className="text-xl text-gray-300 mb-8 max-w-2xl mx-auto">
                 Join hundreds of churches already using our platform to streamline their financial operations and focus on what matters most.
               </p>
 
@@ -313,8 +315,8 @@ export default function HomePage(): JSX.Element {
                     </span>
                   </Button>
                 </Link>
-                <div className="flex items-center gap-2 text-gray-600">
-                  <CheckCircle className="h-5 w-5 text-green-500" />
+                <div className="flex items-center gap-2 text-gray-300">
+                  <CheckCircle className="h-5 w-5 text-green-400" />
                   <span className="text-sm font-medium">No credit card required</span>
                 </div>
               </div>

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -13,7 +13,7 @@ import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { formatCurrency, formatDate, formatDateForInput, isOverdue } from '@/lib/utils'
-import { Plus, MoreHorizontal, AlertTriangle, CheckCircle, Clock, Receipt } from 'lucide-react'
+import { Plus, MoreHorizontal, AlertTriangle, CheckCircle, Clock, Receipt, FileText, CreditCard } from 'lucide-react'
 import { toast } from 'sonner'
 import type { Database } from '@/types/database'
 
@@ -39,7 +39,7 @@ interface PettyCashForm {
   receipt_available: boolean
 }
 
-export default function BillsPage() {
+export default function BillsPage(): JSX.Element {
   const { hasRole } = useAuth()
   const [bills, setBills] = useState<Bill[]>([])
   const [pettyCash, setPettyCash] = useState<PettyCash[]>([])
@@ -74,7 +74,7 @@ export default function BillsPage() {
   const fetchData = async () => {
     try {
       setLoading(true)
-      
+
       // Fetch bills
       const { data: billsData, error: billsError } = await supabase
         .from('bills')
@@ -112,7 +112,7 @@ export default function BillsPage() {
 
   const handleBillSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (!billForm.vendor_name || !billForm.amount || !billForm.due_date || !billForm.fund_id) {
       toast.error('Please fill in all required fields')
       return
@@ -163,7 +163,7 @@ export default function BillsPage() {
 
   const handlePettyCashSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (!pettyCashForm.amount || !pettyCashForm.purpose || !pettyCashForm.transaction_date || !pettyCashForm.approved_by) {
       toast.error('Please fill in all required fields')
       return
@@ -332,382 +332,554 @@ export default function BillsPage() {
   const pendingPettyCash = pettyCash // All petty cash items
   const totalPettyCashAmount = pettyCash.reduce((sum, pc) => sum + pc.amount, 0)
 
+  // Animated Counter Component
+  const AnimatedCounter = ({ value, prefix = '', suffix = '' }: { value: number; prefix?: string; suffix?: string }) => {
+    const [count, setCount] = useState(0)
+    const [isVisible, setIsVisible] = useState(false)
+    const counterRef = useRef<HTMLDivElement>(null)
+
+    useEffect(() => {
+      const observer = new IntersectionObserver(
+        ([entry]) => {
+          if (entry.isIntersecting && !isVisible) {
+            setIsVisible(true)
+            const duration = 1000
+            const steps = 60
+            const increment = value / steps
+            let current = 0
+
+            const timer = setInterval(() => {
+              current += increment
+              if (current >= value) {
+                setCount(value)
+                clearInterval(timer)
+              } else {
+                setCount(Math.floor(current))
+              }
+            }, duration / steps)
+
+            return () => clearInterval(timer)
+          }
+        },
+        { threshold: 0.1 }
+      )
+
+      if (counterRef.current) {
+        observer.observe(counterRef.current)
+      }
+
+      return () => observer.disconnect()
+    }, [value, isVisible])
+
+    return (
+      <div ref={counterRef} className="text-2xl font-bold">
+        {prefix}{count}{suffix}
+      </div>
+    )
+  }
+
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-lg">Loading bills and petty cash...</div>
+      <div className="min-h-screen gradient-background relative overflow-hidden">
+        {/* Animated background elements */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute -top-40 -right-40 w-80 h-80 bg-purple-500/10 rounded-full blur-3xl animate-pulse"></div>
+          <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-blue-500/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }}></div>
+          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-indigo-500/5 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '4s' }}></div>
+        </div>
+
+        <div className="container mx-auto p-6">
+          <div className="flex items-center justify-center h-64">
+            <div className="text-center">
+              <div className="relative">
+                <div className="animate-spin rounded-full h-12 w-12 border-4 border-white/20 border-t-white/80 mx-auto mb-4"></div>
+                <div className="animate-spin rounded-full h-8 w-8 border-4 border-white/10 border-t-white/60 mx-auto absolute top-2 left-1/2 transform -translate-x-1/2" style={{ animationDirection: 'reverse', animationDuration: '1.5s' }}></div>
+              </div>
+              <p className="text-white/80 font-medium">Loading bills and petty cash...</p>
+            </div>
+          </div>
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Bills &amp; Petty Cash</h1>
-          <p className="text-muted-foreground">Manage bills, payments, and petty cash requests</p>
-        </div>
-        <div className="flex gap-2">
-          {hasRole('Admin') && (
-            <>
-              <Dialog open={billDialogOpen} onOpenChange={setBillDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button variant="outline" onClick={() => openBillDialog()}>
-                    <Plus className="mr-2 h-4 w-4" />
-                    Add Bill
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-[500px]">
-                  <DialogHeader>
-                    <DialogTitle>{editingBill ? 'Edit Bill' : 'Add New Bill'}</DialogTitle>
-                    <DialogDescription>
-                      {editingBill ? 'Update bill information' : 'Create a new bill or recurring payment'}
-                    </DialogDescription>
-                  </DialogHeader>
-                  <form onSubmit={handleBillSubmit} className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="vendor_name">Vendor *</Label>
-                        <Input
-                          id="vendor_name"
-                          value={billForm.vendor_name}
-                          onChange={(e) => setBillForm({ ...billForm, vendor_name: e.target.value })}
-                          placeholder="Vendor name"
-                          required
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="amount">Amount *</Label>
-                        <Input
-                          id="amount"
-                          type="number"
-                          step="0.01"
-                          min="0.01"
-                          value={billForm.amount}
-                          onChange={(e) => setBillForm({ ...billForm, amount: e.target.value })}
-                          required
-                        />
-                      </div>
-                    </div>
+    <div className="min-h-screen gradient-background relative overflow-hidden">
+      {/* Animated background elements */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-purple-500/10 rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-blue-500/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }}></div>
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-indigo-500/5 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '4s' }}></div>
+      </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="due_date">Due Date *</Label>
-                        <Input
-                          id="due_date"
-                          type="date"
-                          value={billForm.due_date}
-                          onChange={(e) => setBillForm({ ...billForm, due_date: e.target.value })}
-                          required
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="fund_id">Fund *</Label>
-                        <Select value={billForm.fund_id} onValueChange={(value) => setBillForm({ ...billForm, fund_id: value })}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select fund" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {funds.map((fund) => (
-                              <SelectItem key={fund.id} value={fund.id}>
-                                {fund.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="category">Category</Label>
-                        <Input
-                          id="category"
-                          value={billForm.category}
-                          onChange={(e) => setBillForm({ ...billForm, category: e.target.value })}
-                          placeholder="e.g., Utilities, Maintenance"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="status">Status</Label>
-                        <Select value={billForm.status} onValueChange={(value: 'pending' | 'paid' | 'overdue') => setBillForm({ ...billForm, status: value })}>
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="pending">Pending</SelectItem>
-                            <SelectItem value="paid">Paid</SelectItem>
-                            <SelectItem value="overdue">Overdue</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="frequency">Frequency</Label>
-                      <Select value={billForm.frequency} onValueChange={(value: 'one-time' | 'monthly' | 'quarterly' | 'yearly') => setBillForm({ ...billForm, frequency: value })}>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="one-time">One-time</SelectItem>
-                          <SelectItem value="monthly">Monthly</SelectItem>
-                          <SelectItem value="quarterly">Quarterly</SelectItem>
-                          <SelectItem value="yearly">Yearly</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <DialogFooter>
-                      <Button type="button" variant="outline" onClick={() => setBillDialogOpen(false)}>
-                        Cancel
-                      </Button>
-                      <Button type="submit">
-                        {editingBill ? 'Update Bill' : 'Create Bill'}
-                      </Button>
-                    </DialogFooter>
-                  </form>
-                </DialogContent>
-              </Dialog>
-              
-              <Dialog open={pettyCashDialogOpen} onOpenChange={setPettyCashDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button onClick={() => openPettyCashDialog()}>
-                    <Plus className="mr-2 h-4 w-4" />
-                    Petty Cash
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-[500px]">
-                  <DialogHeader>
-                    <DialogTitle>{editingPettyCash ? 'Edit Petty Cash' : 'New Petty Cash Request'}</DialogTitle>
-                    <DialogDescription>
-                      {editingPettyCash ? 'Update petty cash information' : 'Create a new petty cash request'}
-                    </DialogDescription>
-                  </DialogHeader>
-                  <form onSubmit={handlePettyCashSubmit} className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="amount">Amount *</Label>
-                        <Input
-                          id="amount"
-                          type="number"
-                          step="0.01"
-                          min="0.01"
-                          value={pettyCashForm.amount}
-                          onChange={(e) => setPettyCashForm({ ...pettyCashForm, amount: e.target.value })}
-                          required
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="transaction_date">Transaction Date *</Label>
-                        <Input
-                          id="transaction_date"
-                          type="date"
-                          value={pettyCashForm.transaction_date}
-                          onChange={(e) => setPettyCashForm({ ...pettyCashForm, transaction_date: e.target.value })}
-                          required
-                        />
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="purpose">Purpose *</Label>
-                      <Textarea
-                        id="purpose"
-                        value={pettyCashForm.purpose}
-                        onChange={(e) => setPettyCashForm({ ...pettyCashForm, purpose: e.target.value })}
-                        placeholder="What is this for?"
-                        required
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="approved_by">Approved By</Label>
-                        <Input
-                          id="approved_by"
-                          value={pettyCashForm.approved_by}
-                          onChange={(e) => setPettyCashForm({ ...pettyCashForm, approved_by: e.target.value })}
-                          placeholder="Approver name"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="receipt_available">Receipt Available</Label>
-                        <div className="flex items-center space-x-2">
-                          <input
-                            type="checkbox"
-                            id="receipt_available"
-                            checked={pettyCashForm.receipt_available}
-                            onChange={(e) => setPettyCashForm({ ...pettyCashForm, receipt_available: e.target.checked })}
+      <div className="relative z-10 space-y-6 animate-fade-in p-6">
+        <div className="flex justify-between items-center animate-in slide-in-from-top-4 duration-700">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent">
+              Bills &amp; Petty Cash
+            </h1>
+            <p className="text-white/70 mt-1">Manage bills, payments, and petty cash requests</p>
+          </div>
+          <div className="flex gap-2">
+            {hasRole('Admin') && (
+              <>
+                <Dialog open={billDialogOpen} onOpenChange={setBillDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" onClick={() => openBillDialog()}>
+                      <Plus className="mr-2 h-4 w-4" />
+                      Add Bill
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-[500px] bg-black/80 backdrop-blur-xl border border-white/20">
+                    <DialogHeader>
+                      <DialogTitle className="bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent">{editingBill ? 'Edit Bill' : 'Add New Bill'}</DialogTitle>
+                      <DialogDescription className="text-white/70">
+                        {editingBill ? 'Update bill information' : 'Create a new bill or recurring payment'}
+                      </DialogDescription>
+                    </DialogHeader>
+                    <form onSubmit={handleBillSubmit} className="space-y-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="vendor_name" className="text-white">Vendor *</Label>
+                          <Input
+                            id="vendor_name"
+                            value={billForm.vendor_name}
+                            onChange={(e) => setBillForm({ ...billForm, vendor_name: e.target.value })}
+                            placeholder="Vendor name"
+                            className="bg-white/10 backdrop-blur-xl border border-white/20 text-white placeholder:text-white/50"
+                            required
                           />
-                          <Label htmlFor="receipt_available">Receipt is available</Label>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="amount" className="text-white">Amount *</Label>
+                          <Input
+                            id="amount"
+                            type="number"
+                            step="0.01"
+                            min="0.01"
+                            value={billForm.amount}
+                            onChange={(e) => setBillForm({ ...billForm, amount: e.target.value })}
+                            className="bg-white/10 backdrop-blur-xl border border-white/20 text-white placeholder:text-white/50"
+                            required
+                          />
                         </div>
                       </div>
-                    </div>
-                    <DialogFooter>
-                      <Button type="button" variant="outline" onClick={() => setPettyCashDialogOpen(false)}>
-                        Cancel
-                      </Button>
-                      <Button type="submit">
-                        {editingPettyCash ? 'Update Request' : 'Create Request'}
-                      </Button>
-                    </DialogFooter>
-                  </form>
-                </DialogContent>
-              </Dialog>
-            </>
-          )}
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="due_date" className="text-white">Due Date *</Label>
+                          <Input
+                            id="due_date"
+                            type="date"
+                            value={billForm.due_date}
+                            onChange={(e) => setBillForm({ ...billForm, due_date: e.target.value })}
+                            className="bg-white/10 backdrop-blur-xl border border-white/20 text-white placeholder:text-white/50"
+                            required
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="fund_id" className="text-white">Fund *</Label>
+                          <Select value={billForm.fund_id} onValueChange={(value) => setBillForm({ ...billForm, fund_id: value })}>
+                            <SelectTrigger className="bg-white/10 backdrop-blur-xl border border-white/20 text-white">
+                              <SelectValue placeholder="Select fund" className="text-white/50" />
+                            </SelectTrigger>
+                            <SelectContent className="bg-black/80 backdrop-blur-xl border border-white/20 rounded-xl">
+                              {funds.map((fund) => (
+                                <SelectItem key={fund.id} value={fund.id} className="text-white hover:bg-white/10 focus:bg-white/10">
+                                  {fund.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="category" className="text-white">Category</Label>
+                          <Input
+                            id="category"
+                            value={billForm.category}
+                            onChange={(e) => setBillForm({ ...billForm, category: e.target.value })}
+                            placeholder="e.g., Utilities, Maintenance"
+                            className="bg-white/10 backdrop-blur-xl border border-white/20 text-white placeholder:text-white/50"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="status" className="text-white">Status</Label>
+                          <Select value={billForm.status} onValueChange={(value: 'pending' | 'paid' | 'overdue') => setBillForm({ ...billForm, status: value })}>
+                            <SelectTrigger className="bg-white/10 backdrop-blur-xl border border-white/20 text-white">
+                              <SelectValue className="text-white/50" />
+                            </SelectTrigger>
+                            <SelectContent className="bg-black/80 backdrop-blur-xl border border-white/20 rounded-xl">
+                              <SelectItem value="pending" className="text-white hover:bg-white/10 focus:bg-white/10">Pending</SelectItem>
+                              <SelectItem value="paid" className="text-white hover:bg-white/10 focus:bg-white/10">Paid</SelectItem>
+                              <SelectItem value="overdue" className="text-white hover:bg-white/10 focus:bg-white/10">Overdue</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="frequency" className="text-white">Frequency</Label>
+                        <Select value={billForm.frequency} onValueChange={(value: 'one-time' | 'monthly' | 'quarterly' | 'yearly') => setBillForm({ ...billForm, frequency: value })}>
+                          <SelectTrigger className="bg-white/10 backdrop-blur-xl border border-white/20 text-white">
+                            <SelectValue className="text-white/50" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-black/80 backdrop-blur-xl border border-white/20 rounded-xl">
+                            <SelectItem value="one-time" className="text-white hover:bg-white/10 focus:bg-white/10">One-time</SelectItem>
+                            <SelectItem value="monthly" className="text-white hover:bg-white/10 focus:bg-white/10">Monthly</SelectItem>
+                            <SelectItem value="quarterly" className="text-white hover:bg-white/10 focus:bg-white/10">Quarterly</SelectItem>
+                            <SelectItem value="yearly" className="text-white hover:bg-white/10 focus:bg-white/10">Yearly</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <DialogFooter>
+                        <Button type="button" variant="outline" onClick={() => setBillDialogOpen(false)} className="bg-white/10 backdrop-blur-xl border border-white/20 text-white hover:bg-white/15 hover:scale-105 transition-all duration-300">
+                          Cancel
+                        </Button>
+                        <Button type="submit" className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white border-0 hover:scale-105 transition-all duration-300">
+                          {editingBill ? 'Update Bill' : 'Create Bill'}
+                        </Button>
+                      </DialogFooter>
+                    </form>
+                  </DialogContent>
+                </Dialog>
+
+                <Dialog open={pettyCashDialogOpen} onOpenChange={setPettyCashDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button onClick={() => openPettyCashDialog()}>
+                      <Plus className="mr-2 h-4 w-4" />
+                      Petty Cash
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-[500px] bg-black/80 backdrop-blur-xl border border-white/20">
+                    <DialogHeader>
+                      <DialogTitle className="bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent">{editingPettyCash ? 'Edit Petty Cash' : 'New Petty Cash Request'}</DialogTitle>
+                      <DialogDescription className="text-white/70">
+                        {editingPettyCash ? 'Update petty cash information' : 'Create a new petty cash request'}
+                      </DialogDescription>
+                    </DialogHeader>
+                    <form onSubmit={handlePettyCashSubmit} className="space-y-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="amount" className="text-white">Amount *</Label>
+                          <Input
+                            id="amount"
+                            type="number"
+                            step="0.01"
+                            min="0.01"
+                            value={pettyCashForm.amount}
+                            onChange={(e) => setPettyCashForm({ ...pettyCashForm, amount: e.target.value })}
+                            className="bg-white/10 backdrop-blur-xl border border-white/20 text-white placeholder:text-white/50"
+                            required
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="transaction_date" className="text-white">Transaction Date *</Label>
+                          <Input
+                            id="transaction_date"
+                            type="date"
+                            value={pettyCashForm.transaction_date}
+                            onChange={(e) => setPettyCashForm({ ...pettyCashForm, transaction_date: e.target.value })}
+                            className="bg-white/10 backdrop-blur-xl border border-white/20 text-white placeholder:text-white/50"
+                            required
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="purpose" className="text-white">Purpose *</Label>
+                        <Textarea
+                          id="purpose"
+                          value={pettyCashForm.purpose}
+                          onChange={(e) => setPettyCashForm({ ...pettyCashForm, purpose: e.target.value })}
+                          placeholder="What is this for?"
+                          className="bg-white/10 backdrop-blur-xl border border-white/20 text-white placeholder:text-white/50"
+                          required
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="approved_by" className="text-white">Approved By</Label>
+                          <Input
+                            id="approved_by"
+                            value={pettyCashForm.approved_by}
+                            onChange={(e) => setPettyCashForm({ ...pettyCashForm, approved_by: e.target.value })}
+                            placeholder="Approver name"
+                            className="bg-white/10 backdrop-blur-xl border border-white/20 text-white placeholder:text-white/50"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="receipt_available" className="text-white">Receipt Available</Label>
+                          <div className="flex items-center space-x-2">
+                            <input
+                              type="checkbox"
+                              id="receipt_available"
+                              checked={pettyCashForm.receipt_available}
+                              onChange={(e) => setPettyCashForm({ ...pettyCashForm, receipt_available: e.target.checked })}
+                              className="bg-white/10 border border-white/20"
+                            />
+                            <Label htmlFor="receipt_available" className="text-white">Receipt is available</Label>
+                          </div>
+                        </div>
+                      </div>
+                      <DialogFooter>
+                        <Button type="button" variant="outline" onClick={() => setPettyCashDialogOpen(false)} className="bg-white/10 backdrop-blur-xl border border-white/20 text-white hover:bg-white/15 hover:scale-105 transition-all duration-300">
+                          Cancel
+                        </Button>
+                        <Button type="submit" className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white border-0 hover:scale-105 transition-all duration-300">
+                          {editingPettyCash ? 'Update Request' : 'Create Request'}
+                        </Button>
+                      </DialogFooter>
+                    </form>
+                  </DialogContent>
+                </Dialog>
+              </>
+            )}
+          </div>
         </div>
-      </div>
 
-      {/* Summary Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Overdue Bills</CardTitle>
-            <AlertTriangle className="h-4 w-4 text-red-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-red-600">{overdueBills.length}</div>
-            <p className="text-xs text-muted-foreground">
-              {formatCurrency(overdueBills.reduce((sum, bill) => sum + bill.amount, 0))} total
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pending Bills</CardTitle>
-            <Clock className="h-4 w-4 text-yellow-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{pendingBills.length}</div>
-            <p className="text-xs text-muted-foreground">
-              {formatCurrency(totalBillsAmount)} total amount
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pending Petty Cash</CardTitle>
-            <Receipt className="h-4 w-4 text-blue-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{pendingPettyCash.length}</div>
-            <p className="text-xs text-muted-foreground">
-              {formatCurrency(pendingPettyCash.reduce((sum, pc) => sum + pc.amount, 0))} requested
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Approved Petty Cash</CardTitle>
-            <CheckCircle className="h-4 w-4 text-green-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(totalPettyCashAmount)}</div>
-            <p className="text-xs text-muted-foreground">
-              Ready for disbursement
-            </p>
-          </CardContent>
-        </Card>
-      </div>
+        {/* Summary Cards */}
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <Card className="bg-white/10 backdrop-blur-xl border-white/20 hover:bg-white/15 transition-all duration-300 hover:scale-105 animate-in fade-in-0 slide-in-from-bottom-4" style={{ animationDelay: '100ms' }}>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-white/90">Overdue Bills</CardTitle>
+              <div className="p-2 bg-red-500/20 rounded-lg backdrop-blur-sm">
+                <AlertTriangle className="h-4 w-4 text-red-400" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <AnimatedCounter value={overdueBills.length} />
+              <p className="text-xs text-white/60 mt-1">
+                {formatCurrency(overdueBills.reduce((sum, bill) => sum + bill.amount, 0))} total
+              </p>
+            </CardContent>
+          </Card>
+          <Card className="bg-white/10 backdrop-blur-xl border-white/20 hover:bg-white/15 transition-all duration-300 hover:scale-105 animate-in fade-in-0 slide-in-from-bottom-4" style={{ animationDelay: '200ms' }}>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-white/90">Pending Bills</CardTitle>
+              <div className="p-2 bg-yellow-500/20 rounded-lg backdrop-blur-sm">
+                <Clock className="h-4 w-4 text-yellow-400" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <AnimatedCounter value={pendingBills.length} />
+              <p className="text-xs text-white/60 mt-1">
+                {formatCurrency(totalBillsAmount)} total amount
+              </p>
+            </CardContent>
+          </Card>
+          <Card className="bg-white/10 backdrop-blur-xl border-white/20 hover:bg-white/15 transition-all duration-300 hover:scale-105 animate-in fade-in-0 slide-in-from-bottom-4" style={{ animationDelay: '300ms' }}>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-white/90">Pending Petty Cash</CardTitle>
+              <div className="p-2 bg-blue-500/20 rounded-lg backdrop-blur-sm">
+                <Receipt className="h-4 w-4 text-blue-400" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <AnimatedCounter value={pendingPettyCash.length} />
+              <p className="text-xs text-white/60 mt-1">
+                {formatCurrency(pendingPettyCash.reduce((sum, pc) => sum + pc.amount, 0))} requested
+              </p>
+            </CardContent>
+          </Card>
+          <Card className="bg-white/10 backdrop-blur-xl border-white/20 hover:bg-white/15 transition-all duration-300 hover:scale-105 animate-in fade-in-0 slide-in-from-bottom-4" style={{ animationDelay: '400ms' }}>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-white/90">Approved Petty Cash</CardTitle>
+              <div className="p-2 bg-green-500/20 rounded-lg backdrop-blur-sm">
+                <CheckCircle className="h-4 w-4 text-green-400" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-white">{formatCurrency(totalPettyCashAmount)}</div>
+              <p className="text-xs text-white/60 mt-1">
+                Ready for disbursement
+              </p>
+            </CardContent>
+          </Card>
+        </div>
 
-      {/* Tab Navigation */}
-      <div className="flex space-x-1 bg-muted p-1 rounded-lg w-fit">
-        <button
-          onClick={() => setActiveTab('bills')}
-          className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-            activeTab === 'bills'
-              ? 'bg-background text-foreground shadow-sm'
-              : 'text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          Bills ({bills.length})
-        </button>
-        <button
-          onClick={() => setActiveTab('petty-cash')}
-          className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-            activeTab === 'petty-cash'
-              ? 'bg-background text-foreground shadow-sm'
-              : 'text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          Petty Cash ({pettyCash.length})
-        </button>
-      </div>
+        {/* Tab Navigation */}
+        <div className="flex space-x-1 bg-white/10 backdrop-blur-xl border border-white/20 p-1 rounded-lg w-fit animate-in fade-in-0 slide-in-from-bottom-4 duration-700" style={{ animationDelay: '500ms' }}>
+          <button
+            onClick={() => setActiveTab('bills')}
+            className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-300 ${activeTab === 'bills'
+              ? 'bg-white/20 text-white shadow-sm backdrop-blur-sm'
+              : 'text-white/70 hover:text-white hover:bg-white/10'
+              }`}
+          >
+            <FileText className="inline w-4 h-4 mr-2" />
+            Bills ({bills.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('petty-cash')}
+            className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-300 ${activeTab === 'petty-cash'
+              ? 'bg-white/20 text-white shadow-sm backdrop-blur-sm'
+              : 'text-white/70 hover:text-white hover:bg-white/10'
+              }`}
+          >
+            <CreditCard className="inline w-4 h-4 mr-2" />
+            Petty Cash ({pettyCash.length})
+          </button>
+        </div>
 
-      {/* Bills Table */}
-      {activeTab === 'bills' && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Bills</CardTitle>
-            <CardDescription>Manage bills and recurring payments</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="rounded-md border">
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b bg-muted/50">
-                      <th className="h-12 px-4 text-left align-middle font-medium">Vendor</th>
-                      <th className="h-12 px-4 text-left align-middle font-medium">Description</th>
-                      <th className="h-12 px-4 text-left align-middle font-medium">Amount</th>
-                      <th className="h-12 px-4 text-left align-middle font-medium">Due Date</th>
-                      <th className="h-12 px-4 text-left align-middle font-medium">Status</th>
-                      <th className="h-12 px-4 text-left align-middle font-medium">Recurring</th>
-                      <th className="h-12 px-4 text-left align-middle font-medium">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {bills.map((bill) => {
-                      const overdue = bill.status !== 'paid' && isOverdue(bill.due_date)
-                      
-                      return (
-                        <tr key={bill.id} className="border-b">
-                          <td className="p-4 font-medium">{bill.vendor_name}</td>
-                          <td className="p-4 max-w-xs truncate">{bill.category || '-'}</td>
-                          <td className="p-4 font-medium">{formatCurrency(bill.amount)}</td>
+        {/* Bills Table */}
+        {activeTab === 'bills' && (
+          <Card className="bg-white/10 backdrop-blur-xl border-white/20 animate-in fade-in-0 slide-in-from-bottom-4 duration-700" style={{ animationDelay: '600ms' }}>
+            <CardHeader>
+              <CardTitle className="text-white flex items-center gap-2">
+                <FileText className="w-5 h-5" />
+                Bills
+              </CardTitle>
+              <CardDescription className="text-white/70">Manage bills and recurring payments</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="rounded-md border border-white/20 bg-white/5 backdrop-blur-sm">
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-white/20 bg-white/10">
+                        <th className="h-12 px-4 text-left align-middle font-medium text-white/90">Vendor</th>
+                        <th className="h-12 px-4 text-left align-middle font-medium text-white/90">Description</th>
+                        <th className="h-12 px-4 text-left align-middle font-medium text-white/90">Amount</th>
+                        <th className="h-12 px-4 text-left align-middle font-medium text-white/90">Due Date</th>
+                        <th className="h-12 px-4 text-left align-middle font-medium text-white/90">Status</th>
+                        <th className="h-12 px-4 text-left align-middle font-medium text-white/90">Recurring</th>
+                        <th className="h-12 px-4 text-left align-middle font-medium text-white/90">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {bills.map((bill, index) => {
+                        const overdue = bill.status !== 'paid' && isOverdue(bill.due_date)
+
+                        return (
+                          <tr key={bill.id} className="border-b border-white/10 hover:bg-white/5 transition-colors duration-200 animate-in fade-in-0 slide-in-from-bottom-2" style={{ animationDelay: `${700 + index * 50}ms` }}>
+                            <td className="p-4 font-medium text-white/90">{bill.vendor_name}</td>
+                            <td className="p-4 max-w-xs truncate text-white/80">{bill.category || '-'}</td>
+                            <td className="p-4 font-medium text-white/90">{formatCurrency(bill.amount)}</td>
+                            <td className="p-4">
+                              <div className={overdue ? 'text-red-400 font-medium' : 'text-white/80'}>
+                                {formatDate(bill.due_date)}
+                                {overdue && <AlertTriangle className="inline w-4 h-4 ml-1" />}
+                              </div>
+                            </td>
+                            <td className="p-4">
+                              <Badge
+                                variant={
+                                  bill.status === 'paid' ? 'success' :
+                                    bill.status === 'overdue' || overdue ? 'destructive' : 'warning'
+                                }
+                                className={`${bill.status === 'paid' ? 'bg-green-500/20 text-green-300 border-green-500/30' :
+                                  bill.status === 'overdue' || overdue ? 'bg-red-500/20 text-red-300 border-red-500/30' :
+                                    'bg-yellow-500/20 text-yellow-300 border-yellow-500/30'
+                                  } backdrop-blur-sm`}
+                              >
+                                {overdue && bill.status === 'pending' ? 'overdue' : bill.status}
+                              </Badge>
+                            </td>
+                            <td className="p-4">
+                              {bill.frequency !== 'one-time' && (
+                                <Badge variant="outline" className="bg-white/10 text-white/80 border-white/30 backdrop-blur-sm">{bill.frequency}</Badge>
+                              )}
+                            </td>
+                            <td className="p-4">
+                              {hasRole('Admin') && (
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" className="h-8 w-8 p-0 text-white/70 hover:text-white hover:bg-white/10">
+                                      <MoreHorizontal className="h-4 w-4" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end" className="bg-white/10 backdrop-blur-xl border-white/20">
+                                    <DropdownMenuItem onClick={() => openBillDialog(bill)} className="text-white/90 hover:bg-white/10">
+                                      Edit
+                                    </DropdownMenuItem>
+                                    {bill.status !== 'paid' && (
+                                      <DropdownMenuItem onClick={() => updateBillStatus(bill.id, 'paid')} className="text-white/90 hover:bg-white/10">
+                                        Mark as Paid
+                                      </DropdownMenuItem>
+                                    )}
+                                    {bill.status === 'paid' && (
+                                      <DropdownMenuItem onClick={() => updateBillStatus(bill.id, 'pending')} className="text-white/90 hover:bg-white/10">
+                                        Mark as Pending
+                                      </DropdownMenuItem>
+                                    )}
+                                    <DropdownMenuItem
+                                      onClick={() => deleteBill(bill.id)}
+                                      className="text-red-400 hover:bg-red-500/10"
+                                    >
+                                      Delete
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              )}
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+                {bills.length === 0 && (
+                  <div className="text-center py-8 text-white/60">
+                    No bills found. Create your first bill to get started.
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Petty Cash Table */}
+        {activeTab === 'petty-cash' && (
+          <Card className="bg-white/10 backdrop-blur-xl border-white/20 animate-in fade-in-0 slide-in-from-bottom-4 duration-700" style={{ animationDelay: '600ms' }}>
+            <CardHeader>
+              <CardTitle className="text-white flex items-center gap-2">
+                <CreditCard className="w-5 h-5" />
+                Petty Cash Requests
+              </CardTitle>
+              <CardDescription className="text-white/70">Manage petty cash requests and approvals</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="rounded-md border border-white/20 bg-white/5 backdrop-blur-sm">
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-white/20 bg-white/10">
+                        <th className="h-12 px-4 text-left align-middle font-medium text-white/90">Date</th>
+                        <th className="h-12 px-4 text-left align-middle font-medium text-white/90">Recipient</th>
+                        <th className="h-12 px-4 text-left align-middle font-medium text-white/90">Description</th>
+                        <th className="h-12 px-4 text-left align-middle font-medium text-white/90">Amount</th>
+                        <th className="h-12 px-4 text-left align-middle font-medium text-white/90">Status</th>
+                        <th className="h-12 px-4 text-left align-middle font-medium text-white/90">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {pettyCash.map((pc, index) => (
+                        <tr key={pc.id} className="border-b border-white/10 hover:bg-white/5 transition-colors duration-200 animate-in fade-in-0 slide-in-from-bottom-2" style={{ animationDelay: `${700 + index * 50}ms` }}>
+                          <td className="p-4 text-white/80">{formatDate(pc.created_at)}</td>
+                          <td className="p-4 font-medium text-white/90">{pc.approved_by || 'N/A'}</td>
+                          <td className="p-4 max-w-xs truncate text-white/80">{pc.purpose}</td>
+                          <td className="p-4 font-medium text-white/90">{formatCurrency(pc.amount)}</td>
                           <td className="p-4">
-                            <div className={overdue ? 'text-red-600 font-medium' : ''}>
-                              {formatDate(bill.due_date)}
-                              {overdue && <AlertTriangle className="inline w-4 h-4 ml-1" />}
-                            </div>
-                          </td>
-                          <td className="p-4">
-                            <Badge 
-                              variant={
-                                bill.status === 'paid' ? 'success' :
-                                bill.status === 'overdue' || overdue ? 'destructive' : 'warning'
-                              }
-                            >
-                              {overdue && bill.status === 'pending' ? 'overdue' : bill.status}
+                            <Badge variant="secondary" className={`${pc.receipt_available ? 'bg-green-500/20 text-green-300 border-green-500/30' : 'bg-gray-500/20 text-gray-300 border-gray-500/30'
+                              } backdrop-blur-sm`}>
+                              {pc.receipt_available ? 'Receipt Available' : 'No Receipt'}
                             </Badge>
-                          </td>
-                          <td className="p-4">
-                            {bill.frequency !== 'one-time' && (
-                              <Badge variant="outline">{bill.frequency}</Badge>
-                            )}
                           </td>
                           <td className="p-4">
                             {hasRole('Admin') && (
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" className="h-8 w-8 p-0">
+                                  <Button variant="ghost" className="h-8 w-8 p-0 text-white/70 hover:text-white hover:bg-white/10">
                                     <MoreHorizontal className="h-4 w-4" />
                                   </Button>
                                 </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                  <DropdownMenuItem onClick={() => openBillDialog(bill)}>
+                                <DropdownMenuContent align="end" className="bg-white/10 backdrop-blur-xl border-white/20">
+                                  <DropdownMenuItem onClick={() => openPettyCashDialog(pc)} className="text-white/90 hover:bg-white/10">
                                     Edit
                                   </DropdownMenuItem>
-                                  {bill.status !== 'paid' && (
-                                    <DropdownMenuItem onClick={() => updateBillStatus(bill.id, 'paid')}>
-                                      Mark as Paid
-                                    </DropdownMenuItem>
-                                  )}
-                                  {bill.status === 'paid' && (
-                                    <DropdownMenuItem onClick={() => updateBillStatus(bill.id, 'pending')}>
-                                      Mark as Pending
-                                    </DropdownMenuItem>
-                                  )}
-                                  <DropdownMenuItem 
-                                    onClick={() => deleteBill(bill.id)}
-                                    className="text-red-600"
+                                  <DropdownMenuItem
+                                    onClick={() => deletePettyCash(pc.id)}
+                                    className="text-red-400 hover:bg-red-500/10"
                                   >
                                     Delete
                                   </DropdownMenuItem>
@@ -716,90 +888,20 @@ export default function BillsPage() {
                             )}
                           </td>
                         </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
-              {bills.length === 0 && (
-                <div className="text-center py-8 text-muted-foreground">
-                  No bills found. Create your first bill to get started.
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Petty Cash Table */}
-      {activeTab === 'petty-cash' && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Petty Cash Requests</CardTitle>
-            <CardDescription>Manage petty cash requests and approvals</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="rounded-md border">
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b bg-muted/50">
-                      <th className="h-12 px-4 text-left align-middle font-medium">Date</th>
-                      <th className="h-12 px-4 text-left align-middle font-medium">Recipient</th>
-                      <th className="h-12 px-4 text-left align-middle font-medium">Description</th>
-                      <th className="h-12 px-4 text-left align-middle font-medium">Amount</th>
-                      <th className="h-12 px-4 text-left align-middle font-medium">Status</th>
-                      <th className="h-12 px-4 text-left align-middle font-medium">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {pettyCash.map((pc) => (
-                      <tr key={pc.id} className="border-b">
-                        <td className="p-4">{formatDate(pc.created_at)}</td>
-                        <td className="p-4 font-medium">{pc.approved_by || 'N/A'}</td>
-                        <td className="p-4 max-w-xs truncate">{pc.purpose}</td>
-                        <td className="p-4 font-medium">{formatCurrency(pc.amount)}</td>
-                        <td className="p-4">
-                          <Badge variant="secondary">
-                            {pc.receipt_available ? 'Receipt Available' : 'No Receipt'}
-                          </Badge>
-                        </td>
-                        <td className="p-4">
-                          {hasRole('Admin') && (
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" className="h-8 w-8 p-0">
-                                  <MoreHorizontal className="h-4 w-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => openPettyCashDialog(pc)}>
-                                  Edit
-                                </DropdownMenuItem>
-                                <DropdownMenuItem 
-                                  onClick={() => deletePettyCash(pc.id)}
-                                  className="text-red-600"
-                                >
-                                  Delete
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                {pettyCash.length === 0 && (
+                  <div className="text-center py-8 text-white/60">
+                    No petty cash requests found. Create your first request to get started.
+                  </div>
+                )}
               </div>
-              {pettyCash.length === 0 && (
-                <div className="text-center py-8 text-muted-foreground">
-                  No petty cash requests found. Create your first request to get started.
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+            </CardContent>
+          </Card>
+        )}
+      </div>
     </div>
   )
 }

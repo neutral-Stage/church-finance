@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -13,6 +13,7 @@ import { formatCurrency, formatDate, getMonthStart, getMonthEnd } from '@/lib/ut
 import { Download, FileText, TrendingUp, TrendingDown, Banknote, Calendar } from 'lucide-react'
 import { toast } from 'sonner'
 import * as XLSX from 'xlsx'
+import { AnimatedCounter } from '@/components/ui/animated-counter'
 import type { Database } from '@/types/database'
 
 type Transaction = Database['public']['Tables']['transactions']['Row']
@@ -338,40 +339,47 @@ export default function ReportsPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-lg">Loading report data...</div>
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="relative">
+          <div className="animate-spin rounded-full h-12 w-12 border-4 border-white/20 border-t-white/80"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-4 border-white/40 border-t-white/60 absolute top-2 left-2" style={{animationDirection: 'reverse', animationDuration: '1.5s'}}></div>
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
+    <div className="space-y-6 animate-fade-in">
+      <div className="flex items-center justify-between animate-slide-in-from-bottom-4" style={{animationDelay: '100ms'}}>
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Reports &amp; Export</h1>
-          <p className="text-muted-foreground">Generate financial reports and export data</p>
+          <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent">
+            Reports &amp; Export
+          </h1>
+          <p className="text-white/60 mt-2">
+            Generate financial reports and export data
+          </p>
         </div>
-        <Button onClick={exportToExcel} disabled={exporting}>
+        <Button onClick={exportToExcel} disabled={exporting} className="glass-button-outline hover:scale-105 transition-all duration-300">
           <Download className="mr-2 h-4 w-4" />
           {exporting ? 'Exporting...' : 'Export to Excel'}
         </Button>
       </div>
 
       {/* Report Controls */}
-      <Card>
+      <Card className="bg-white/10 backdrop-blur-xl border-white/20 animate-slide-in-from-bottom-4" style={{animationDelay: '200ms'}}>
         <CardHeader>
-          <CardTitle>Report Settings</CardTitle>
-          <CardDescription>Configure the date range and type for your financial report</CardDescription>
+          <CardTitle className="text-white/90">Report Settings</CardTitle>
+          <CardDescription className="text-white/60">Configure the date range and type for your financial report</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="reportType">Report Type</Label>
+              <Label htmlFor="reportType" className="text-white/90">Report Type</Label>
               <Select value={reportType} onValueChange={(value: typeof reportType) => setReportType(value)}>
-                <SelectTrigger>
+                <SelectTrigger className="glass-dropdown">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="glass-dropdown">
                   <SelectItem value="monthly">Monthly</SelectItem>
                   <SelectItem value="quarterly">Quarterly</SelectItem>
                   <SelectItem value="yearly">Yearly</SelectItem>
@@ -380,27 +388,29 @@ export default function ReportsPage() {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="startDate">Start Date</Label>
+              <Label htmlFor="startDate" className="text-white/90">Start Date</Label>
               <Input
                 id="startDate"
                 type="date"
                 value={dateRange.startDate}
                 onChange={(e) => setDateRange({ ...dateRange, startDate: e.target.value })}
                 disabled={reportType !== 'custom'}
+                className="glass-input"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="endDate">End Date</Label>
+              <Label htmlFor="endDate" className="text-white/90">End Date</Label>
               <Input
                 id="endDate"
                 type="date"
                 value={dateRange.endDate}
                 onChange={(e) => setDateRange({ ...dateRange, endDate: e.target.value })}
                 disabled={reportType !== 'custom'}
+                className="glass-input"
               />
             </div>
             <div className="flex items-end">
-              <Button onClick={fetchReportData} className="w-full">
+              <Button onClick={fetchReportData} className="w-full glass-button hover:scale-105 transition-all duration-300">
                 <FileText className="mr-2 h-4 w-4" />
                 Generate Report
               </Button>
@@ -411,75 +421,91 @@ export default function ReportsPage() {
 
       {/* Financial Summary */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
+        <Card className="bg-white/10 backdrop-blur-xl border-white/20 hover:bg-white/15 transition-all duration-300 hover:scale-105 animate-slide-in-from-bottom-4" style={{animationDelay: '300ms'}}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Income</CardTitle>
-            <TrendingUp className="h-4 w-4 text-green-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">{formatCurrency(summary.totalIncome)}</div>
-            <p className="text-xs text-muted-foreground">
-              Including {formatCurrency(summary.totalOfferings)} in offerings
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Expenses</CardTitle>
-            <TrendingDown className="h-4 w-4 text-red-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-red-600">{formatCurrency(summary.totalExpenses)}</div>
-            <p className="text-xs text-muted-foreground">
-              Including {formatCurrency(summary.totalBills)} in bills
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Net Income</CardTitle>
-            <Banknote className={`h-4 w-4 ${summary.netIncome >= 0 ? 'text-green-500' : 'text-red-500'}`} />
-          </CardHeader>
-          <CardContent>
-            <div className={`text-2xl font-bold ${summary.netIncome >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-              {formatCurrency(summary.netIncome)}
+            <CardTitle className="text-sm font-medium text-white/90">Total Income</CardTitle>
+            <div className="p-2 bg-green-500/20 backdrop-blur-sm rounded-lg">
+              <TrendingUp className="h-4 w-4 text-green-400" />
             </div>
-            <p className="text-xs text-muted-foreground">
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-400">
+              <AnimatedCounter value={summary.totalIncome} prefix="₦" />
+            </div>
+            <p className="text-xs text-white/60">
+              Including <AnimatedCounter value={summary.totalOfferings} prefix="₦" className="text-white/80" /> in offerings
+            </p>
+          </CardContent>
+        </Card>
+        <Card className="bg-white/10 backdrop-blur-xl border-white/20 hover:bg-white/15 transition-all duration-300 hover:scale-105 animate-slide-in-from-bottom-4" style={{animationDelay: '350ms'}}>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-white/90">Total Expenses</CardTitle>
+            <div className="p-2 bg-red-500/20 backdrop-blur-sm rounded-lg">
+              <TrendingDown className="h-4 w-4 text-red-400" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-red-400">
+              <AnimatedCounter value={summary.totalExpenses} prefix="₦" />
+            </div>
+            <p className="text-xs text-white/60">
+              Including <AnimatedCounter value={summary.totalBills} prefix="₦" className="text-white/80" /> in bills
+            </p>
+          </CardContent>
+        </Card>
+        <Card className="bg-white/10 backdrop-blur-xl border-white/20 hover:bg-white/15 transition-all duration-300 hover:scale-105 animate-slide-in-from-bottom-4" style={{animationDelay: '400ms'}}>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-white/90">Net Income</CardTitle>
+            <div className={`p-2 ${summary.netIncome >= 0 ? 'bg-green-500/20' : 'bg-red-500/20'} backdrop-blur-sm rounded-lg`}>
+              <Banknote className={`h-4 w-4 ${summary.netIncome >= 0 ? 'text-green-400' : 'text-red-400'}`} />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className={`text-2xl font-bold ${summary.netIncome >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+              <AnimatedCounter value={summary.netIncome} prefix="₦" />
+            </div>
+            <p className="text-xs text-white/60">
               {summary.netIncome >= 0 ? 'Surplus' : 'Deficit'} for period
             </p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="bg-white/10 backdrop-blur-xl border-white/20 hover:bg-white/15 transition-all duration-300 hover:scale-105 animate-slide-in-from-bottom-4" style={{animationDelay: '450ms'}}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Advances</CardTitle>
-            <Calendar className="h-4 w-4 text-blue-500" />
+            <CardTitle className="text-sm font-medium text-white/90">Total Advances</CardTitle>
+            <div className="p-2 bg-blue-500/20 backdrop-blur-sm rounded-lg">
+              <Calendar className="h-4 w-4 text-blue-400" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-blue-600">{formatCurrency(summary.totalAdvances)}</div>
-            <p className="text-xs text-muted-foreground">
-              {reportData.advances.length} advance{reportData.advances.length !== 1 ? 's' : ''} issued
+            <div className="text-2xl font-bold text-blue-400">
+              <AnimatedCounter value={summary.totalAdvances} prefix="₦" />
+            </div>
+            <p className="text-xs text-white/60">
+              <AnimatedCounter value={reportData.advances.length} className="text-white/80" /> advance{reportData.advances.length !== 1 ? 's' : ''} issued
             </p>
           </CardContent>
         </Card>
       </div>
 
       {/* Fund Balances */}
-      <Card>
+      <Card className="bg-white/10 backdrop-blur-xl border-white/20 animate-slide-in-from-bottom-4" style={{animationDelay: '500ms'}}>
         <CardHeader>
-          <CardTitle>Current Fund Balances</CardTitle>
-          <CardDescription>Real-time balances across all church funds</CardDescription>
+          <CardTitle className="text-white/90">Current Fund Balances</CardTitle>
+          <CardDescription className="text-white/60">Real-time balances across all church funds</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid gap-4 md:grid-cols-3">
-            {reportData.funds.map((fund) => (
-              <div key={fund.id} className="flex items-center justify-between p-4 border rounded-lg">
+            {reportData.funds.map((fund, index) => (
+              <div key={fund.id} className="flex items-center justify-between p-4 bg-white/5 backdrop-blur-sm border border-white/10 rounded-lg hover:bg-white/10 transition-all duration-300 animate-slide-in-from-bottom-4" style={{animationDelay: `${550 + index * 50}ms`}}>
                 <div>
-                  <h3 className="font-medium">{fund.name}</h3>
-                  <p className="text-sm text-muted-foreground">{fund.description}</p>
+                  <h3 className="font-medium text-white/90">{fund.name}</h3>
+                  <p className="text-sm text-white/60">{fund.description}</p>
                 </div>
                 <div className="text-right">
-                  <div className="text-lg font-bold">{formatCurrency(fund.current_balance)}</div>
-                  <Badge variant={fund.current_balance >= 0 ? 'success' : 'destructive'}>
+                  <div className="text-lg font-bold text-white/90">
+                    <AnimatedCounter value={fund.current_balance} prefix="₦" />
+                  </div>
+                  <Badge variant={fund.current_balance >= 0 ? 'success' : 'destructive'} className="bg-white/10 backdrop-blur-sm border-white/20">
                     {fund.current_balance >= 0 ? 'Positive' : 'Negative'}
                   </Badge>
                 </div>
@@ -492,30 +518,30 @@ export default function ReportsPage() {
       {/* Detailed Tables */}
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Recent Transactions */}
-        <Card>
+        <Card className="bg-white/10 backdrop-blur-xl border-white/20 animate-slide-in-from-bottom-4" style={{animationDelay: '600ms'}}>
           <CardHeader>
-            <CardTitle>Recent Transactions</CardTitle>
-            <CardDescription>
-              {reportData.transactions.length} transaction{reportData.transactions.length !== 1 ? 's' : ''} in selected period
+            <CardTitle className="text-white/90">Recent Transactions</CardTitle>
+            <CardDescription className="text-white/60">
+              <AnimatedCounter value={reportData.transactions.length} className="text-white/80" /> transaction{reportData.transactions.length !== 1 ? 's' : ''} in selected period
             </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-2 max-h-64 overflow-y-auto">
-              {reportData.transactions.slice(0, 10).map((transaction) => {
+              {reportData.transactions.slice(0, 10).map((transaction, index) => {
                 const fund = reportData.funds.find(f => f.id === transaction.fund_id)
                 return (
-                  <div key={transaction.id} className="flex items-center justify-between p-2 border rounded">
+                  <div key={transaction.id} className="flex items-center justify-between p-3 bg-white/5 backdrop-blur-sm border border-white/10 rounded-lg hover:bg-white/10 transition-all duration-300 animate-slide-in-from-bottom-4" style={{animationDelay: `${650 + index * 30}ms`}}>
                     <div>
-                      <div className="font-medium">{transaction.description}</div>
-                      <div className="text-sm text-muted-foreground">
+                      <div className="font-medium text-white/90">{transaction.description}</div>
+                      <div className="text-sm text-white/60">
                         {transaction.category} • {fund?.name}
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className={`font-medium ${transaction.type === 'income' ? 'text-green-600' : 'text-red-600'}`}>
-                        {transaction.type === 'income' ? '+' : '-'}{formatCurrency(transaction.amount)}
+                      <div className={`font-medium ${transaction.type === 'income' ? 'text-green-400' : 'text-red-400'}`}>
+                        {transaction.type === 'income' ? '+' : '-'}<AnimatedCounter value={transaction.amount} prefix="₦" />
                       </div>
-                      <div className="text-sm text-muted-foreground">
+                      <div className="text-sm text-white/60">
                         {formatDate(transaction.transaction_date)}
                       </div>
                     </div>
@@ -523,7 +549,7 @@ export default function ReportsPage() {
                 )
               })}
               {reportData.transactions.length === 0 && (
-                <div className="text-center py-4 text-muted-foreground">
+                <div className="text-center py-4 text-white/60">
                   No transactions in selected period
                 </div>
               )}
@@ -532,16 +558,16 @@ export default function ReportsPage() {
         </Card>
 
         {/* Recent Offerings */}
-        <Card>
+        <Card className="bg-white/10 backdrop-blur-xl border-white/20 animate-slide-in-from-bottom-4" style={{animationDelay: '650ms'}}>
           <CardHeader>
-            <CardTitle>Recent Offerings</CardTitle>
-            <CardDescription>
-              {reportData.offerings.length} offering{reportData.offerings.length !== 1 ? 's' : ''} in selected period
+            <CardTitle className="text-white/90">Recent Offerings</CardTitle>
+            <CardDescription className="text-white/60">
+              <AnimatedCounter value={reportData.offerings.length} className="text-white/80" /> offering{reportData.offerings.length !== 1 ? 's' : ''} in selected period
             </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-2 max-h-64 overflow-y-auto">
-              {reportData.offerings.slice(0, 10).map((offering) => {
+              {reportData.offerings.slice(0, 10).map((offering, index) => {
                 // Parse fund allocations to get the primary fund
                 const fundAllocations = typeof offering.fund_allocations === 'string' 
                   ? JSON.parse(offering.fund_allocations) 
@@ -551,18 +577,18 @@ export default function ReportsPage() {
                   : null
                 const fund = reportData.funds.find(f => f.id === primaryFundId)
                 return (
-                  <div key={offering.id} className="flex items-center justify-between p-2 border rounded">
+                  <div key={offering.id} className="flex items-center justify-between p-3 bg-white/5 backdrop-blur-sm border border-white/10 rounded-lg hover:bg-white/10 transition-all duration-300 animate-slide-in-from-bottom-4" style={{animationDelay: `${700 + index * 30}ms`}}>
                     <div>
-                      <div className="font-medium">{offering.type}</div>
-                      <div className="text-sm text-muted-foreground">
-                        {fund?.name || 'Multiple Funds'} • {offering.contributors_count || 0} contributors
+                      <div className="font-medium text-white/90">{offering.type}</div>
+                      <div className="text-sm text-white/60">
+                        {fund?.name || 'Multiple Funds'} • <AnimatedCounter value={offering.contributors_count || 0} className="text-white/80" /> contributors
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="font-medium text-green-600">
-                        {formatCurrency(offering.amount)}
+                      <div className="font-medium text-green-400">
+                        <AnimatedCounter value={offering.amount} prefix="₦" />
                       </div>
-                      <div className="text-sm text-muted-foreground">
+                      <div className="text-sm text-white/60">
                         {formatDate(offering.service_date)}
                       </div>
                     </div>
@@ -570,7 +596,7 @@ export default function ReportsPage() {
                 )
               })}
               {reportData.offerings.length === 0 && (
-                <div className="text-center py-4 text-muted-foreground">
+                <div className="text-center py-4 text-white/60">
                   No offerings in selected period
                 </div>
               )}
@@ -580,9 +606,9 @@ export default function ReportsPage() {
       </div>
 
       {/* Report Period Info */}
-      <Card>
+      <Card className="bg-white/10 backdrop-blur-xl border-white/20 animate-slide-in-from-bottom-4" style={{animationDelay: '700ms'}}>
         <CardContent className="pt-6">
-          <div className="text-center text-sm text-muted-foreground">
+          <div className="text-center text-sm text-white/60">
             Report generated for period: {formatDate(dateRange.startDate)} to {formatDate(dateRange.endDate)}
             <br />
             Generated on: {formatDate(new Date().toISOString().split('T')[0])} by {user?.email}

@@ -12,9 +12,10 @@ import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { AnimatedCounter } from '@/components/ui/animated-counter'
 
 import { formatCurrency, formatDate, formatDateForInput } from '@/lib/utils'
-import { Plus, MoreHorizontal, Edit, Trash2, Calendar, Users, DollarSign, TrendingUp } from 'lucide-react'
+import { Plus, MoreHorizontal, Edit, Trash2, Calendar, Users, DollarSign, TrendingUp, Search, Filter } from 'lucide-react'
 import { toast } from 'sonner'
 import type { Database } from '@/types/database'
 
@@ -313,54 +314,63 @@ export default function OfferingsPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-lg">Loading offerings...</div>
+        <div className="flex flex-col items-center space-y-4">
+          <div className="relative">
+            <div className="w-12 h-12 border-4 border-white/20 border-t-white rounded-full animate-spin"></div>
+            <div className="absolute inset-0 w-12 h-12 border-4 border-transparent border-t-blue-400 rounded-full animate-spin" style={{animationDelay: '0.15s'}}></div>
+          </div>
+          <div className="text-lg text-white/80">Loading offerings...</div>
+        </div>
       </div>
     )
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between items-center animate-fade-in">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Offerings &amp; Tithes</h1>
-          <p className="text-muted-foreground">Track and manage church offerings and tithes</p>
+          <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent">
+            Offerings & Tithes
+          </h1>
+          <p className="text-white/70">Track and manage church offerings and tithes</p>
         </div>
         {hasRole('Admin') && (
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
-              <Button onClick={() => { setEditingOffering(null); resetForm(); }}>
+              <Button onClick={() => { setEditingOffering(null); resetForm(); }} className="glass-button hover:scale-105 transition-all duration-300">
                 <Plus className="mr-2 h-4 w-4" />
                 Record Offering
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px]">
+            <DialogContent className="sm:max-w-[425px] glass-card border-white/20">
               <DialogHeader>
-                <DialogTitle>
+                <DialogTitle className="text-white">
                   {editingOffering ? 'Edit Offering' : 'Record New Offering'}
                 </DialogTitle>
-                <DialogDescription>
+                <DialogDescription className="text-white/70">
                   {editingOffering ? 'Update the offering details.' : 'Record a new offering or tithe.'}
                 </DialogDescription>
               </DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="service_date">Service Date *</Label>
+                    <Label htmlFor="service_date" className="text-white/90">Service Date *</Label>
                     <Input
                       id="service_date"
                       type="date"
                       value={form.service_date}
                       onChange={(e) => setForm({ ...form, service_date: e.target.value })}
                       required
+                      className="glass-input"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="type">Offering Type *</Label>
+                    <Label htmlFor="type" className="text-white/90">Offering Type *</Label>
                     <Select value={form.type} onValueChange={(value) => setForm({ ...form, type: value })}>
-                      <SelectTrigger>
+                      <SelectTrigger className="glass-input">
                         <SelectValue placeholder="Select type" />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="glass-dropdown">
                         {OFFERING_TYPES.map((type) => (
                           <SelectItem key={type} value={type}>{type}</SelectItem>
                         ))}
@@ -369,7 +379,7 @@ export default function OfferingsPage() {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="amount">Total Amount *</Label>
+                  <Label htmlFor="amount" className="text-white/90">Total Amount *</Label>
                   <Input
                     id="amount"
                     type="number"
@@ -378,25 +388,26 @@ export default function OfferingsPage() {
                     value={form.amount}
                     onChange={(e) => setForm({ ...form, amount: e.target.value })}
                     required
+                    className="glass-input"
                   />
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-sm text-white/60">
                     Fund allocation will be determined automatically based on offering type
                   </p>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="member">Member</Label>
+                  <Label htmlFor="member" className="text-white/90">Member</Label>
                   <div className="space-y-2">
                     <Input
                       placeholder="Search members..."
                       value={memberSearchTerm}
                       onChange={(e) => setMemberSearchTerm(e.target.value)}
-                      className="mb-2"
+                      className="mb-2 glass-input"
                     />
                     <Select value={form.selected_member} onValueChange={selectMember}>
-                      <SelectTrigger>
+                      <SelectTrigger className="glass-input">
                         <SelectValue placeholder="Select a member (optional)" />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="glass-dropdown">
                         <SelectItem value="none">No member selected</SelectItem>
                         {filteredMembers.map((member) => (
                           <SelectItem key={member.id} value={member.id}>
@@ -408,19 +419,20 @@ export default function OfferingsPage() {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="notes">Notes</Label>
+                  <Label htmlFor="notes" className="text-white/90">Notes</Label>
                   <Textarea
                     id="notes"
                     value={form.notes}
                     onChange={(e) => setForm({ ...form, notes: e.target.value })}
                     placeholder="Additional notes about this offering..."
+                    className="glass-input"
                   />
                 </div>
                 <DialogFooter>
-                  <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
+                  <Button type="button" variant="outline" onClick={() => setDialogOpen(false)} className="glass-button-outline">
                     Cancel
                   </Button>
-                  <Button type="submit">
+                  <Button type="submit" className="glass-button">
                     {editingOffering ? 'Update' : 'Record'} Offering
                   </Button>
                 </DialogFooter>
@@ -431,234 +443,227 @@ export default function OfferingsPage() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Offerings</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(totalOfferings)}</div>
-            <p className="text-xs text-muted-foreground">
-              From {filteredOfferings.length} offerings
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Contributors</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{totalContributors}</div>
-            <p className="text-xs text-muted-foreground">
-              Across all offerings
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Average Offering</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(averageOffering)}</div>
-            <p className="text-xs text-muted-foreground">
-              Per service
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">This Month</CardTitle>
-            <Calendar className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {formatCurrency(
-                offerings
-                  .filter(o => new Date(o.service_date).getMonth() === new Date().getMonth())
-                  .reduce((sum, o) => sum + o.amount, 0)
-              )}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="glass-card p-6 animate-fade-in animate-slide-in-from-bottom-4" style={{ animationDelay: '0.1s' }}>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-white/70">Total Offerings</p>
+              <p className="text-2xl font-bold bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent">
+                <AnimatedCounter value={totalOfferings} />
+              </p>
             </div>
-            <p className="text-xs text-muted-foreground">
-              Current month total
-            </p>
-          </CardContent>
-        </Card>
+            <div className="p-3 bg-green-500/20 backdrop-blur-sm rounded-xl">
+              <DollarSign className="h-8 w-8 text-green-400" />
+            </div>
+          </div>
+        </div>
+        <div className="glass-card p-6 animate-fade-in animate-slide-in-from-bottom-4" style={{ animationDelay: '0.2s' }}>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-white/70">Total Contributors</p>
+              <p className="text-2xl font-bold bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent">
+                <AnimatedCounter value={totalContributors} />
+              </p>
+            </div>
+            <div className="p-3 bg-blue-500/20 backdrop-blur-sm rounded-xl">
+              <Users className="h-8 w-8 text-blue-400" />
+            </div>
+          </div>
+        </div>
+        <div className="glass-card p-6 animate-fade-in animate-slide-in-from-bottom-4" style={{ animationDelay: '0.3s' }}>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-white/70">Average Offering</p>
+              <p className="text-2xl font-bold bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent">
+                <AnimatedCounter value={averageOffering} />
+              </p>
+            </div>
+            <div className="p-3 bg-purple-500/20 backdrop-blur-sm rounded-xl">
+              <TrendingUp className="h-8 w-8 text-purple-400" />
+            </div>
+          </div>
+        </div>
+        <div className="glass-card p-6 animate-fade-in animate-slide-in-from-bottom-4" style={{ animationDelay: '0.4s' }}>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-white/70">This Month</p>
+              <p className="text-2xl font-bold bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent">
+                <AnimatedCounter value={
+                  offerings
+                    .filter(o => new Date(o.service_date).getMonth() === new Date().getMonth())
+                    .reduce((sum, o) => sum + o.amount, 0)
+                } />
+              </p>
+            </div>
+            <div className="p-3 bg-orange-500/20 backdrop-blur-sm rounded-xl">
+              <Calendar className="h-8 w-8 text-orange-400" />
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Breakdown Cards */}
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Offerings by Type</CardTitle>
-            <CardDescription>Breakdown of offerings by category</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {Object.entries(offeringsByType)
-                .sort(([,a], [,b]) => b - a)
-                .map(([type, amount]) => (
-                  <div key={type} className="flex justify-between items-center">
-                    <span className="text-sm">{type}</span>
-                    <span className="font-medium">{formatCurrency(amount)}</span>
-                  </div>
-                ))}
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>Fund Allocation</CardTitle>
-            <CardDescription>How offerings are distributed across funds</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {Object.entries(offeringsByFund)
-                .sort(([,a], [,b]) => b - a)
-                .map(([fund, amount]) => (
-                  <div key={fund} className="flex justify-between items-center">
-                    <span className="text-sm">{fund}</span>
-                    <span className="font-medium">{formatCurrency(amount)}</span>
-                  </div>
-                ))}
-            </div>
-          </CardContent>
-        </Card>
+      <div className="grid gap-6 md:grid-cols-2 mb-8">
+        <div className="glass-card p-6 animate-fade-in animate-slide-in-from-bottom-4" style={{ animationDelay: '0.5s' }}>
+          <h3 className="text-lg font-semibold bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent mb-4">
+            Offerings by Type
+          </h3>
+          <div className="space-y-3">
+            {Object.entries(offeringsByType)
+              .sort(([,a], [,b]) => b - a)
+              .map(([type, amount]) => (
+                <div key={type} className="flex justify-between items-center p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-all duration-300">
+                  <span className="text-sm text-white/80">{type}</span>
+                  <span className="font-medium text-white">{formatCurrency(amount)}</span>
+                </div>
+              ))}
+          </div>
+        </div>
+        <div className="glass-card p-6 animate-fade-in animate-slide-in-from-bottom-4" style={{ animationDelay: '0.6s' }}>
+          <h3 className="text-lg font-semibold bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent mb-4">
+            Fund Allocation
+          </h3>
+          <div className="space-y-3">
+            {Object.entries(offeringsByFund)
+              .sort(([,a], [,b]) => b - a)
+              .map(([fund, amount]) => (
+                <div key={fund} className="flex justify-between items-center p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-all duration-300">
+                  <span className="text-sm text-white/80">{fund}</span>
+                  <span className="font-medium text-white">{formatCurrency(amount)}</span>
+                </div>
+              ))}
+          </div>
+        </div>
       </div>
 
       {/* Filters */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Offering Records</CardTitle>
-          <CardDescription>View and manage all offering records</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col sm:flex-row gap-4 mb-4">
-            <Input
-              placeholder="Search offerings..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="sm:max-w-xs"
-            />
-            <Select value={filterType} onValueChange={setFilterType}>
-              <SelectTrigger className="sm:max-w-xs">
-                <SelectValue placeholder="Filter by type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Types</SelectItem>
-                {OFFERING_TYPES.map((type) => (
-                  <SelectItem key={type} value={type}>{type}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={filterFund} onValueChange={setFilterFund}>
-              <SelectTrigger className="sm:max-w-xs">
-                <SelectValue placeholder="Filter by fund" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Funds</SelectItem>
-                {funds.map((fund) => (
-                  <SelectItem key={fund.id} value={fund.id}>{fund.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+      <div className="glass-card p-6 mb-8 animate-fade-in animate-slide-in-from-bottom-4" style={{ animationDelay: '0.7s' }}>
+        <h3 className="text-lg font-semibold bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent mb-4">
+          Offering Records
+        </h3>
+        <div className="flex flex-col sm:flex-row gap-4 mb-6">
+          <Input
+            placeholder="Search offerings..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="glass-input sm:max-w-xs"
+          />
+          <Select value={filterType} onValueChange={setFilterType}>
+            <SelectTrigger className="glass-input sm:max-w-xs">
+              <SelectValue placeholder="Filter by type" />
+            </SelectTrigger>
+            <SelectContent className="glass-dropdown">
+              <SelectItem value="all">All Types</SelectItem>
+              {OFFERING_TYPES.map((type) => (
+                <SelectItem key={type} value={type}>{type}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={filterFund} onValueChange={setFilterFund}>
+            <SelectTrigger className="glass-input sm:max-w-xs">
+              <SelectValue placeholder="Filter by fund" />
+            </SelectTrigger>
+            <SelectContent className="glass-dropdown">
+              <SelectItem value="all">All Funds</SelectItem>
+              {funds.map((fund) => (
+                <SelectItem key={fund.id} value={fund.id}>{fund.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
 
-          {/* Offerings Table */}
-          <div className="rounded-md border">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b bg-muted/50">
-                    <th className="h-12 px-4 text-left align-middle font-medium">Service Date</th>
-                    <th className="h-12 px-4 text-left align-middle font-medium">Type</th>
-                    <th className="h-12 px-4 text-left align-middle font-medium">Amount</th>
-                    <th className="h-12 px-4 text-left align-middle font-medium">Fund</th>
-                    <th className="h-12 px-4 text-left align-middle font-medium">Member</th>
-                    <th className="h-12 px-4 text-left align-middle font-medium">Notes</th>
+        {/* Offerings Table */}
+        <div className="rounded-lg border border-white/20 bg-white/5 backdrop-blur-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-white/20 bg-white/10">
+                  <th className="h-12 px-4 text-left align-middle font-medium text-white/90">Service Date</th>
+                  <th className="h-12 px-4 text-left align-middle font-medium text-white/90">Type</th>
+                  <th className="h-12 px-4 text-left align-middle font-medium text-white/90">Amount</th>
+                  <th className="h-12 px-4 text-left align-middle font-medium text-white/90">Fund</th>
+                  <th className="h-12 px-4 text-left align-middle font-medium text-white/90">Member</th>
+                  <th className="h-12 px-4 text-left align-middle font-medium text-white/90">Notes</th>
+                  {hasRole('Admin') && (
+                    <th className="h-12 px-4 text-left align-middle font-medium text-white/90">Actions</th>
+                  )}
+                </tr>
+              </thead>
+              <tbody>
+                {filteredOfferings.map((offering) => (
+                  <tr key={offering.id} className="border-b border-white/10 hover:bg-white/5 transition-colors">
+                    <td className="p-4 text-white/80">{formatDate(offering.service_date)}</td>
+                    <td className="p-4">
+                      <Badge variant="outline" className="border-white/30 text-white/90">{offering.type}</Badge>
+                    </td>
+                    <td className="p-4 font-medium text-white">{formatCurrency(offering.amount)}</td>
+                    <td className="p-4">
+                      {Object.keys(offering.fund_allocations || {}).length > 0 ? (
+                        <div className="space-y-1">
+                          {Object.entries((offering.fund_allocations as Record<string, number>) || {}).map(([fundId, amount]) => {
+                            const fund = funds.find(f => f.id === fundId)
+                            return fund && typeof amount === 'number' ? (
+                              <div key={fundId} className="text-sm text-white/80">
+                                {fund.name}: {formatCurrency(amount)}
+                              </div>
+                            ) : null
+                          })}
+                        </div>
+                      ) : (
+                        <span className="text-white/50">-</span>
+                      )}
+                    </td>
+                    <td className="p-4">
+                      {offering.offering_members && offering.offering_members.length > 0 ? (
+                        <div className="text-sm">
+                          <div className="font-medium text-white/90">{offering.offering_members[0].member.name}</div>
+                          {offering.offering_members[0].member.fellowship_name && (
+                            <div className="text-white/60">{offering.offering_members[0].member.fellowship_name}</div>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-white/50">-</span>
+                      )}
+                    </td>
+                    <td className="p-4 max-w-xs truncate text-white/80">{offering.notes || '-'}</td>
                     {hasRole('Admin') && (
-                      <th className="h-12 px-4 text-left align-middle font-medium">Actions</th>
+                      <td className="p-4">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" className="h-8 w-8 p-0 hover:bg-white/10">
+                              <MoreHorizontal className="h-4 w-4 text-white/70" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="glass-dropdown">
+                            <DropdownMenuItem onClick={() => handleEdit(offering)}>
+                              <Edit className="mr-2 h-4 w-4" />
+                              Edit
+                            </DropdownMenuItem>
+                            {hasRole('Admin') && (
+                              <DropdownMenuItem 
+                                onClick={() => handleDelete(offering.id)}
+                                className="text-red-400 hover:text-red-300"
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Delete
+                              </DropdownMenuItem>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </td>
                     )}
                   </tr>
-                </thead>
-                <tbody>
-                  {filteredOfferings.map((offering) => (
-                    <tr key={offering.id} className="border-b">
-                      <td className="p-4">{formatDate(offering.service_date)}</td>
-                      <td className="p-4">
-                        <Badge variant="outline">{offering.type}</Badge>
-                      </td>
-                      <td className="p-4 font-medium">{formatCurrency(offering.amount)}</td>
-                      <td className="p-4">
-                        {Object.keys(offering.fund_allocations || {}).length > 0 ? (
-                          <div className="space-y-1">
-                            {Object.entries((offering.fund_allocations as Record<string, number>) || {}).map(([fundId, amount]) => {
-                              const fund = funds.find(f => f.id === fundId)
-                              return fund && typeof amount === 'number' ? (
-                                <div key={fundId} className="text-sm">
-                                  {fund.name}: {formatCurrency(amount)}
-                                </div>
-                              ) : null
-                            })}
-                          </div>
-                        ) : (
-                          <span className="text-muted-foreground">-</span>
-                        )}
-                      </td>
-                      <td className="p-4">
-                        {offering.offering_members && offering.offering_members.length > 0 ? (
-                          <div className="text-sm">
-                            <div className="font-medium">{offering.offering_members[0].member.name}</div>
-                            {offering.offering_members[0].member.fellowship_name && (
-                              <div className="text-muted-foreground">{offering.offering_members[0].member.fellowship_name}</div>
-                            )}
-                          </div>
-                        ) : (
-                          <span className="text-muted-foreground">-</span>
-                        )}
-                      </td>
-                      <td className="p-4 max-w-xs truncate">{offering.notes || '-'}</td>
-                      {hasRole('Admin') && (
-                        <td className="p-4">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" className="h-8 w-8 p-0">
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => handleEdit(offering)}>
-                                <Edit className="mr-2 h-4 w-4" />
-                                Edit
-                              </DropdownMenuItem>
-                              {hasRole('Admin') && (
-                                <DropdownMenuItem 
-                                  onClick={() => handleDelete(offering.id)}
-                                  className="text-destructive"
-                                >
-                                  <Trash2 className="mr-2 h-4 w-4" />
-                                  Delete
-                                </DropdownMenuItem>
-                              )}
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </td>
-                      )}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            {filteredOfferings.length === 0 && (
-              <div className="text-center py-8 text-muted-foreground">
-                No offerings found matching your criteria.
-              </div>
-            )}
+                ))}
+              </tbody>
+            </table>
           </div>
-        </CardContent>
-      </Card>
+          {filteredOfferings.length === 0 && (
+            <div className="text-center py-8 text-white/60">
+              No offerings found matching your criteria.
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   )
 }

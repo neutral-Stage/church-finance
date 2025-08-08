@@ -1,13 +1,13 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
-import { Calendar, User, DollarSign, TrendingUp, Download } from 'lucide-react'
+import { Calendar, User, DollarSign, TrendingUp, Download, Users, Gift } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface Member {
@@ -46,6 +46,62 @@ const formatDate = (dateString: string) => {
     month: '2-digit',
     year: 'numeric'
   })
+}
+
+// Animated Counter Component
+interface AnimatedCounterProps {
+  value: number
+  duration?: number
+  formatter?: (value: number) => string
+}
+
+function AnimatedCounter({ value, duration = 2000, formatter = (v) => v.toString() }: AnimatedCounterProps) {
+  const [count, setCount] = useState(0)
+  const [isVisible, setIsVisible] = useState(false)
+  const ref = useRef<HTMLSpanElement>(null)
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting && !isVisible) {
+          setIsVisible(true)
+        }
+      },
+      { threshold: 0.1 }
+    )
+
+    if (ref.current) {
+      observer.observe(ref.current)
+    }
+
+    return () => observer.disconnect()
+  }, [])
+
+  useEffect(() => {
+    if (!isVisible) return
+
+    let startTime: number
+    const startValue = count
+    const endValue = value
+
+    const animate = (currentTime: number) => {
+      if (!startTime) startTime = currentTime
+      const progress = Math.min((currentTime - startTime) / duration, 1)
+      
+      const easeOutCubic = 1 - Math.pow(1 - progress, 3)
+      const currentCount = Math.floor(startValue + (endValue - startValue) * easeOutCubic)
+      
+      setCount(currentCount)
+      
+      if (progress < 1) {
+        requestAnimationFrame(animate)
+      }
+    }
+
+    requestAnimationFrame(animate)
+  }, [isVisible, value, duration, count])
+
+  return <span ref={ref}>{formatter(count)}</span>
 }
 
 export default function MemberContributionsPage() {
@@ -249,8 +305,11 @@ export default function MemberContributionsPage() {
       <div className="container mx-auto p-6">
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-            <p>Loading member contributions...</p>
+            <div className="relative">
+              <div className="animate-spin rounded-full h-12 w-12 border-4 border-white/20 border-t-white/80 mx-auto mb-4"></div>
+              <div className="animate-spin rounded-full h-8 w-8 border-4 border-white/10 border-t-white/60 mx-auto absolute top-2 left-1/2 transform -translate-x-1/2" style={{animationDirection: 'reverse', animationDuration: '1.5s'}}></div>
+            </div>
+            <p className="text-white/80 font-medium">Loading member contributions...</p>
           </div>
         </div>
       </div>
@@ -259,14 +318,20 @@ export default function MemberContributionsPage() {
 
   return (
     <div className="container mx-auto p-6 space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between animate-fade-in animate-slide-in-from-top-4">
         <div>
-          <h1 className="text-3xl font-bold">Member Contributions</h1>
-          <p className="text-muted-foreground mt-2">
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent">
+            <Users className="inline-block w-8 h-8 mr-3 text-white/90" />
+            Member Contributions
+          </h1>
+          <p className="text-white/60 mt-2">
             Track individual member contribution history and generate reports
           </p>
         </div>
-        <Button onClick={exportToCSV} className="flex items-center gap-2">
+        <Button 
+          onClick={exportToCSV} 
+          className="flex items-center gap-2 bg-white/10 hover:bg-white/20 border border-white/20 backdrop-blur-xl transition-all duration-300 hover:scale-105"
+        >
           <Download className="h-4 w-4" />
           Export CSV
         </Button>
@@ -274,81 +339,99 @@ export default function MemberContributionsPage() {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
+        <Card className="bg-white/10 backdrop-blur-xl border-white/20 hover:bg-white/15 transition-all duration-300 hover:scale-105 animate-fade-in animate-slide-in-from-bottom-4" style={{animationDelay: '100ms'}}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Members</CardTitle>
-            <User className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-white/90">Total Members</CardTitle>
+            <div className="p-2 bg-blue-500/20 rounded-lg backdrop-blur-sm">
+              <User className="h-4 w-4 text-blue-300" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{totalMembers}</div>
+            <div className="text-2xl font-bold text-white">
+              <AnimatedCounter value={totalMembers} />
+            </div>
           </CardContent>
         </Card>
         
-        <Card>
+        <Card className="bg-white/10 backdrop-blur-xl border-white/20 hover:bg-white/15 transition-all duration-300 hover:scale-105 animate-fade-in animate-slide-in-from-bottom-4" style={{animationDelay: '200ms'}}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Contributions</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-white/90">Total Contributions</CardTitle>
+            <div className="p-2 bg-green-500/20 rounded-lg backdrop-blur-sm">
+              <DollarSign className="h-4 w-4 text-green-300" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(totalContributions)}</div>
+            <div className="text-2xl font-bold text-white">
+              <AnimatedCounter value={totalContributions} formatter={formatCurrency} />
+            </div>
           </CardContent>
         </Card>
         
-        <Card>
+        <Card className="bg-white/10 backdrop-blur-xl border-white/20 hover:bg-white/15 transition-all duration-300 hover:scale-105 animate-fade-in animate-slide-in-from-bottom-4" style={{animationDelay: '300ms'}}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Average per Member</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-white/90">Average per Member</CardTitle>
+            <div className="p-2 bg-purple-500/20 rounded-lg backdrop-blur-sm">
+              <TrendingUp className="h-4 w-4 text-purple-300" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(averageContribution)}</div>
+            <div className="text-2xl font-bold text-white">
+              <AnimatedCounter value={averageContribution} formatter={formatCurrency} />
+            </div>
           </CardContent>
         </Card>
         
-        <Card>
+        <Card className="bg-white/10 backdrop-blur-xl border-white/20 hover:bg-white/15 transition-all duration-300 hover:scale-105 animate-fade-in animate-slide-in-from-bottom-4" style={{animationDelay: '400ms'}}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Contributors</CardTitle>
-            <Calendar className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-white/90">Active Contributors</CardTitle>
+            <div className="p-2 bg-orange-500/20 rounded-lg backdrop-blur-sm">
+              <Calendar className="h-4 w-4 text-orange-300" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {filteredContributions.filter(mc => {
+            <div className="text-2xl font-bold text-white">
+              <AnimatedCounter value={filteredContributions.filter(mc => {
                 const lastContrib = new Date(mc.last_contribution_date)
                 const threeMonthsAgo = new Date()
                 threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3)
                 return lastContrib >= threeMonthsAgo
-              }).length}
+              }).length} />
             </div>
-            <p className="text-xs text-muted-foreground">Last 3 months</p>
+            <p className="text-xs text-white/60">Last 3 months</p>
           </CardContent>
         </Card>
       </div>
 
       {/* Filters */}
-      <Card>
+      <Card className="bg-white/10 backdrop-blur-xl border-white/20 animate-fade-in animate-slide-in-from-bottom-4" style={{animationDelay: '500ms'}}>
         <CardHeader>
-          <CardTitle>Filters & Search</CardTitle>
+          <CardTitle className="text-white/90 flex items-center gap-2">
+            <Gift className="h-5 w-5" />
+            Filters & Search
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div>
-              <label className="text-sm font-medium mb-2 block">Search Members</label>
+              <label className="text-sm font-medium mb-2 block text-white/80">Search Members</label>
               <Input
                 placeholder="Search by name or fellowship..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
+                className="bg-white/5 border-white/20 text-white placeholder:text-white/50 focus:border-white/40"
               />
             </div>
             
             <div>
-              <label className="text-sm font-medium mb-2 block">Fellowship</label>
+              <label className="text-sm font-medium mb-2 block text-white/80">Fellowship</label>
               <Select value={selectedFellowship} onValueChange={setSelectedFellowship}>
-                <SelectTrigger>
+                <SelectTrigger className="bg-white/5 border-white/20 text-white">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Fellowships</SelectItem>
+                <SelectContent className="bg-gray-900/95 backdrop-blur-xl border-white/20">
+                  <SelectItem value="all" className="text-white hover:bg-white/10">All Fellowships</SelectItem>
                   {fellowships.map(fellowship => (
-                    <SelectItem key={fellowship} value={fellowship}>
+                    <SelectItem key={fellowship} value={fellowship} className="text-white hover:bg-white/10">
                       {fellowship}
                     </SelectItem>
                   ))}
@@ -357,16 +440,16 @@ export default function MemberContributionsPage() {
             </div>
             
             <div>
-              <label className="text-sm font-medium mb-2 block">Sort By</label>
+              <label className="text-sm font-medium mb-2 block text-white/80">Sort By</label>
               <Select value={sortBy} onValueChange={setSortBy}>
-                <SelectTrigger>
+                <SelectTrigger className="bg-white/5 border-white/20 text-white">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="total_amount">Total Amount</SelectItem>
-                  <SelectItem value="contribution_count">Number of Contributions</SelectItem>
-                  <SelectItem value="last_contribution">Last Contribution</SelectItem>
-                  <SelectItem value="name">Name (A-Z)</SelectItem>
+                <SelectContent className="bg-gray-900/95 backdrop-blur-xl border-white/20">
+                  <SelectItem value="total_amount" className="text-white hover:bg-white/10">Total Amount</SelectItem>
+                  <SelectItem value="contribution_count" className="text-white hover:bg-white/10">Number of Contributions</SelectItem>
+                  <SelectItem value="last_contribution" className="text-white hover:bg-white/10">Last Contribution</SelectItem>
+                  <SelectItem value="name" className="text-white hover:bg-white/10">Name (A-Z)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -377,19 +460,23 @@ export default function MemberContributionsPage() {
       {/* Member Contributions List */}
       <div className="space-y-4">
         {filteredContributions.length === 0 ? (
-          <Card>
+          <Card className="bg-white/10 backdrop-blur-xl border-white/20 animate-fade-in animate-slide-in-from-bottom-4" style={{animationDelay: '600ms'}}>
             <CardContent className="text-center py-8">
-              <p className="text-muted-foreground">No member contributions found.</p>
+              <p className="text-white/60">No member contributions found.</p>
             </CardContent>
           </Card>
         ) : (
-          filteredContributions.map((memberContrib) => (
-            <Card key={memberContrib.member.id}>
+          filteredContributions.map((memberContrib, index) => (
+            <Card 
+              key={memberContrib.member.id} 
+              className="bg-white/10 backdrop-blur-xl border-white/20 hover:bg-white/15 transition-all duration-300 animate-fade-in animate-slide-in-from-bottom-4" 
+              style={{animationDelay: `${600 + (index * 50)}ms`}}
+            >
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div>
-                    <CardTitle className="text-lg">{memberContrib.member.name}</CardTitle>
-                    <CardDescription className="flex items-center gap-4 mt-1">
+                    <CardTitle className="text-lg text-white">{memberContrib.member.name}</CardTitle>
+                    <CardDescription className="flex items-center gap-4 mt-1 text-white/60">
                       {memberContrib.member.fellowship_name && (
                         <span>Fellowship: {memberContrib.member.fellowship_name}</span>
                       )}
@@ -399,13 +486,13 @@ export default function MemberContributionsPage() {
                     </CardDescription>
                   </div>
                   <div className="text-right">
-                    <div className="text-2xl font-bold text-primary">
+                    <div className="text-2xl font-bold text-green-300">
                       {formatCurrency(memberContrib.total_amount)}
                     </div>
-                    <div className="text-sm text-muted-foreground">
+                    <div className="text-sm text-white/70">
                       {memberContrib.contribution_count} contribution{memberContrib.contribution_count !== 1 ? 's' : ''}
                     </div>
-                    <div className="text-xs text-muted-foreground">
+                    <div className="text-xs text-white/50">
                       Last: {formatDate(memberContrib.last_contribution_date)}
                     </div>
                   </div>
@@ -413,22 +500,22 @@ export default function MemberContributionsPage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-2">
-                  <h4 className="font-medium text-sm mb-3">Recent Contributions:</h4>
+                  <h4 className="font-medium text-sm mb-3 text-white/90">Recent Contributions:</h4>
                   {memberContrib.contributions.slice(0, 5).map((contrib) => (
-                    <div key={contrib.id} className="flex items-center justify-between py-2 px-3 bg-muted/50 rounded-lg">
+                    <div key={contrib.id} className="flex items-center justify-between py-2 px-3 bg-white/5 rounded-lg border border-white/10 hover:bg-white/10 transition-colors">
                       <div className="flex items-center gap-3">
                         <div className="text-sm">
-                          <div className="font-medium">{formatDate(contrib.service_date)}</div>
-                          <div className="text-muted-foreground text-xs">{contrib.fund_name}</div>
+                          <div className="font-medium text-white/90">{formatDate(contrib.service_date)}</div>
+                          <div className="text-white/60 text-xs">{contrib.fund_name}</div>
                         </div>
-                        <Badge variant="outline" className="text-xs">
+                        <Badge variant="outline" className="text-xs bg-white/10 border-white/20 text-white/80">
                           {contrib.type}
                         </Badge>
                       </div>
                       <div className="text-right">
-                        <div className="font-medium">{formatCurrency(contrib.amount)}</div>
+                        <div className="font-medium text-white">{formatCurrency(contrib.amount)}</div>
                         {contrib.notes && (
-                          <div className="text-xs text-muted-foreground truncate max-w-32">
+                          <div className="text-xs text-white/50 truncate max-w-32">
                             {contrib.notes}
                           </div>
                         )}
@@ -437,7 +524,7 @@ export default function MemberContributionsPage() {
                   ))}
                   {memberContrib.contributions.length > 5 && (
                     <div className="text-center py-2">
-                      <span className="text-sm text-muted-foreground">
+                      <span className="text-sm text-white/60">
                         +{memberContrib.contributions.length - 5} more contributions
                       </span>
                     </div>

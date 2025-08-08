@@ -11,7 +11,8 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { Plus, Edit, Trash2, Phone, MapPin, Briefcase, Users } from 'lucide-react';
+import { Plus, Edit, Trash2, Phone, MapPin, Briefcase, Users, Loader2 } from 'lucide-react';
+import { AnimatedCounter } from '@/components/ui/animated-counter';
 
 interface Member {
   id: string;
@@ -280,22 +281,31 @@ export default function MembersPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-lg">Loading members...</div>
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="relative">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-white/20 bg-white/10 backdrop-blur-xl"></div>
+          <div className="absolute inset-0 animate-spin rounded-full h-32 w-32 border-t-2 border-blue-400" style={{animationDelay: '0.1s'}}></div>
+          <Loader2 className="absolute inset-0 m-auto h-8 w-8 text-white animate-spin" style={{animationDelay: '0.2s'}} />
+        </div>
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between items-center animate-fade-in">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Members Management</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent">
+            Members Management
+          </h1>
+          <p className="text-white/70">
             Manage brothers and sisters database with personal information
           </p>
         </div>
-        <Button onClick={openAddDialog}>
+        <Button 
+          onClick={openAddDialog}
+          className="glass-button hover:scale-105 transition-all duration-300"
+        >
           <Plus className="mr-2 h-4 w-4" />
           Add Member
         </Button>
@@ -303,119 +313,129 @@ export default function MembersPage() {
 
       {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
+        <div className="glass-card hover:scale-105 transition-all duration-300 animate-fade-in animate-slide-in-from-bottom-4" style={{animationDelay: '0.1s'}}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Members</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-white/90">Total Members</CardTitle>
+            <div className="p-2 bg-blue-500/20 backdrop-blur-sm rounded-lg">
+              <Users className="h-4 w-4 text-blue-400" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{members.length}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Fellowships</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {new Set(members.filter(m => m.fellowship_name).map(m => m.fellowship_name)).size}
+            <div className="text-2xl font-bold bg-gradient-to-r from-white to-blue-200 bg-clip-text text-transparent">
+              <AnimatedCounter value={members.length} />
             </div>
           </CardContent>
-        </Card>
-        <Card>
+        </div>
+        <div className="glass-card hover:scale-105 transition-all duration-300 animate-fade-in animate-slide-in-from-bottom-4" style={{animationDelay: '0.2s'}}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">With Phone</CardTitle>
-            <Phone className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-white/90">Fellowships</CardTitle>
+            <div className="p-2 bg-green-500/20 backdrop-blur-sm rounded-lg">
+              <Users className="h-4 w-4 text-green-400" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {members.filter(m => m.phone).length}
+            <div className="text-2xl font-bold bg-gradient-to-r from-white to-green-200 bg-clip-text text-transparent">
+              <AnimatedCounter value={new Set(members.filter(m => m.fellowship_name).map(m => m.fellowship_name)).size} />
             </div>
           </CardContent>
-        </Card>
-        <Card>
+        </div>
+        <div className="glass-card hover:scale-105 transition-all duration-300 animate-fade-in animate-slide-in-from-bottom-4" style={{animationDelay: '0.3s'}}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">With Jobs</CardTitle>
-            <Briefcase className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-white/90">With Phone</CardTitle>
+            <div className="p-2 bg-purple-500/20 backdrop-blur-sm rounded-lg">
+              <Phone className="h-4 w-4 text-purple-400" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {members.filter(m => m.job).length}
+            <div className="text-2xl font-bold bg-gradient-to-r from-white to-purple-200 bg-clip-text text-transparent">
+              <AnimatedCounter value={members.filter(m => m.phone).length} />
             </div>
           </CardContent>
-        </Card>
+        </div>
+        <div className="glass-card hover:scale-105 transition-all duration-300 animate-fade-in animate-slide-in-from-bottom-4" style={{animationDelay: '0.4s'}}>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-white/90">With Jobs</CardTitle>
+            <div className="p-2 bg-orange-500/20 backdrop-blur-sm rounded-lg">
+              <Briefcase className="h-4 w-4 text-orange-400" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold bg-gradient-to-r from-white to-orange-200 bg-clip-text text-transparent">
+              <AnimatedCounter value={members.filter(m => m.job).length} />
+            </div>
+          </CardContent>
+        </div>
       </div>
 
       {/* Search */}
-      <div className="flex items-center space-x-2">
+      <div className="flex items-center space-x-2 animate-fade-in animate-slide-in-from-bottom-4" style={{animationDelay: '0.5s'}}>
         <Input
           placeholder="Search members by name, fellowship, or job..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="max-w-sm"
+          className="max-w-sm glass-input"
         />
       </div>
 
       {/* Members Table */}
-      <Card>
+      <div className="glass-card animate-fade-in animate-slide-in-from-bottom-4" style={{animationDelay: '0.6s'}}>
         <CardHeader>
-          <CardTitle>Members List</CardTitle>
-          <CardDescription>
+          <CardTitle className="text-white/90">Members List</CardTitle>
+          <CardDescription className="text-white/60">
             A list of all brothers and sisters with their personal information
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Phone</TableHead>
-                <TableHead>Fellowship</TableHead>
-                <TableHead>Job</TableHead>
-                <TableHead>Location</TableHead>
-                <TableHead>Actions</TableHead>
+              <TableRow className="border-white/10 hover:bg-white/5">
+                <TableHead className="text-white/80">Name</TableHead>
+                <TableHead className="text-white/80">Phone</TableHead>
+                <TableHead className="text-white/80">Fellowship</TableHead>
+                <TableHead className="text-white/80">Job</TableHead>
+                <TableHead className="text-white/80">Location</TableHead>
+                <TableHead className="text-white/80">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredMembers.map((member) => (
-                <TableRow key={member.id}>
-                  <TableCell className="font-medium">{member.name}</TableCell>
+                <TableRow key={member.id} className="border-white/10 hover:bg-white/5 transition-colors">
+                  <TableCell className="font-medium text-white/90">{member.name}</TableCell>
                   <TableCell>
                     {member.phone ? (
-                      <div className="flex items-center">
+                      <div className="flex items-center text-white/80">
                         <Phone className="mr-1 h-3 w-3" />
                         {member.phone}
                       </div>
                     ) : (
-                      <span className="text-muted-foreground">-</span>
+                      <span className="text-white/40">-</span>
                     )}
                   </TableCell>
                   <TableCell>
                     {member.fellowship_name ? (
-                      <Badge variant="secondary">{member.fellowship_name}</Badge>
+                      <Badge variant="secondary" className="bg-white/10 text-white/90 border-white/20">{member.fellowship_name}</Badge>
                     ) : (
-                      <span className="text-muted-foreground">-</span>
+                      <span className="text-white/40">-</span>
                     )}
                   </TableCell>
                   <TableCell>
                     {member.job ? (
-                      <div className="flex items-center">
+                      <div className="flex items-center text-white/80">
                         <Briefcase className="mr-1 h-3 w-3" />
                         {member.job}
                       </div>
                     ) : (
-                      <span className="text-muted-foreground">-</span>
+                      <span className="text-white/40">-</span>
                     )}
                   </TableCell>
                   <TableCell>
                     {member.location ? (
-                      <div className="flex items-center">
+                      <div className="flex items-center text-white/80">
                         <MapPin className="mr-1 h-3 w-3" />
                         {member.location}
                       </div>
                     ) : (
-                      <span className="text-muted-foreground">-</span>
+                      <span className="text-white/40">-</span>
                     )}
                   </TableCell>
                   <TableCell>
@@ -424,6 +444,7 @@ export default function MembersPage() {
                         variant="outline"
                         size="sm"
                         onClick={() => handleEdit(member)}
+                        className="glass-button-outline hover:scale-105 transition-all duration-300"
                       >
                         <Edit className="h-3 w-3" />
                       </Button>
@@ -431,6 +452,7 @@ export default function MembersPage() {
                         variant="outline"
                         size="sm"
                         onClick={() => handleDelete(member.id)}
+                        className="glass-button-outline hover:scale-105 transition-all duration-300 hover:bg-red-500/20"
                       >
                         <Trash2 className="h-3 w-3" />
                       </Button>
@@ -441,72 +463,85 @@ export default function MembersPage() {
             </TableBody>
           </Table>
           {filteredMembers.length === 0 && (
-            <div className="text-center py-8 text-muted-foreground">
+            <div className="text-center py-8 text-white/60">
               No members found
             </div>
           )}
         </CardContent>
-      </Card>
+      </div>
 
       {/* Add/Edit Member Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-[425px] glass-card border-white/20">
           <DialogHeader>
-            <DialogTitle>
+            <DialogTitle className="text-white/90">
               {editingMember ? 'Edit Member' : 'Add New Member'}
             </DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="text-white/60">
               {editingMember ? 'Update member information' : 'Add a new brother or sister to the database'}
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="name">Name *</Label>
+              <Label htmlFor="name" className="text-white/90">Name *</Label>
               <Input
                 id="name"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 required
+                className="glass-input"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="phone">Phone</Label>
+              <Label htmlFor="phone" className="text-white/90">Phone</Label>
               <Input
                 id="phone"
                 value={formData.phone}
                 onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                 placeholder="+8801XXXXXXXXX"
+                className="glass-input"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="fellowship_name">Fellowship/Church Name</Label>
+              <Label htmlFor="fellowship_name" className="text-white/90">Fellowship/Church Name</Label>
               <Input
                 id="fellowship_name"
                 value={formData.fellowship_name}
                 onChange={(e) => setFormData({ ...formData, fellowship_name: e.target.value })}
+                className="glass-input"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="job">Job/Occupation</Label>
+              <Label htmlFor="job" className="text-white/90">Job/Occupation</Label>
               <Input
                 id="job"
                 value={formData.job}
                 onChange={(e) => setFormData({ ...formData, job: e.target.value })}
+                className="glass-input"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="location">Location</Label>
+              <Label htmlFor="location" className="text-white/90">Location</Label>
               <Input
                 id="location"
                 value={formData.location}
                 onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                className="glass-input"
               />
             </div>
             <div className="flex justify-end space-x-2">
-              <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={() => setIsDialogOpen(false)}
+                className="glass-button-outline"
+              >
                 Cancel
               </Button>
-              <Button type="submit">
+              <Button 
+                type="submit"
+                className="glass-button"
+              >
                 {editingMember ? 'Update' : 'Add'} Member
               </Button>
             </div>

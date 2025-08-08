@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/lib/supabase'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -50,7 +50,8 @@ import {
   TrendingUp,
   TrendingDown,
   AlertTriangle,
-  DollarSign
+  DollarSign,
+  Filter
 } from 'lucide-react'
 import { Fund, TransactionWithFund, TransactionInsert } from '@/types/database'
 import { formatCurrency, formatDate, formatDateForInput } from '@/lib/utils'
@@ -295,10 +296,66 @@ export default function TransactionsPage() {
     .filter(t => t.type === 'expense')
     .reduce((sum, t) => sum + Number(t.amount), 0)
 
+  // Animated Counter Component
+  const AnimatedCounter = ({ value, prefix = '', suffix = '' }: { value: number; prefix?: string; suffix?: string }) => {
+    const [count, setCount] = useState(0)
+    const [isVisible, setIsVisible] = useState(false)
+    const counterRef = useRef<HTMLDivElement>(null)
+
+    useEffect(() => {
+      const observer = new IntersectionObserver(
+        ([entry]) => {
+          if (entry.isIntersecting) {
+            setIsVisible(true)
+          }
+        },
+        { threshold: 0.1 }
+      )
+
+      if (counterRef.current) {
+        observer.observe(counterRef.current)
+      }
+
+      return () => observer.disconnect()
+    }, [])
+
+    useEffect(() => {
+      if (isVisible) {
+        const duration = 2000
+        const steps = 60
+        const stepValue = value / steps
+        const stepDuration = duration / steps
+
+        let currentStep = 0
+        const timer = setInterval(() => {
+          currentStep++
+          const easeOutQuart = 1 - Math.pow(1 - currentStep / steps, 4)
+          setCount(Math.round(value * easeOutQuart))
+
+          if (currentStep >= steps) {
+            setCount(value)
+            clearInterval(timer)
+          }
+        }, stepDuration)
+
+        return () => clearInterval(timer)
+      }
+    }, [isVisible, value])
+
+    return (
+      <div ref={counterRef} className="text-2xl font-bold">
+        {prefix}{count.toLocaleString()}{suffix}
+      </div>
+    )
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <div className="relative">
+          <div className="w-16 h-16 rounded-full bg-gradient-to-r from-blue-500/20 to-purple-500/20 backdrop-blur-sm animate-pulse"></div>
+          <div className="absolute inset-0 w-16 h-16 rounded-full border-4 border-transparent border-t-blue-500 animate-spin"></div>
+        </div>
       </div>
     )
   }
@@ -313,30 +370,35 @@ export default function TransactionsPage() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Income &amp; Expenses</h1>
-          <p className="text-gray-600 mt-1">
-            Manage all financial transactions
-          </p>
-        </div>
+    <div className="container mx-auto p-6 space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between animate-fade-in animate-slide-in-from-bottom-4" style={{animationDelay: '0.1s'}}>
+          <div className="animate-slide-in-left">
+            <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent">
+              Income &amp; Expenses
+            </h1>
+            <p className="text-white/70 mt-2">
+              Manage all financial transactions with modern insights
+            </p>
+          </div>
         
-        {canEdit() && (
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
-              <Button onClick={resetForm}>
-                <Plus className="mr-2 h-4 w-4" />
-                Add Transaction
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[600px]">
+          {canEdit() && (
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+              <DialogTrigger asChild>
+                <Button 
+                  onClick={resetForm}
+                  className="bg-white/10 backdrop-blur-xl border border-white/20 text-white hover:bg-white/15 hover:scale-105 transition-all duration-300"
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add Transaction
+                </Button>
+              </DialogTrigger>
+            <DialogContent className="sm:max-w-[600px] bg-black/80 backdrop-blur-xl border border-white/20">
               <DialogHeader>
-                <DialogTitle>
+                <DialogTitle className="text-white text-xl">
                   {editingTransaction ? 'Edit Transaction' : 'Add New Transaction'}
                 </DialogTitle>
-                <DialogDescription>
+                <DialogDescription className="text-white/70">
                   {editingTransaction ? 'Update the transaction details below.' : 'Enter the transaction details below.'}
                 </DialogDescription>
               </DialogHeader>
@@ -344,17 +406,17 @@ export default function TransactionsPage() {
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="type">Type</Label>
+                    <Label htmlFor="type" className="text-white">Type</Label>
                     <Select
                       value={formData.type}
                       onValueChange={(value: 'income' | 'expense') => {
                         setFormData(prev => ({ ...prev, type: value, category: '' }))
                       }}
                     >
-                      <SelectTrigger>
+                      <SelectTrigger className="bg-white/10 backdrop-blur-xl border border-white/20 text-white focus:border-white/40 focus:ring-1 focus:ring-white/20">
                         <SelectValue />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="bg-black/80 backdrop-blur-xl border border-white/20">
                         <SelectItem value="income">Income</SelectItem>
                         <SelectItem value="expense">Expense</SelectItem>
                       </SelectContent>
@@ -362,15 +424,15 @@ export default function TransactionsPage() {
                   </div>
                   
                   <div className="space-y-2">
-                    <Label htmlFor="fund_id">Fund</Label>
+                    <Label htmlFor="fund_id" className="text-white">Fund</Label>
                     <Select
                       value={formData.fund_id}
                       onValueChange={(value) => setFormData(prev => ({ ...prev, fund_id: value }))}
                     >
-                      <SelectTrigger>
+                      <SelectTrigger className="bg-white/10 backdrop-blur-xl border border-white/20 text-white focus:border-white/40 focus:ring-1 focus:ring-white/20">
                         <SelectValue placeholder="Select fund" />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="bg-black/80 backdrop-blur-xl border border-white/20">
                         {funds.map((fund) => (
                           <SelectItem key={fund.id} value={fund.id}>
                             {fund.name}
@@ -383,7 +445,7 @@ export default function TransactionsPage() {
                 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="amount">Amount</Label>
+                    <Label htmlFor="amount" className="text-white">Amount</Label>
                     <Input
                       id="amount"
                       type="number"
@@ -392,20 +454,21 @@ export default function TransactionsPage() {
                       placeholder="0.00"
                       value={formData.amount}
                       onChange={(e) => setFormData(prev => ({ ...prev, amount: e.target.value }))}
+                      className="bg-white/10 backdrop-blur-xl border border-white/20 text-white placeholder:text-white/60 focus:border-white/40 focus:ring-1 focus:ring-white/20"
                       required
                     />
                   </div>
                   
                   <div className="space-y-2">
-                    <Label htmlFor="category">Category</Label>
+                    <Label htmlFor="category" className="text-white">Category</Label>
                     <Select
                       value={formData.category}
                       onValueChange={(value) => setFormData(prev => ({ ...prev, category: value }))}
                     >
-                      <SelectTrigger>
+                      <SelectTrigger className="bg-white/10 backdrop-blur-xl border border-white/20 text-white focus:border-white/40 focus:ring-1 focus:ring-white/20">
                         <SelectValue placeholder="Select category" />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="bg-black/80 backdrop-blur-xl border border-white/20">
                         {TRANSACTION_CATEGORIES[formData.type].map((category) => (
                           <SelectItem key={category} value={category}>
                             {category}
@@ -417,26 +480,27 @@ export default function TransactionsPage() {
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="description">Description</Label>
+                  <Label htmlFor="description" className="text-white">Description</Label>
                   <Input
                     id="description"
                     placeholder="Transaction description"
                     value={formData.description}
                     onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                    className="bg-white/10 backdrop-blur-xl border border-white/20 text-white placeholder:text-white/60 focus:border-white/40 focus:ring-1 focus:ring-white/20"
                     required
                   />
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="payment_method">Payment Method</Label>
+                  <Label htmlFor="payment_method" className="text-white">Payment Method</Label>
                   <Select
                     value={formData.payment_method}
                     onValueChange={(value: 'cash' | 'bank') => setFormData(prev => ({ ...prev, payment_method: value }))}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="bg-white/10 backdrop-blur-xl border border-white/20 text-white focus:border-white/40 focus:ring-1 focus:ring-white/20">
                       <SelectValue placeholder="Select payment method" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="bg-black/80 backdrop-blur-xl border border-white/20">
                       <SelectItem value="cash">Cash</SelectItem>
                       <SelectItem value="bank">Bank</SelectItem>
                     </SelectContent>
@@ -445,24 +509,26 @@ export default function TransactionsPage() {
                 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="transaction_date">Date</Label>
+                    <Label htmlFor="transaction_date" className="text-white">Date</Label>
                     <Input
                       id="transaction_date"
                       type="date"
                       value={formData.transaction_date}
                       onChange={(e) => setFormData(prev => ({ ...prev, transaction_date: e.target.value }))}
+                      className="bg-white/10 backdrop-blur-xl border border-white/20 text-white placeholder:text-white/60 focus:border-white/40 focus:ring-1 focus:ring-white/20"
                       required
                     />
                   </div>
                   
                   <div className="space-y-2">
-                    <Label htmlFor="receipt_number">Receipt Number</Label>
-                <Input
-                  id="receipt_number"
-                  placeholder="Receipt number (optional)"
-                  value={formData.receipt_number}
-                  onChange={(e) => setFormData(prev => ({ ...prev, receipt_number: e.target.value }))}
-                />
+                    <Label htmlFor="receipt_number" className="text-white">Receipt Number</Label>
+                    <Input
+                      id="receipt_number"
+                      placeholder="Receipt number (optional)"
+                      value={formData.receipt_number}
+                      onChange={(e) => setFormData(prev => ({ ...prev, receipt_number: e.target.value }))}
+                      className="bg-white/10 backdrop-blur-xl border border-white/20 text-white placeholder:text-white/60 focus:border-white/40 focus:ring-1 focus:ring-white/20"
+                    />
                   </div>
                 </div>
                 
@@ -477,10 +543,11 @@ export default function TransactionsPage() {
                       setEditingTransaction(null)
                       resetForm()
                     }}
+                    className="bg-white/10 backdrop-blur-xl border border-white/20 text-white hover:bg-white/15 hover:scale-105 transition-all duration-300"
                   >
                     Cancel
                   </Button>
-                  <Button type="submit" disabled={submitting}>
+                  <Button type="submit" disabled={submitting} className="bg-white/10 backdrop-blur-xl border border-white/20 text-white hover:bg-white/15 hover:scale-105 transition-all duration-300">
                     {submitting ? 'Saving...' : editingTransaction ? 'Update' : 'Add'} Transaction
                   </Button>
                 </DialogFooter>
@@ -490,85 +557,100 @@ export default function TransactionsPage() {
         )}
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card>
+        {/* Summary Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <Card className="bg-white/10 backdrop-blur-xl border border-white/20 hover:bg-white/15 hover:scale-105 transition-all duration-300 animate-fade-in animate-slide-in-from-bottom-4" style={{animationDelay: '0.2s'}}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Income</CardTitle>
-            <TrendingUp className="h-4 w-4 text-green-600" />
+            <CardTitle className="text-sm font-medium text-white">Total Income</CardTitle>
+            <div className="p-2 rounded-full bg-green-500/20 backdrop-blur-sm">
+              <TrendingUp className="h-4 w-4 text-green-400" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">
-              {formatCurrency(totalIncome)}
+            <div className="text-green-400">
+              <AnimatedCounter value={totalIncome} prefix={formatCurrency(0).slice(0, 1)} />
             </div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-white/60 mt-1">
               {filteredTransactions.filter(t => t.type === 'income').length} transactions
             </p>
           </CardContent>
         </Card>
         
-        <Card>
+          <Card className="bg-white/10 backdrop-blur-xl border border-white/20 hover:bg-white/15 hover:scale-105 transition-all duration-300 animate-fade-in animate-slide-in-from-bottom-4" style={{animationDelay: '0.3s'}}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Expenses</CardTitle>
-            <TrendingDown className="h-4 w-4 text-red-600" />
+            <CardTitle className="text-sm font-medium text-white">Total Expenses</CardTitle>
+            <div className="p-2 rounded-full bg-red-500/20 backdrop-blur-sm">
+              <TrendingDown className="h-4 w-4 text-red-400" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600">
-              {formatCurrency(totalExpenses)}
+            <div className="text-red-400">
+              <AnimatedCounter value={totalExpenses} prefix={formatCurrency(0).slice(0, 1)} />
             </div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-white/60 mt-1">
               {filteredTransactions.filter(t => t.type === 'expense').length} transactions
             </p>
           </CardContent>
         </Card>
         
-        <Card>
+          <Card className="bg-white/10 backdrop-blur-xl border border-white/20 hover:bg-white/15 hover:scale-105 transition-all duration-300 animate-fade-in animate-slide-in-from-bottom-4" style={{animationDelay: '0.4s'}}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Net Income</CardTitle>
-            <DollarSign className={`h-4 w-4 ${
-              (totalIncome - totalExpenses) >= 0 ? 'text-green-600' : 'text-red-600'
-            }`} />
+            <CardTitle className="text-sm font-medium text-white">Net Income</CardTitle>
+            <div className={`p-2 rounded-full backdrop-blur-sm ${
+              (totalIncome - totalExpenses) >= 0 ? 'bg-green-500/20' : 'bg-red-500/20'
+            }`}>
+              <DollarSign className={`h-4 w-4 ${
+                (totalIncome - totalExpenses) >= 0 ? 'text-green-400' : 'text-red-400'
+              }`} />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className={`text-2xl font-bold ${
-              (totalIncome - totalExpenses) >= 0 ? 'text-green-600' : 'text-red-600'
+            <div className={`${
+              (totalIncome - totalExpenses) >= 0 ? 'text-green-400' : 'text-red-400'
             }`}>
-              {formatCurrency(totalIncome - totalExpenses)}
+              <AnimatedCounter value={totalIncome - totalExpenses} prefix={formatCurrency(0).slice(0, 1)} />
             </div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-white/60 mt-1">
               {filteredTransactions.length} total transactions
             </p>
           </CardContent>
         </Card>
-      </div>
+        </div>
 
-      {/* Filters */}
-      <Card>
+        {/* Transactions Table */}
+        <Card className="bg-white/10 backdrop-blur-xl border border-white/20 animate-fade-in animate-slide-in-from-bottom-4" style={{animationDelay: '0.5s'}}>
         <CardHeader>
-          <CardTitle>Transactions</CardTitle>
-          <CardDescription>
-            View and manage all financial transactions
-          </CardDescription>
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-full bg-blue-500/20 backdrop-blur-sm">
+              <Filter className="h-5 w-5 text-blue-400" />
+            </div>
+            <div>
+              <CardTitle className="bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent">Transaction History</CardTitle>
+              <CardDescription className="text-white/70">
+                View and manage all financial transactions
+              </CardDescription>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="flex flex-col sm:flex-row gap-4 mb-6">
             <div className="flex-1">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-white/60 h-4 w-4" />
                 <Input
                   placeholder="Search transactions..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
+                  className="pl-10 bg-white/10 backdrop-blur-xl border border-white/20 text-white placeholder:text-white/60 focus:border-white/40 focus:ring-1 focus:ring-white/20"
                 />
               </div>
             </div>
             
             <Select value={filterType} onValueChange={(value: 'all' | 'income' | 'expense') => setFilterType(value)}>
-              <SelectTrigger className="w-[140px]">
+              <SelectTrigger className="w-[140px] bg-white/10 backdrop-blur-xl border border-white/20 text-white focus:border-white/40 focus:ring-1 focus:ring-white/20">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-black/80 backdrop-blur-xl border border-white/20">
                 <SelectItem value="all">All Types</SelectItem>
                 <SelectItem value="income">Income</SelectItem>
                 <SelectItem value="expense">Expense</SelectItem>
@@ -576,10 +658,10 @@ export default function TransactionsPage() {
             </Select>
             
             <Select value={filterFund} onValueChange={setFilterFund}>
-              <SelectTrigger className="w-[160px]">
+              <SelectTrigger className="w-[160px] bg-white/10 backdrop-blur-xl border border-white/20 text-white focus:border-white/40 focus:ring-1 focus:ring-white/20">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-black/80 backdrop-blur-xl border border-white/20">
                 <SelectItem value="all">All Funds</SelectItem>
                 {funds.map((fund) => (
                   <SelectItem key={fund.id} value={fund.id}>
@@ -590,57 +672,67 @@ export default function TransactionsPage() {
             </Select>
           </div>
           
-          <div className="rounded-md border">
+          <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-lg overflow-hidden">
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Description</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead>Fund</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead className="text-right">Amount</TableHead>
-                  <TableHead>Receipt Number</TableHead>
+                <TableRow className="border-white/10 hover:bg-white/5">
+                  <TableHead className="text-white/80">Date</TableHead>
+                  <TableHead className="text-white/80">Description</TableHead>
+                  <TableHead className="text-white/80">Category</TableHead>
+                  <TableHead className="text-white/80">Fund</TableHead>
+                  <TableHead className="text-white/80">Type</TableHead>
+                  <TableHead className="text-right text-white/80">Amount</TableHead>
+                  <TableHead className="text-white/80">Receipt Number</TableHead>
                   {(canEdit() || canDelete()) && <TableHead className="w-[50px]"></TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredTransactions.map((transaction) => (
-                  <TableRow key={transaction.id}>
-                    <TableCell>{formatDate(transaction.transaction_date)}</TableCell>
-                    <TableCell className="font-medium">
+                {filteredTransactions.map((transaction, index) => (
+                  <TableRow 
+                    key={transaction.id} 
+                    className="border-white/10 hover:bg-white/5 transition-all duration-200 animate-fade-in"
+                    style={{animationDelay: `${0.1 * index}s`}}
+                  >
+                    <TableCell className="text-white/90">{formatDate(transaction.transaction_date)}</TableCell>
+                    <TableCell className="font-medium text-white">
                       {transaction.description}
-
                     </TableCell>
-                    <TableCell>{transaction.category}</TableCell>
-                    <TableCell>{transaction.fund?.name}</TableCell>
+                    <TableCell className="text-white/80">{transaction.category}</TableCell>
+                    <TableCell className="text-white/80">{transaction.fund?.name}</TableCell>
                     <TableCell>
-                      <Badge variant={transaction.type === 'income' ? 'default' : 'secondary'}>
+                      <Badge 
+                      variant={transaction.type === 'income' ? 'default' : 'secondary'}
+                      className={`bg-white/10 backdrop-blur-xl border ${
+                        transaction.type === 'income' 
+                          ? 'bg-green-500/20 text-green-400 border-green-500/30' 
+                          : 'bg-red-500/20 text-red-400 border-red-500/30'
+                      }`}
+                    >
                         {transaction.type}
                       </Badge>
                     </TableCell>
                     <TableCell className={`text-right font-medium ${
-                      transaction.type === 'income' ? 'text-green-600' : 'text-red-600'
+                      transaction.type === 'income' ? 'text-green-400' : 'text-red-400'
                     }`}>
                       {transaction.type === 'income' ? '+' : '-'}
                       {formatCurrency(Number(transaction.amount))}
                     </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                        {transaction.receipt_number || '-'}
-                      </TableCell>
+                    <TableCell className="text-sm text-white/60">
+                      {transaction.receipt_number || '-'}
+                    </TableCell>
                     {(canEdit() || canDelete()) && (
                       <TableCell>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" className="h-8 w-8 p-0">
+                            <Button variant="ghost" className="h-8 w-8 p-0 bg-white/10 backdrop-blur-xl border border-white/20 text-white hover:bg-white/15">
                               <MoreHorizontal className="h-4 w-4" />
                             </Button>
                           </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                            <DropdownMenuSeparator />
+                          <DropdownMenuContent align="end" className="bg-black/80 backdrop-blur-xl border border-white/20">
+                            <DropdownMenuLabel className="text-white">Actions</DropdownMenuLabel>
+                            <DropdownMenuSeparator className="bg-white/10" />
                             {canEdit() && (
-                              <DropdownMenuItem onClick={() => handleEdit(transaction)}>
+                              <DropdownMenuItem onClick={() => handleEdit(transaction)} className="text-white hover:bg-white/10">
                                 <Edit className="mr-2 h-4 w-4" />
                                 Edit
                               </DropdownMenuItem>
@@ -648,7 +740,7 @@ export default function TransactionsPage() {
                             {canDelete() && (
                               <DropdownMenuItem
                                 onClick={() => handleDelete(transaction)}
-                                className="text-red-600"
+                                className="text-red-400 hover:bg-red-500/10"
                               >
                                 <Trash2 className="mr-2 h-4 w-4" />
                                 Delete
@@ -664,13 +756,17 @@ export default function TransactionsPage() {
             </Table>
             
             {filteredTransactions.length === 0 && (
-              <div className="text-center py-8">
-                <p className="text-muted-foreground">No transactions found</p>
+              <div className="text-center py-12">
+                <div className="p-4 rounded-full bg-white/5 backdrop-blur-sm w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+                  <Search className="h-8 w-8 text-white/40" />
+                </div>
+                <p className="text-white/60 text-lg">No transactions found</p>
+                <p className="text-white/40 text-sm mt-1">Try adjusting your search or filter criteria</p>
               </div>
             )}
           </div>
         </CardContent>
-      </Card>
+        </Card>
     </div>
   )
 }

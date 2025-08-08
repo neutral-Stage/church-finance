@@ -1,9 +1,9 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/lib/supabase'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -16,15 +16,10 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import {
-  Wallet,
-  TrendingUp,
-  TrendingDown,
   AlertTriangle,
   Plus,
   Gift,
-  Receipt,
-  CreditCard,
-  Banknote
+  Activity,
 } from 'lucide-react'
 import { FundSummary, TransactionWithFund, BillWithFund, AdvanceWithFund } from '@/types/database'
 import { formatCurrency, formatDate } from '@/lib/utils'
@@ -40,6 +35,64 @@ interface DashboardData {
     expenses: number
     netIncome: number
   }
+}
+
+// Animated Counter Component
+function AnimatedCounter({ value, duration = 2000, prefix = '', suffix = '' }: {
+  value: number
+  duration?: number
+  prefix?: string
+  suffix?: string
+}) {
+  const [count, setCount] = useState(0)
+  const countRef = useRef<HTMLSpanElement>(null)
+  const [hasAnimated, setHasAnimated] = useState(false)
+
+  useEffect(() => {
+    if (hasAnimated || value === 0) return
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          setHasAnimated(true)
+          const startTime = Date.now()
+          const startValue = 0
+          const endValue = value
+
+          const updateCount = () => {
+            const now = Date.now()
+            const progress = Math.min((now - startTime) / duration, 1)
+            const easeOutQuart = 1 - Math.pow(1 - progress, 4)
+            const currentValue = startValue + (endValue - startValue) * easeOutQuart
+
+            setCount(currentValue)
+
+            if (progress < 1) {
+              requestAnimationFrame(updateCount)
+            } else {
+              setCount(endValue)
+            }
+          }
+
+          requestAnimationFrame(updateCount)
+          observer.disconnect()
+        }
+      },
+      { threshold: 0.1 }
+    )
+
+    if (countRef.current) {
+      observer.observe(countRef.current)
+    }
+
+    return () => observer.disconnect()
+  }, [value, duration, hasAnimated])
+
+  return (
+    <span ref={countRef}>
+      {prefix}{typeof value === 'number' && value % 1 !== 0 ? count.toFixed(2) : Math.floor(count).toLocaleString()}{suffix}
+    </span>
+  )
 }
 
 export default function DashboardPage(): JSX.Element {
@@ -180,45 +233,51 @@ export default function DashboardPage(): JSX.Element {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="relative">
+            <Activity className="h-12 w-12 animate-spin text-white/60 mx-auto mb-4" />
+            <Activity className="h-8 w-8 animate-spin text-white/80 mx-auto mb-4 absolute top-2 left-1/2 transform -translate-x-1/2 animate-reverse-spin" />
+          </div>
+          <p className="text-white/70 text-lg">Loading dashboard data...</p>
+        </div>
       </div>
     )
   }
 
   if (error) {
     return (
-      <Alert variant="destructive">
-        <AlertTriangle className="h-4 w-4" />
-        <AlertDescription>Error loading dashboard: {error}</AlertDescription>
+      <Alert variant="destructive" className="bg-red-500/10 border-red-500/20 backdrop-blur-xl">
+        <AlertTriangle className="h-4 w-4 text-red-400" />
+        <AlertDescription className="text-red-300">Error loading dashboard: {error}</AlertDescription>
       </Alert>
     )
   }
 
   return (
-    <div className="space-y-6">
-      {/* Welcome Header */}
-      <div className="flex items-center justify-between">
+    <div className="container mx-auto p-6 space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between animate-fade-in animate-slide-in-from-top-4 animate-duration-700">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">
-            Welcome back, {user?.full_name || user?.email}
+          <h1 className="text-4xl font-bold flex items-center gap-3 bg-gradient-to-r from-white via-white/90 to-white/70 bg-clip-text text-transparent">
+            <Activity className="h-10 w-10 text-white/80" />
+            Church Finance Dashboard
           </h1>
-          <p className="text-gray-600 mt-1">
-            Here&apos;s an overview of your church finances
+          <p className="text-white/60 mt-2 text-lg">
+            Welcome back, {user?.full_name || user?.email} - Overview of your church finances
           </p>
         </div>
-
         {canEdit() && (
-          <div className="flex space-x-2">
-            <Button asChild>
+          <div className="flex gap-2">
+            <Button asChild variant="outline" size="sm" className="bg-white/10 border-white/20 text-white/90 hover:bg-white/15 backdrop-blur-sm transition-all duration-300">
               <Link href="/transactions">
-                <Plus className="mr-2 h-4 w-4" />
+                <Plus className="h-4 w-4 mr-2" />
                 Add Transaction
               </Link>
             </Button>
-            <Button variant="outline" asChild>
+            <Button asChild className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white border-0 transition-all duration-300">
               <Link href="/offerings">
-                <Gift className="mr-2 h-4 w-4" />
+                <Gift className="h-4 w-4 mr-2" />
                 Record Offering
               </Link>
             </Button>
@@ -227,151 +286,135 @@ export default function DashboardPage(): JSX.Element {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Balance</CardTitle>
-            <Banknote className="h-4 w-4 text-muted-foreground" />
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card className={`bg-white/10 backdrop-blur-xl border-white/20 hover:bg-white/15 transition-all duration-300 hover:scale-105 animate-fade-in animate-slide-in-from-bottom-4 animate-duration-700`} style={{ animationDelay: `800ms` }}>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-white/70">Total Funds</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(getTotalBalance())}</div>
-            <p className="text-xs text-muted-foreground">
-              Across all funds
-            </p>
+            <div className="text-2xl font-bold text-white/90">
+              <AnimatedCounter value={getTotalBalance()} />
+            </div>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Monthly Income</CardTitle>
-            <TrendingUp className="h-4 w-4 text-green-600" />
+        <Card className={`bg-white/10 backdrop-blur-xl border-white/20 hover:bg-white/15 transition-all duration-300 hover:scale-105 animate-fade-in animate-slide-in-from-bottom-4 animate-duration-700`} style={{ animationDelay: `900ms` }}>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-white/70">Monthly Income</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">
-              {formatCurrency(data?.monthlyStats.income || 0)}
+            <div className="text-2xl font-bold text-white/90">
+              <AnimatedCounter value={data?.monthlyStats.income || 0} />
             </div>
-            <p className="text-xs text-muted-foreground">
-              This month
-            </p>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Monthly Expenses</CardTitle>
-            <TrendingDown className="h-4 w-4 text-red-600" />
+        <Card className={`bg-white/10 backdrop-blur-xl border-white/20 hover:bg-white/15 transition-all duration-300 hover:scale-105 animate-fade-in animate-slide-in-from-bottom-4 animate-duration-700`} style={{ animationDelay: `1000ms` }}>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-white/70">Monthly Expenses</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600">
-              {formatCurrency(data?.monthlyStats.expenses || 0)}
+            <div className="text-2xl font-bold text-white/90">
+              <AnimatedCounter value={data?.monthlyStats.expenses || 0} />
             </div>
-            <p className="text-xs text-muted-foreground">
-              This month
-            </p>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Net Income</CardTitle>
-            <TrendingUp className={`h-4 w-4 ${(data?.monthlyStats.netIncome || 0) >= 0 ? 'text-green-600' : 'text-red-600'
-              }`} />
+        <Card className={`bg-gradient-to-br from-green-500/20 to-emerald-600/20 backdrop-blur-xl border-green-400/30 hover:from-green-500/25 hover:to-emerald-600/25 transition-all duration-300 hover:scale-105 animate-fade-in animate-slide-in-from-bottom-4 animate-duration-700`} style={{ animationDelay: `1100ms` }}>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-green-200">Net Income</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className={`text-2xl font-bold ${(data?.monthlyStats.netIncome || 0) >= 0 ? 'text-green-600' : 'text-red-600'
-              }`}>
-              {formatCurrency(data?.monthlyStats.netIncome || 0)}
+            <div className="text-2xl font-bold text-green-100">
+              <AnimatedCounter value={data?.monthlyStats.netIncome || 0} />
             </div>
-            <p className="text-xs text-muted-foreground">
-              This month
-            </p>
           </CardContent>
         </Card>
       </div>
 
       {/* Fund Balance Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {data?.funds.map((fund) => (
-          <Card key={fund.id}>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-lg font-medium">{fund.name} Fund</CardTitle>
-              <Wallet className="h-5 w-5 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold mb-2">
-                {formatCurrency(Number(fund.current_balance))}
-              </div>
-              <div className="space-y-1 text-sm text-muted-foreground">
-                <div className="flex justify-between">
-                  <span>Total Income:</span>
-                  <span className="text-green-600">
-                    {formatCurrency(Number(fund.total_income))}
-                  </span>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {data?.funds.map((fund, index) => {
+          const balance = Number(fund.current_balance) || 0;
+          const income = Number(fund.total_income) || 0;
+          const expenses = Number(fund.total_expenses) || 0;
+          const offerings = Number(fund.total_offerings) || 0;
+
+          return (
+            <Card key={fund.id} className={`bg-white/10 backdrop-blur-xl border-white/20 hover:bg-white/15 transition-all duration-300 hover:scale-105 animate-fade-in animate-slide-in-from-bottom-4 animate-duration-700`} style={{ animationDelay: `${1200 + index * 100}ms` }}>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg font-semibold text-white/90">{fund.name}</CardTitle>
+                <div className="text-3xl font-bold text-white">
+                  <AnimatedCounter value={balance} />
                 </div>
-                <div className="flex justify-between">
-                  <span>Total Expenses:</span>
-                  <span className="text-red-600">
-                    {formatCurrency(Number(fund.total_expenses))}
-                  </span>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="grid grid-cols-3 gap-2 text-sm">
+                  <div className="bg-green-500/20 p-2 rounded-lg backdrop-blur-sm">
+                    <div className="text-green-300 font-medium">
+                      <AnimatedCounter value={income} />
+                    </div>
+                    <div className="text-green-200/70 text-xs">Income</div>
+                  </div>
+                  <div className="bg-red-500/20 p-2 rounded-lg backdrop-blur-sm">
+                    <div className="text-red-300 font-medium">
+                      <AnimatedCounter value={expenses} />
+                    </div>
+                    <div className="text-red-200/70 text-xs">Expenses</div>
+                  </div>
+                  <div className="bg-blue-500/20 p-2 rounded-lg backdrop-blur-sm">
+                    <div className="text-blue-300 font-medium">
+                      <AnimatedCounter value={offerings} />
+                    </div>
+                    <div className="text-blue-200/70 text-xs">Offerings</div>
+                  </div>
                 </div>
-                <div className="flex justify-between">
-                  <span>Offerings:</span>
-                  <span className="text-blue-600">
-                    {formatCurrency(Number(fund.total_offerings))}
-                  </span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="mobile-grid lg:grid-cols-2">
         {/* Recent Transactions */}
-        <Card>
+        <Card className={`bg-white/10 backdrop-blur-xl border-white/20 hover:bg-white/15 transition-all duration-300 animate-fade-in animate-slide-in-from-bottom-4 animate-duration-700`} style={{ animationDelay: `1500ms` }}>
           <CardHeader>
-            <CardTitle className="flex items-center">
-              <Receipt className="mr-2 h-5 w-5" />
-              Recent Transactions
-            </CardTitle>
-            <CardDescription>
-              Latest financial activities
-            </CardDescription>
+            <CardTitle className="text-xl font-semibold text-white/90">Recent Transactions</CardTitle>
           </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Description</TableHead>
-                  <TableHead>Fund</TableHead>
-                  <TableHead>Amount</TableHead>
-                  <TableHead>Date</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {data?.recentTransactions.slice(0, 5).map((transaction) => (
-                  <TableRow key={transaction.id}>
-                    <TableCell className="font-medium">
-                      {transaction.description}
-                    </TableCell>
-                    <TableCell>{transaction.fund?.name}</TableCell>
-                    <TableCell className={`font-medium ${transaction.type === 'income' ? 'text-green-600' : 'text-red-600'
-                      }`}>
-                      {transaction.type === 'income' ? '+' : '-'}
-                      {formatCurrency(Number(transaction.amount))}
-                    </TableCell>
-                    <TableCell>{formatDate(transaction.transaction_date)}</TableCell>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="border-white/20">
+                    <TableHead className="text-white/70">Description</TableHead>
+                    <TableHead className="text-white/70">Fund</TableHead>
+                    <TableHead className="text-white/70">Amount</TableHead>
+                    <TableHead className="text-white/70">Date</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-            {data?.recentTransactions.length === 0 && (
-              <p className="text-center text-muted-foreground py-4">
-                No recent transactions
-              </p>
-            )}
-            <div className="mt-4">
-              <Button variant="outline" asChild className="w-full">
+                </TableHeader>
+                <TableBody>
+                  {data?.recentTransactions.slice(0, 5).map((transaction) => (
+                    <TableRow key={transaction.id} className="border-white/10 hover:bg-white/5">
+                      <TableCell className="text-white/90">{transaction.description}</TableCell>
+                      <TableCell className="text-white/70">{transaction.fund?.name}</TableCell>
+                      <TableCell className={`font-medium ${transaction.type === 'income' ? 'text-green-400' : 'text-red-400'
+                        }`}>
+                        {transaction.type === 'income' ? '+' : '-'}{formatCurrency(Number(transaction.amount))}
+                      </TableCell>
+                      <TableCell className="text-white/70">
+                        {formatDate(transaction.transaction_date)}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+            <div className="mt-4 flex justify-center">
+              <Button
+                variant="outline"
+                asChild
+                className="bg-white/10 border-white/20 text-white/90 hover:bg-white/20 hover:text-white transition-all duration-300"
+              >
                 <Link href="/transactions">View All Transactions</Link>
               </Button>
             </div>
@@ -381,42 +424,50 @@ export default function DashboardPage(): JSX.Element {
         {/* Alerts and Upcoming Items */}
         <div className="space-y-6">
           {/* Upcoming Bills */}
-          <Card>
+          <Card className={`bg-white/10 backdrop-blur-xl border-white/20 hover:bg-white/15 transition-all duration-300 animate-fade-in animate-slide-in-from-bottom-4 animate-duration-700`} style={{ animationDelay: `1600ms` }}>
             <CardHeader>
-              <CardTitle className="flex items-center">
-                <AlertTriangle className="mr-2 h-5 w-5" />
-                Upcoming Bills
-              </CardTitle>
-              <CardDescription>
-                Bills due soon
-              </CardDescription>
+              <CardTitle className="text-xl font-semibold text-white/90">Upcoming Bills</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {data?.upcomingBills.map((bill) => (
-                  <div key={bill.id} className="flex items-center justify-between p-3 border rounded-lg">
-                    <div>
-                      <p className="font-medium">{bill.vendor_name}</p>
-                      <p className="text-sm text-muted-foreground">
-                        Due: {formatDate(bill.due_date)}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-medium">{formatCurrency(Number(bill.amount))}</p>
-                      <Badge variant={getStatusColor(bill.status)}>
-                        {bill.status}
-                      </Badge>
+                {data?.upcomingBills.slice(0, 5).map((bill) => (
+                  <div
+                    key={bill.id}
+                    className="bg-white/5 p-4 rounded-xl hover:bg-white/10 transition-all duration-300"
+                  >
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <h4 className="font-semibold text-white">{bill.vendor_name}</h4>
+                        <p className="text-sm text-white/70 mt-1">
+                          Due: {formatDate(bill.due_date)}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <div className="font-semibold text-white">
+                          {formatCurrency(Number(bill.amount))}
+                        </div>
+                        <Badge
+                          variant={getStatusColor(bill.status)}
+                          className="mt-1 text-xs"
+                        >
+                          {bill.status}
+                        </Badge>
+                      </div>
                     </div>
                   </div>
                 ))}
                 {data?.upcomingBills.length === 0 && (
-                  <p className="text-center text-muted-foreground py-4">
+                  <p className="text-center text-white/60 py-8">
                     No upcoming bills
                   </p>
                 )}
               </div>
-              <div className="mt-4">
-                <Button variant="outline" asChild className="w-full">
+              <div className="mt-4 flex justify-center">
+                <Button
+                  variant="outline"
+                  asChild
+                  className="bg-white/10 border-white/20 text-white/90 hover:bg-white/20 hover:text-white transition-all duration-300"
+                >
                   <Link href="/bills">Manage Bills</Link>
                 </Button>
               </div>
@@ -424,44 +475,50 @@ export default function DashboardPage(): JSX.Element {
           </Card>
 
           {/* Outstanding Advances */}
-          <Card>
+          <Card className={`bg-white/10 backdrop-blur-xl border-white/20 hover:bg-white/15 transition-all duration-300 animate-fade-in animate-slide-in-from-bottom-4 animate-duration-700`} style={{ animationDelay: `1700ms` }}>
             <CardHeader>
-              <CardTitle className="flex items-center">
-                <CreditCard className="mr-2 h-5 w-5" />
-                Outstanding Advances
-              </CardTitle>
-              <CardDescription>
-                Money advanced to be returned
-              </CardDescription>
+              <CardTitle className="text-xl font-semibold text-white/90">Outstanding Advances</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {data?.outstandingAdvances.map((advance) => (
-                  <div key={advance.id} className="flex items-center justify-between p-3 border rounded-lg">
-                    <div>
-                      <p className="font-medium">{advance.recipient_name}</p>
-                      <p className="text-sm text-muted-foreground">
-                        Expected: {formatDate(advance.expected_return_date)}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-medium">
-                        {formatCurrency(Number(advance.amount) - Number(advance.amount_returned))}
-                      </p>
-                      <Badge variant={getStatusColor(advance.status)}>
-                        {advance.status}
-                      </Badge>
+                {data?.outstandingAdvances.slice(0, 5).map((advance) => (
+                  <div
+                    key={advance.id}
+                    className="bg-white/5 p-4 rounded-xl hover:bg-white/10 transition-all duration-300"
+                  >
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <h4 className="font-semibold text-white">{advance.recipient_name}</h4>
+                        <p className="text-sm text-white/70 mt-1">
+                          Expected: {formatDate(advance.expected_return_date)}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <div className="font-semibold text-white">
+                          {formatCurrency(Number(advance.amount) - Number(advance.amount_returned))}
+                        </div>
+                        <Badge
+                          variant={getStatusColor(advance.status)}
+                          className="mt-1 text-xs"
+                        >
+                          {advance.status}
+                        </Badge>
+                      </div>
                     </div>
                   </div>
                 ))}
                 {data?.outstandingAdvances.length === 0 && (
-                  <p className="text-center text-muted-foreground py-4">
+                  <p className="text-center text-white/60 py-8">
                     No outstanding advances
                   </p>
                 )}
               </div>
-              <div className="mt-4">
-                <Button variant="outline" asChild className="w-full">
+              <div className="mt-4 flex justify-center">
+                <Button
+                  variant="outline"
+                  asChild
+                  className="bg-white/10 border-white/20 text-white/90 hover:bg-white/20 hover:text-white transition-all duration-300"
+                >
                   <Link href="/advances">Manage Advances</Link>
                 </Button>
               </div>
