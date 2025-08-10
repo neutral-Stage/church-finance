@@ -154,6 +154,38 @@
   .modern-card-dark {
     @apply bg-gray-900/80 backdrop-blur-sm border border-gray-700/20 rounded-xl shadow-lg hover-lift;
   }
+
+  /* Glass-morphism button styles */
+  .glass-button {
+    @apply glass px-4 py-2 rounded-lg text-white font-medium;
+    @apply hover:scale-105 hover:shadow-lg transition-all duration-300;
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(10px);
+  }
+  
+  .glass-button-outline {
+    @apply glass px-4 py-2 rounded-lg text-white font-medium border;
+    @apply hover:bg-white/10 transition-all duration-300;
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(10px);
+    border-color: rgba(255, 255, 255, 0.2);
+  }
+  
+  /* Glass-morphism input styles */
+  .glass-input {
+    @apply glass px-3 py-2 rounded-lg text-white placeholder-white/60;
+    @apply focus:ring-2 focus:ring-white/30 focus:border-white/30;
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+  }
+  
+  /* Glass-morphism dropdown styles */
+  .glass-dropdown {
+    @apply glass rounded-lg border border-white/20;
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(20px);
+  }
 }
 
 @layer utilities {
@@ -279,6 +311,23 @@
     @apply space-x-2 sm:space-x-4;
   }
   
+  /* Animation classes for all screen sizes */
+  .animate-slide-in-from-bottom-4 {
+    animation: slideInFromBottom 0.6s ease-out;
+  }
+  
+  .animate-slide-in-from-top-4 {
+    animation: slideInFromTop 0.6s ease-out;
+  }
+  
+  .animate-slide-in-from-left-mobile {
+    animation: slideInFromLeftMobile 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  
+  .animate-slide-in-from-right-mobile {
+    animation: slideInFromRightMobile 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
   /* Mobile responsive breakpoints for animations */
   @media (max-width: 640px) {
     .animate-slide-in-from-bottom-4 {
@@ -287,6 +336,14 @@
     
     .animate-slide-in-from-top-4 {
       animation: slideInFromTop 0.6s ease-out;
+    }
+    
+    .animate-slide-in-from-left-mobile {
+      animation: slideInFromLeftMobile 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    
+    .animate-slide-in-from-right-mobile {
+      animation: slideInFromRightMobile 0.5s cubic-bezier(0.16, 1, 0.3, 1);
     }
   }
   
@@ -309,6 +366,28 @@
     to {
       opacity: 1;
       transform: translateY(0);
+    }
+  }
+  
+  @keyframes slideInFromLeftMobile {
+    from {
+      opacity: 0;
+      transform: translateX(-100%) scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0) scale(1);
+    }
+  }
+  
+  @keyframes slideInFromRightMobile {
+    from {
+      opacity: 0;
+      transform: translateX(100%) scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0) scale(1);
     }
   }
 }

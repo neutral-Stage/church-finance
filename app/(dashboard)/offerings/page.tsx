@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -15,12 +14,11 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { AnimatedCounter } from '@/components/ui/animated-counter'
 
 import { formatCurrency, formatDate, formatDateForInput } from '@/lib/utils'
-import { Plus, MoreHorizontal, Edit, Trash2, Calendar, Users, DollarSign, TrendingUp, Search, Filter } from 'lucide-react'
+import { Plus, MoreHorizontal, Edit, Trash2, Calendar, Users, DollarSign, TrendingUp } from 'lucide-react'
 import { toast } from 'sonner'
 import type { Database } from '@/types/database'
 
 type Offering = Database['public']['Tables']['offerings']['Row']
-type OfferingInsert = Database['public']['Tables']['offerings']['Insert']
 type Fund = Database['public']['Tables']['funds']['Row']
 type Member = Database['public']['Tables']['members']['Row']
 
@@ -147,54 +145,48 @@ export default function OfferingsPage() {
       const amount = parseFloat(form.amount)
       const fundAllocations = getFundAllocationForOfferingType(form.type, amount)
       
-      const offeringData: OfferingInsert = {
+      const requestData = {
         service_date: form.service_date,
-        type: form.type as any,
+        type: form.type,
         amount: amount,
         fund_allocations: fundAllocations,
-        notes: form.notes || null
+        notes: form.notes || null,
+        member_id: form.selected_member && form.selected_member !== 'none' ? form.selected_member : null
       }
 
-      let offeringId: string
-
       if (editingOffering) {
-        const { error } = await supabase
-          .from('offerings')
-          .update(offeringData)
-          .eq('id', editingOffering.id)
+        const response = await fetch('/api/offerings', {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            id: editingOffering.id,
+            ...requestData
+          }),
+        })
 
-        if (error) throw error
-        offeringId = editingOffering.id
-
-        // Delete existing member relationships
-        await supabase
-          .from('offering_members')
-          .delete()
-          .eq('offering_id', offeringId)
+        if (!response.ok) {
+          const error = await response.json()
+          throw new Error(error.error || 'Failed to update offering')
+        }
 
         toast.success('Offering updated successfully')
       } else {
-        const { data, error } = await supabase
-          .from('offerings')
-          .insert([offeringData])
-          .select()
-          .single()
+        const response = await fetch('/api/offerings', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(requestData),
+        })
 
-        if (error) throw error
-        offeringId = data.id
+        if (!response.ok) {
+          const error = await response.json()
+          throw new Error(error.error || 'Failed to create offering')
+        }
+
         toast.success('Offering recorded successfully')
-      }
-
-      // Insert member relationship
-      if (form.selected_member && form.selected_member !== 'none') {
-        const { error: memberError } = await supabase
-          .from('offering_members')
-          .insert([{
-            offering_id: offeringId,
-            member_id: form.selected_member
-          }])
-
-        if (memberError) throw memberError
       }
 
       setDialogOpen(false)
@@ -203,7 +195,7 @@ export default function OfferingsPage() {
       fetchData()
     } catch (error) {
       console.error('Error saving offering:', error)
-      toast.error('Failed to save offering')
+      toast.error(error instanceof Error ? error.message : 'Failed to save offering')
     }
   }
 
@@ -234,17 +226,20 @@ export default function OfferingsPage() {
     if (!confirm('Are you sure you want to delete this offering record?')) return
 
     try {
-      const { error } = await supabase
-        .from('offerings')
-        .delete()
-        .eq('id', id)
+      const response = await fetch(`/api/offerings?id=${id}`, {
+        method: 'DELETE',
+      })
 
-      if (error) throw error
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to delete offering')
+      }
+
       toast.success('Offering deleted successfully')
       fetchData()
     } catch (error) {
       console.error('Error deleting offering:', error)
-      toast.error('Failed to delete offering')
+      toast.error(error instanceof Error ? error.message : 'Failed to delete offering')
     }
   }
 
@@ -273,7 +268,7 @@ export default function OfferingsPage() {
   const selectMember = (memberId: string) => {
     setForm(prev => ({
       ...prev,
-      selected_member: memberId === 'none' ? '' : memberId
+      selected_member: memberId
     }))
   }
 

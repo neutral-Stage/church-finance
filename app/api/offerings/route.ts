@@ -12,15 +12,20 @@ export async function GET(request: NextRequest) {
 
     let query = supabase
       .from('offerings')
-      .select('*')
-      .order('date', { ascending: false });
+      .select(`
+        *,
+        offering_members(
+          member:members(*)
+        )
+      `)
+      .order('service_date', { ascending: false });
 
     // Apply filters if provided
     if (startDate) {
-      query = query.gte('date', startDate);
+      query = query.gte('service_date', startDate);
     }
     if (endDate) {
-      query = query.lte('date', endDate);
+      query = query.lte('service_date', endDate);
     }
     if (type) {
       query = query.eq('type', type);
@@ -51,25 +56,25 @@ export async function POST(request: NextRequest) {
   try {
     const supabase = createServerClient();
     const body = await request.json();
-    const { amount, type, description, date, fund_id } = body;
+    const { amount, type, notes, service_date, fund_allocations, member_id } = body;
 
     // Validate required fields
-    if (!amount || !type || !date) {
+    if (!amount || !type || !service_date) {
       return NextResponse.json(
-        { error: 'Amount, type, and date are required' },
+        { error: 'Amount, type, and service_date are required' },
         { status: 400 }
       );
     }
 
-    // Start a transaction
+    // Create the offering record
     const { data: offering, error: offeringError } = await supabase
       .from('offerings')
       .insert({
         amount: parseFloat(amount),
         type,
-        description: description || null,
-        date,
-        fund_id: fund_id || null,
+        notes: notes || null,
+        service_date,
+        fund_allocations: fund_allocations || {},
       })
       .select()
       .single();
@@ -82,39 +87,47 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // If fund_id is provided, update the fund balance
-    if (fund_id) {
-      const { error: fundError } = await supabase.rpc('update_fund_balance', {
-        fund_id: fund_id,
-        amount_change: parseFloat(amount)
-      });
-
-      if (fundError) {
-        console.error('Error updating fund balance:', fundError);
-        // Rollback the offering creation
-        await supabase.from('offerings').delete().eq('id', offering.id);
-        return NextResponse.json(
-          { error: 'Failed to update fund balance' },
-          { status: 500 }
-        );
-      }
-
-      // Create a transaction record
-      const { error: transactionError } = await supabase
-        .from('transactions')
+    // Create member relationship if provided
+    if (member_id && member_id !== 'none') {
+      const { error: memberError } = await supabase
+        .from('offering_members')
         .insert({
-          type: 'income',
-          amount: parseFloat(amount),
-          description: `Offering: ${type}${description ? ' - ' + description : ''}`,
-          date,
-          fund_id,
-          reference_type: 'offering',
-          reference_id: offering.id,
+          offering_id: offering.id,
+          member_id: member_id
         });
 
-      if (transactionError) {
-        console.error('Error creating transaction:', transactionError);
-        // Note: We don't rollback here as the offering and fund update are valid
+      if (memberError) {
+        console.error('Error creating member relationship:', memberError);
+      }
+    }
+
+    // Update fund balances based on allocations
+    if (fund_allocations && typeof fund_allocations === 'object') {
+      for (const [fundId, allocation] of Object.entries(fund_allocations)) {
+        if (typeof allocation === 'number' && allocation > 0) {
+          // Update fund balance using RPC function if available
+          try {
+            await supabase.rpc('update_fund_balance', {
+              fund_id: fundId,
+              amount_change: allocation
+            });
+
+            // Create transaction record
+            await supabase
+              .from('transactions')
+              .insert({
+                type: 'income',
+                amount: allocation,
+                description: `Offering: ${type}${notes ? ' - ' + notes : ''}`,
+                category: 'Offering',
+                payment_method: 'cash',
+                fund_id: fundId,
+                transaction_date: service_date
+              });
+          } catch (error) {
+            console.error('Error updating fund or creating transaction:', error);
+          }
+        }
       }
     }
 
@@ -133,7 +146,7 @@ export async function PUT(request: NextRequest) {
   try {
     const supabase = createServerClient();
     const body = await request.json();
-    const { id, amount, type, description, date, fund_id } = body;
+    const { id, amount, type, notes, service_date, fund_allocations, member_id } = body;
 
     if (!id) {
       return NextResponse.json(
@@ -142,7 +155,7 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    // Get the current offering to calculate balance changes
+    // Get the current offering
     const { data: currentOffering, error: fetchError } = await supabase
       .from('offerings')
       .select('*')
@@ -162,9 +175,9 @@ export async function PUT(request: NextRequest) {
       .update({
         amount: amount !== undefined ? parseFloat(amount) : currentOffering.amount,
         type: type || currentOffering.type,
-        description: description !== undefined ? description : currentOffering.description,
-        date: date || currentOffering.date,
-        fund_id: fund_id !== undefined ? fund_id : currentOffering.fund_id,
+        notes: notes !== undefined ? notes : currentOffering.notes,
+        service_date: service_date || currentOffering.service_date,
+        fund_allocations: fund_allocations !== undefined ? fund_allocations : currentOffering.fund_allocations,
       })
       .eq('id', id)
       .select()
@@ -178,40 +191,23 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    // Handle fund balance changes if amount or fund changed
-    if (amount !== undefined || fund_id !== undefined) {
-      const oldAmount = currentOffering.amount;
-      const newAmount = parseFloat(amount || currentOffering.amount);
-      const oldFundId = currentOffering.fund_id;
-      const newFundId = fund_id !== undefined ? fund_id : currentOffering.fund_id;
-
-      // Revert old fund balance if there was a fund
-      if (oldFundId) {
-        await supabase.rpc('update_fund_balance', {
-          fund_id: oldFundId,
-          amount_change: -oldAmount
-        });
-      }
-
-      // Apply new fund balance if there is a fund
-      if (newFundId) {
-        await supabase.rpc('update_fund_balance', {
-          fund_id: newFundId,
-          amount_change: newAmount
-        });
-      }
-
-      // Update related transaction
+    // Update member relationship
+    if (member_id !== undefined) {
+      // Delete existing relationships
       await supabase
-        .from('transactions')
-        .update({
-          amount: newAmount,
-          description: `Offering: ${offering.type}${offering.description ? ' - ' + offering.description : ''}`,
-          date: offering.date,
-          fund_id: newFundId,
-        })
-        .eq('reference_type', 'offering')
-        .eq('reference_id', id);
+        .from('offering_members')
+        .delete()
+        .eq('offering_id', id);
+
+      // Create new relationship if member selected
+      if (member_id && member_id !== 'none') {
+        await supabase
+          .from('offering_members')
+          .insert({
+            offering_id: id,
+            member_id: member_id
+          });
+      }
     }
 
     return NextResponse.json({ offering });
@@ -252,6 +248,12 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
+    // Delete member relationships first
+    await supabase
+      .from('offering_members')
+      .delete()
+      .eq('offering_id', id);
+
     // Delete the offering
     const { error: deleteError } = await supabase
       .from('offerings')
@@ -266,19 +268,30 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    // Revert fund balance if there was a fund
-    if (offering.fund_id) {
-      await supabase.rpc('update_fund_balance', {
-        fund_id: offering.fund_id,
-        amount_change: -offering.amount
-      });
+    // Revert fund balances based on allocations
+    const fundAllocations = offering.fund_allocations as Record<string, number>;
+    if (fundAllocations && typeof fundAllocations === 'object') {
+      for (const [fundId, allocation] of Object.entries(fundAllocations)) {
+        if (typeof allocation === 'number' && allocation > 0) {
+          try {
+            await supabase.rpc('update_fund_balance', {
+              fund_id: fundId,
+              amount_change: -allocation
+            });
 
-      // Delete related transaction
-      await supabase
-        .from('transactions')
-        .delete()
-        .eq('reference_type', 'offering')
-        .eq('reference_id', id);
+            // Delete related transactions
+            await supabase
+              .from('transactions')
+              .delete()
+              .eq('fund_id', fundId)
+              .eq('transaction_date', offering.service_date)
+              .eq('amount', allocation)
+              .eq('category', 'Offering');
+          } catch (error) {
+            console.error('Error reverting fund balance:', error);
+          }
+        }
+      }
     }
 
     return NextResponse.json({ message: 'Offering deleted successfully' });

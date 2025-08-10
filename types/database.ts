@@ -77,7 +77,7 @@ export interface Database {
       offerings: {
         Row: {
           id: string
-          type: 'tithe' | 'lords_day' | 'special' | 'mission'
+          type: 'Tithe' | 'Lord\'s Day' | 'Other Offering' | 'Special Offering' | 'Mission Fund Offering' | 'Building Fund Offering'
           amount: number
           service_date: string
           contributors_count: number | null
@@ -87,7 +87,7 @@ export interface Database {
         }
         Insert: {
           id?: string
-          type: 'tithe' | 'lords_day' | 'special' | 'mission'
+          type: 'Tithe' | 'Lord\'s Day' | 'Other Offering' | 'Special Offering' | 'Mission Fund Offering' | 'Building Fund Offering'
           amount: number
           service_date: string
           contributors_count?: number | null
@@ -97,7 +97,7 @@ export interface Database {
         }
         Update: {
           id?: string
-          type?: 'tithe' | 'lords_day' | 'special' | 'mission'
+          type?: 'Tithe' | 'Lord\'s Day' | 'Other Offering' | 'Special Offering' | 'Mission Fund Offering' | 'Building Fund Offering'
           amount?: number
           service_date?: string
           contributors_count?: number | null
@@ -359,6 +359,9 @@ export interface AuthUser {
   email: string
   role: UserRole
   full_name?: string
+  phone?: string
+  address?: string
+  bio?: string
   created_at: string
 }
 
