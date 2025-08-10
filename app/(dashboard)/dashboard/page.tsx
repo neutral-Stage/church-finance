@@ -339,6 +339,7 @@ export default function DashboardPage(): JSX.Element {
           const income = Number(fund.total_income) || 0;
           const expenses = Number(fund.total_expenses) || 0;
           const offerings = Number(fund.total_offerings) || 0;
+          const totalIncome = income + offerings; // Merge offerings into income
 
           return (
             <Card key={fund.id} className={`bg-white/10 backdrop-blur-xl border-white/20 hover:bg-white/15 transition-all duration-300 hover:scale-105 animate-fade-in animate-slide-in-from-bottom-4 animate-duration-700`} style={{ animationDelay: `${1200 + index * 100}ms` }}>
@@ -349,24 +350,18 @@ export default function DashboardPage(): JSX.Element {
                 </div>
               </CardHeader>
               <CardContent className="space-y-3">
-                <div className="grid grid-cols-3 gap-2 text-sm">
-                  <div className="bg-green-500/20 p-2 rounded-lg backdrop-blur-sm">
-                    <div className="text-green-300 font-medium">
-                      <AnimatedCounter value={income} />
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div className="bg-green-500/20 p-3 rounded-lg backdrop-blur-sm">
+                    <div className="text-green-300 font-medium text-base">
+                      <AnimatedCounter value={totalIncome} />
                     </div>
                     <div className="text-green-200/70 text-xs">Income</div>
                   </div>
-                  <div className="bg-red-500/20 p-2 rounded-lg backdrop-blur-sm">
-                    <div className="text-red-300 font-medium">
+                  <div className="bg-red-500/20 p-3 rounded-lg backdrop-blur-sm">
+                    <div className="text-red-300 font-medium text-base">
                       <AnimatedCounter value={expenses} />
                     </div>
                     <div className="text-red-200/70 text-xs">Expenses</div>
-                  </div>
-                  <div className="bg-blue-500/20 p-2 rounded-lg backdrop-blur-sm">
-                    <div className="text-blue-300 font-medium">
-                      <AnimatedCounter value={offerings} />
-                    </div>
-                    <div className="text-blue-200/70 text-xs">Offerings</div>
                   </div>
                 </div>
               </CardContent>

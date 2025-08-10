@@ -2,8 +2,7 @@ import type { Metadata } from "next"
 import { Inter } from "next/font/google"
 import { Toaster } from "sonner"
 import { AuthProvider } from "@/contexts/AuthContext"
-import Header from "@/components/Header"
-import Footer from "@/components/Footer"
+import ConditionalLayout from "@/components/ConditionalLayout"
 import "./globals.css"
 
 const inter = Inter({ subsets: ["latin"] })
@@ -30,11 +29,9 @@ export default function RootLayout({
               <div className="absolute w-64 h-64 bg-gradient-to-r from-green-500/20 to-cyan-500/20 rounded-full blur-3xl animate-pulse" style={{bottom: '20%', left: '50%', animationDelay: '2s'}} />
             </div>
             
-            <Header />
-            <main className="flex-1 relative z-10">
+            <ConditionalLayout>
               {children}
-            </main>
-            <Footer />
+            </ConditionalLayout>
           </div>
           <Toaster />
         </AuthProvider>

@@ -1,6 +1,6 @@
 # TODO:
 
-- [x] 1: Update login page background from gradient-background to bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 (priority: High)
-- [x] 2: Update signup page background from gradient-background to bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 (priority: High)
-- [x] 3: Verify text colors are consistent with dark gradient background in both auth pages (priority: Medium)
-- [x] 4: Test the updated auth pages for visual consistency with home page (priority: Medium)
+- [x] 12: Locate and examine the dashboard page fund cards implementation (priority: High)
+- [x] 13: Modify fund cards to merge offerings into income calculation (priority: High)
+- [x] 14: Update grid layout from 3 columns to 2 columns for income and expenses only (priority: High)
+- [x] 15: Test the updated dashboard fund cards display and functionality (priority: Medium)

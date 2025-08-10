@@ -268,102 +268,106 @@ export default function FundsPage() {
       </div>
       
       <div className="relative z-10 max-w-7xl mx-auto space-y-6 animate-fade-in p-6">
-        <div className="flex justify-between items-center animate-fade-in animate-slide-in-from-bottom-4" style={{ animationDelay: '0ms' }}>
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent">
-              Fund Management
-            </h1>
-            <p className="text-white/70 mt-2">Manage church funds and transfers</p>
-          </div>
-          {hasRole('Admin') && (
-            <Dialog open={transferDialogOpen} onOpenChange={setTransferDialogOpen}>
-              <DialogTrigger asChild>
-                <Button onClick={resetTransferForm} className="bg-white/10 backdrop-blur-xl border border-white/20 text-white hover:bg-white/15 hover:scale-105 transition-all duration-300 rounded-xl px-6 py-3">
-                  <ArrowRightLeft className="mr-2 h-4 w-4" />
-                  Transfer Funds
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-[425px] bg-black/80 backdrop-blur-xl border border-white/20 rounded-2xl">
-                <DialogHeader>
-                  <DialogTitle className="text-white bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent">Transfer Between Funds</DialogTitle>
-                  <DialogDescription className="text-white/60">
-                    Move money from one fund to another. This will create corresponding transactions.
-                  </DialogDescription>
-                </DialogHeader>
-                <form onSubmit={handleTransfer} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="from_fund_id" className="text-white">From Fund *</Label>
-                    <Select value={transferForm.from_fund_id} onValueChange={(value) => setTransferForm({ ...transferForm, from_fund_id: value })}>
-                      <SelectTrigger className="bg-white/10 backdrop-blur-xl border border-white/20 text-white rounded-xl">
-                        <SelectValue placeholder="Select source fund" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-black/80 backdrop-blur-xl border border-white/20 rounded-xl">
-                        {funds.map((fund) => (
-                          <SelectItem key={fund.id} value={fund.id} className="text-white hover:bg-white/10 focus:bg-white/10">
-                            {fund.name} ({formatCurrency(fund.current_balance)})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="to_fund_id" className="text-white">To Fund *</Label>
-                    <Select value={transferForm.to_fund_id} onValueChange={(value) => setTransferForm({ ...transferForm, to_fund_id: value })}>
-                      <SelectTrigger className="bg-white/10 backdrop-blur-xl border border-white/20 text-white rounded-xl">
-                        <SelectValue placeholder="Select destination fund" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-black/80 backdrop-blur-xl border border-white/20 rounded-xl">
-                        {funds
-                          .filter(fund => fund.id !== transferForm.from_fund_id)
-                          .map((fund) => (
-                            <SelectItem key={fund.id} value={fund.id} className="text-white hover:bg-white/10 focus:bg-white/10">
-                              {fund.name} ({formatCurrency(fund.current_balance)})
-                            </SelectItem>
-                          ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="amount" className="text-white">Transfer Amount *</Label>
-                    <Input
-                      id="amount"
-                      type="number"
-                      step="0.01"
-                      min="0.01"
-                      value={transferForm.amount}
-                      onChange={(e) => setTransferForm({ ...transferForm, amount: e.target.value })}
-                      className="bg-white/10 backdrop-blur-xl border border-white/20 text-white placeholder:text-white/50 rounded-xl focus:border-white/40 focus:ring-white/20"
-                      required
-                    />
-                    {transferForm.from_fund_id && (
-                      <p className="text-xs text-white/60">
-                        Available: {formatCurrency(funds.find(f => f.id === transferForm.from_fund_id)?.current_balance || 0)}
-                      </p>
-                    )}
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="description" className="text-white">Description *</Label>
-                    <Textarea
-                      id="description"
-                      value={transferForm.description}
-                      onChange={(e) => setTransferForm({ ...transferForm, description: e.target.value })}
-                      placeholder="Reason for this transfer..."
-                      className="bg-white/10 backdrop-blur-xl border border-white/20 text-white placeholder:text-white/50 rounded-xl focus:border-white/40 focus:ring-white/20"
-                      required
-                    />
-                  </div>
-                  <DialogFooter>
-                    <Button type="button" variant="outline" onClick={() => setTransferDialogOpen(false)} className="bg-transparent border border-white/20 text-white hover:bg-white/10 hover:scale-105 transition-all duration-300 rounded-xl">
-                      Cancel
-                    </Button>
-                    <Button type="submit" className="bg-white/10 backdrop-blur-xl border border-white/20 text-white hover:bg-white/15 hover:scale-105 transition-all duration-300 rounded-xl">
+        <div className="glass-card-dark backdrop-blur-xl bg-white/10 border border-white/20 rounded-2xl p-6 animate-fade-in animate-slide-in-from-bottom-4" style={{ animationDelay: '0ms' }}>
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+            <div className="flex-1">
+              <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent">
+                Fund Management
+              </h1>
+              <p className="text-white/70 mt-2">Manage church funds and transfers</p>
+            </div>
+            {hasRole('Admin') && (
+              <div className="flex-shrink-0">
+                <Dialog open={transferDialogOpen} onOpenChange={setTransferDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button onClick={resetTransferForm} className="glass-card-dark bg-white/10 backdrop-blur-xl border border-white/20 text-white hover:bg-white/15 hover:scale-105 transition-all duration-300 rounded-xl px-6 py-3 w-full sm:w-auto">
+                      <ArrowRightLeft className="mr-2 h-4 w-4" />
                       Transfer Funds
                     </Button>
-                  </DialogFooter>
-                </form>
-              </DialogContent>
-            </Dialog>
-          )}
+                  </DialogTrigger>
+                  <DialogContent className="glass-card-dark sm:max-w-[425px] bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl">
+                    <DialogHeader>
+                      <DialogTitle className="text-white bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent">Transfer Between Funds</DialogTitle>
+                      <DialogDescription className="text-white/70">
+                        Move money from one fund to another. This will create corresponding transactions.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <form onSubmit={handleTransfer} className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="from_fund_id" className="text-white">From Fund *</Label>
+                        <Select value={transferForm.from_fund_id} onValueChange={(value) => setTransferForm({ ...transferForm, from_fund_id: value })}>
+                          <SelectTrigger className="glass-card-dark bg-white/10 backdrop-blur-xl border border-white/20 text-white rounded-xl hover:bg-white/15 transition-all duration-300">
+                            <SelectValue placeholder="Select source fund" />
+                          </SelectTrigger>
+                          <SelectContent className="glass-card-dark bg-white/10 backdrop-blur-xl border border-white/20 rounded-xl">
+                            {funds.map((fund) => (
+                              <SelectItem key={fund.id} value={fund.id} className="text-white hover:bg-white/10 focus:bg-white/10">
+                                {fund.name} ({formatCurrency(fund.current_balance)})
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="to_fund_id" className="text-white">To Fund *</Label>
+                        <Select value={transferForm.to_fund_id} onValueChange={(value) => setTransferForm({ ...transferForm, to_fund_id: value })}>
+                          <SelectTrigger className="glass-card-dark bg-white/10 backdrop-blur-xl border border-white/20 text-white rounded-xl hover:bg-white/15 transition-all duration-300">
+                            <SelectValue placeholder="Select destination fund" />
+                          </SelectTrigger>
+                          <SelectContent className="glass-card-dark bg-white/10 backdrop-blur-xl border border-white/20 rounded-xl">
+                            {funds
+                              .filter(fund => fund.id !== transferForm.from_fund_id)
+                              .map((fund) => (
+                                <SelectItem key={fund.id} value={fund.id} className="text-white hover:bg-white/10 focus:bg-white/10">
+                                  {fund.name} ({formatCurrency(fund.current_balance)})
+                                </SelectItem>
+                              ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="amount" className="text-white">Transfer Amount *</Label>
+                        <Input
+                          id="amount"
+                          type="number"
+                          step="0.01"
+                          min="0.01"
+                          value={transferForm.amount}
+                          onChange={(e) => setTransferForm({ ...transferForm, amount: e.target.value })}
+                          className="glass-card-dark bg-white/10 backdrop-blur-xl border border-white/20 text-white placeholder:text-white/50 rounded-xl focus:border-white/40 focus:ring-white/20 hover:bg-white/15 transition-all duration-300"
+                          required
+                        />
+                        {transferForm.from_fund_id && (
+                          <p className="text-xs text-white/60">
+                            Available: {formatCurrency(funds.find(f => f.id === transferForm.from_fund_id)?.current_balance || 0)}
+                          </p>
+                        )}
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="description" className="text-white">Description *</Label>
+                        <Textarea
+                          id="description"
+                          value={transferForm.description}
+                          onChange={(e) => setTransferForm({ ...transferForm, description: e.target.value })}
+                          placeholder="Reason for this transfer..."
+                          className="glass-card-dark bg-white/10 backdrop-blur-xl border border-white/20 text-white placeholder:text-white/50 rounded-xl focus:border-white/40 focus:ring-white/20 hover:bg-white/15 transition-all duration-300"
+                          required
+                        />
+                      </div>
+                      <DialogFooter>
+                        <Button type="button" variant="outline" onClick={() => setTransferDialogOpen(false)} className="glass-card-dark bg-transparent border border-white/20 text-white hover:bg-white/10 hover:scale-105 transition-all duration-300 rounded-xl">
+                          Cancel
+                        </Button>
+                        <Button type="submit" className="glass-card-dark bg-white/10 backdrop-blur-xl border border-white/20 text-white hover:bg-white/15 hover:scale-105 transition-all duration-300 rounded-xl">
+                          Transfer Funds
+                        </Button>
+                      </DialogFooter>
+                    </form>
+                  </DialogContent>
+                </Dialog>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Summary Cards */}
@@ -403,7 +407,7 @@ export default function FundsPage() {
             return (
               <Card 
                 key={index}
-                className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl hover:bg-white/15 hover:scale-105 transition-all duration-300 animate-fade-in animate-slide-in-from-bottom-4"
+                className="glass-card-dark bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl hover:bg-white/15 hover:scale-105 transition-all duration-300 animate-fade-in animate-slide-in-from-bottom-4"
                 style={{ animationDelay: item.delay + 'ms' }}
               >
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -436,7 +440,7 @@ export default function FundsPage() {
             return (
               <Card 
                 key={fund.id}
-                className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl hover:bg-white/15 hover:scale-105 transition-all duration-300 animate-fade-in animate-slide-in-from-bottom-4"
+                className="glass-card-dark bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl hover:bg-white/15 hover:scale-105 transition-all duration-300 animate-fade-in animate-slide-in-from-bottom-4"
                 style={{ animationDelay: (500 + index * 100) + 'ms' }}
               >
                 <CardHeader>

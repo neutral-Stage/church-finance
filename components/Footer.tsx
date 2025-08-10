@@ -121,7 +121,7 @@ export default function Footer() {
         <div className="mt-12 pt-8 border-t border-white/20">
           <div className="flex flex-col md:flex-row justify-between items-center">
             <p className="text-gray-200 text-sm mb-4 md:mb-0 font-medium">
-              © 2024 Church Finance Management System. All rights reserved.
+              (c) 2024 Church Finance Management System. All rights reserved.
             </p>
             <div className="flex space-x-4">
               <div className="w-3 h-3 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full animate-pulse shadow-lg"></div>
