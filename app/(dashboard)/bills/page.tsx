@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { GlassButton } from '@/components/ui/glass-button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -780,9 +781,9 @@ export default function BillsPage(): JSX.Element {
                               {hasRole('Admin') && (
                                 <DropdownMenu>
                                   <DropdownMenuTrigger asChild>
-                                    <Button variant="ghost" className="h-8 w-8 p-0 text-white/70 hover:text-white hover:bg-white/10">
+                                    <GlassButton variant="ghost" size="sm" className="h-8 w-8 p-0">
                                       <MoreHorizontal className="h-4 w-4" />
-                                    </Button>
+                                    </GlassButton>
                                   </DropdownMenuTrigger>
                                   <DropdownMenuContent align="end" className="bg-white/10 backdrop-blur-xl border-white/20">
                                     <DropdownMenuItem onClick={() => openBillDialog(bill)} className="text-white/90 hover:bg-white/10">
@@ -869,9 +870,9 @@ export default function BillsPage(): JSX.Element {
                             {hasRole('Admin') && (
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" className="h-8 w-8 p-0 text-white/70 hover:text-white hover:bg-white/10">
+                                  <GlassButton variant="ghost" size="sm" className="h-8 w-8 p-0">
                                     <MoreHorizontal className="h-4 w-4" />
-                                  </Button>
+                                  </GlassButton>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end" className="bg-white/10 backdrop-blur-xl border-white/20">
                                   <DropdownMenuItem onClick={() => openPettyCashDialog(pc)} className="text-white/90 hover:bg-white/10">

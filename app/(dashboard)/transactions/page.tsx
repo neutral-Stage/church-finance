@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/lib/supabase'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { GlassButton } from '@/components/ui/glass-button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
@@ -388,13 +389,12 @@ export default function TransactionsPage() {
           {canEdit() && (
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
               <DialogTrigger asChild>
-                <Button 
+                <GlassButton 
                   onClick={resetForm}
-                  className="bg-white/10 backdrop-blur-xl border border-white/20 text-white hover:bg-white/15 hover:scale-105 transition-all duration-300"
                 >
                   <Plus className="mr-2 h-4 w-4" />
                   Add Transaction
-                </Button>
+                </GlassButton>
               </DialogTrigger>
             <DialogContent className="sm:max-w-[600px]">
               <DialogHeader>
@@ -538,7 +538,7 @@ export default function TransactionsPage() {
 
                 
                 <DialogFooter>
-                  <Button
+                  <GlassButton
                     type="button"
                     variant="outline"
                     onClick={() => {
@@ -546,13 +546,12 @@ export default function TransactionsPage() {
                       setEditingTransaction(null)
                       resetForm()
                     }}
-                    className="bg-white/10 backdrop-blur-xl border border-white/20 text-white hover:bg-white/15 hover:scale-105 transition-all duration-300"
                   >
                     Cancel
-                  </Button>
-                  <Button type="submit" disabled={submitting} className="bg-white/10 backdrop-blur-xl border border-white/20 text-white hover:bg-white/15 hover:scale-105 transition-all duration-300">
+                  </GlassButton>
+                  <GlassButton type="submit" disabled={submitting}>
                     {submitting ? 'Saving...' : editingTransaction ? 'Update' : 'Add'} Transaction
-                  </Button>
+                  </GlassButton>
                 </DialogFooter>
               </form>
             </DialogContent>
@@ -727,9 +726,9 @@ export default function TransactionsPage() {
                       <TableCell>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" className="h-8 w-8 p-0 bg-white/10 backdrop-blur-xl border border-white/20 text-white hover:bg-white/15">
+                            <GlassButton variant="ghost" size="sm" className="h-8 w-8 p-0">
                               <MoreHorizontal className="h-4 w-4" />
-                            </Button>
+                            </GlassButton>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" className="bg-black/80 backdrop-blur-xl border border-white/20">
                             <DropdownMenuLabel className="text-white">Actions</DropdownMenuLabel>

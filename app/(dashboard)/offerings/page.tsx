@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
+import { GlassButton } from '@/components/ui/glass-button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -14,6 +15,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { AnimatedCounter } from '@/components/ui/animated-counter'
 import { MemberCombobox } from '@/components/ui/member-combobox'
 import { FullScreenLoader } from '@/components/ui/loader'
+import { useConfirmationDialog } from '@/components/ui/confirmation-dialog'
 
 import { formatCurrency, formatDate, formatDateForInput } from '@/lib/utils'
 import { Plus, MoreHorizontal, Edit, Trash2, Calendar, Users, DollarSign, TrendingUp, AlertCircle, RefreshCw } from 'lucide-react'
@@ -59,6 +61,7 @@ export default function OfferingsPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [filterType, setFilterType] = useState('all')
   const [filterFund, setFilterFund] = useState('all')
+  const { confirm, ConfirmationDialog } = useConfirmationDialog()
 
   const [form, setForm] = useState<OfferingForm>({
     service_date: formatDateForInput(new Date()),
@@ -94,90 +97,29 @@ export default function OfferingsPage() {
     try {
       setLoading(true)
 
-      console.log('=== DEBUGGING MEMBER DATA RETRIEVAL ===')
+      // Fetch offerings using API route (which has service role access)
+      const response = await fetch('/api/offerings')
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+      const responseData = await response.json()
+      const offeringsData = responseData.offerings
 
-      // Fetch offerings with member relationships
-      const { data: offeringsData, error: offeringsError } = await retrySupabaseQuery<any[]>(
-        () => supabase
-          .from('offerings')
-          .select(`
-             *,
-             offering_member(
-               member:members(*)
-             )
-           `)
-          .order('service_date', { ascending: false }),
-        {
-          maxAttempts: 3,
-          baseDelay: 1000,
-          retryCondition: (error) => isNetworkError(error)
-        }
-      )
-
-      if (offeringsError) {
-        console.error('Supabase offerings error:', offeringsError)
-        logNetworkError(offeringsError, 'fetchData - offerings')
-        if (isNetworkError(offeringsError)) {
-          toast.error('Connection failed. Please check your internet connection and try again.', {
-            action: {
-              label: 'Retry',
-              onClick: () => fetchData(retryCount + 1)
-            }
-          })
-        } else {
-          throw offeringsError
-        }
+      if (!offeringsData) {
+        toast.error('Failed to fetch offerings data')
         return
       }
 
-      // Enhanced Debug: Log the actual data structure
-      console.log('1. Raw Supabase response:', offeringsData)
-      console.log('2. Total offerings fetched:', offeringsData?.length || 0)
 
-      if (offeringsData && offeringsData.length > 0) {
-        console.log('3. First offering structure:', offeringsData[0])
-        console.log('4. First offering offering_member field:', offeringsData[0].offering_member)
-        console.log('5. Type of offering_member:', typeof offeringsData[0].offering_member)
-        console.log('6. Is offering_member an array?', Array.isArray(offeringsData[0].offering_member))
 
-        if (offeringsData[0].offering_member) {
-          console.log('7. offering_member length:', offeringsData[0].offering_member.length)
-          if (offeringsData[0].offering_member.length > 0) {
-            console.log('8. First offering_member item:', offeringsData[0].offering_member[0])
-            console.log('9. Member data in first item:', offeringsData[0].offering_member[0]?.member)
-          }
-        }
-      }
-
-      // Process offerings data to convert offering_member array to single object
-      const processedOfferings = offeringsData?.map((offering, index) => {
-        console.log(`Processing offering ${index + 1}:`, {
-          id: offering.id,
-          type: offering.type,
-          offering_member_raw: offering.offering_member,
-          offering_member_length: offering.offering_member?.length || 0
-        })
-
+      // Process offerings data - offering_member is already an object, not an array
+      const processedOfferings = offeringsData?.map((offering: any) => {
         const processed = {
           ...offering,
-          offering_member: offering.offering_member && offering.offering_member.length > 0
-            ? offering.offering_member[0]
-            : null
+          offering_member: offering.offering_member || null
         }
-
-        console.log(`Processed offering ${index + 1}:`, {
-          id: processed.id,
-          type: processed.type,
-          offering_member_processed: processed.offering_member,
-          member_name: processed.offering_member?.member?.name || 'NO MEMBER NAME'
-        })
-
         return processed
       }) || []
-
-      console.log('10. Final processed offerings:', processedOfferings)
-      console.log('11. Sample processed offering with member:', processedOfferings[0])
-      console.log('12. Member name from first offering:', processedOfferings[0]?.offering_member?.member?.name || 'NO MEMBER NAME FOUND')
 
       // Fetch funds
       const { data: fundsData, error: fundsError } = await retrySupabaseQuery<any[]>(
@@ -200,7 +142,7 @@ export default function OfferingsPage() {
       setOfferings(processedOfferings)
       setFunds(fundsData as any[] || [])
     } catch (error) {
-      console.error('Error fetching data:', error)
+      // Error handled by toast notification
       if (isNetworkError(error)) {
         toast.error('Network connection failed. Please check your internet connection.', {
           action: {
@@ -292,24 +234,16 @@ export default function OfferingsPage() {
       resetForm()
       fetchData()
     } catch (error) {
-      console.error('Error saving offering:', error)
+      // Error handled by toast notification
       toast.error(error instanceof Error ? error.message : 'Failed to save offering')
     }
   }
 
   const handleEdit = async (offering: OfferingWithFund) => {
-    console.log('Editing offering:', offering)
-    console.log('Offering member data:', offering.offering_member)
-
     setEditingOffering(offering)
 
     // Use already loaded member relationship data with proper null checks
     const selectedMemberId = offering.offering_member?.member?.id || ''
-
-    console.log('Selected member ID for edit:', selectedMemberId)
-    if (offering.offering_member?.member) {
-      console.log('Member details:', offering.offering_member.member)
-    }
 
     setForm({
       service_date: offering.service_date,
@@ -323,9 +257,20 @@ export default function OfferingsPage() {
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this offering record?')) return
-
     try {
+      const confirmResult = await confirm({
+        title: 'Delete Offering',
+        description: 'Are you sure you want to delete this offering record? This action cannot be undone.',
+        confirmText: 'Delete',
+        cancelText: 'Cancel',
+        variant: 'destructive',
+        onConfirm: () => { }
+      })
+
+      if (!confirmResult) {
+        return
+      }
+
       const response = await fetch(`/api/offerings?id=${id}`, {
         method: 'DELETE',
       })
@@ -338,7 +283,7 @@ export default function OfferingsPage() {
       toast.success('Offering deleted successfully')
       fetchData()
     } catch (error) {
-      console.error('Error deleting offering:', error)
+      // Error handled by toast notification
       toast.error(error instanceof Error ? error.message : 'Failed to delete offering')
     }
   }
@@ -352,6 +297,16 @@ export default function OfferingsPage() {
       selected_member: '',
       notes: ''
     })
+    setEditingOffering(null)
+  }
+
+  // Handle dialog state changes
+  const handleDialogChange = (open: boolean) => {
+    setDialogOpen(open)
+    if (!open) {
+      // Reset form and editing state when dialog closes
+      resetForm()
+    }
   }
 
   const filteredOfferings = offerings.filter(offering => {
@@ -370,8 +325,6 @@ export default function OfferingsPage() {
       selected_member: memberId
     }))
   }
-
-
 
   // Calculate summary statistics
   const totalOfferings = filteredOfferings.reduce((sum, offering) => sum + offering.amount, 0)
@@ -402,14 +355,14 @@ export default function OfferingsPage() {
   }
 
   return (
-    <div className="min-h-screen relative overflow-hidden bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+    <div className="min-h-screen relative overflow-hidden">
       {/* Animated Background Elements */}
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-gradient-to-r from-purple-400/30 to-pink-400/30 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute top-3/4 right-1/4 w-96 h-96 bg-gradient-to-r from-blue-400/20 to-purple-400/20 rounded-full blur-3xl animate-pulse" style={{animationDelay: '2s'}}></div>
-        <div className="absolute bottom-1/4 left-1/3 w-80 h-80 bg-gradient-to-r from-indigo-400/25 to-purple-400/25 rounded-full blur-3xl animate-pulse" style={{animationDelay: '4s'}}></div>
+        <div className="absolute top-3/4 right-1/4 w-96 h-96 bg-gradient-to-r from-blue-400/20 to-purple-400/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }}></div>
+        <div className="absolute bottom-1/4 left-1/3 w-80 h-80 bg-gradient-to-r from-indigo-400/25 to-purple-400/25 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '4s' }}></div>
       </div>
-      
+
       <div className="relative z-10 container mx-auto p-6 space-y-6">
         <div className="flex justify-between items-center animate-fade-in">
           <div>
@@ -419,7 +372,7 @@ export default function OfferingsPage() {
             <p className="text-white/70">Track and manage church offerings and tithes</p>
           </div>
           {hasRole('Admin') && (
-            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <Dialog open={dialogOpen} onOpenChange={handleDialogChange}>
               <DialogTrigger asChild>
                 <Button onClick={() => { setEditingOffering(null); resetForm(); }} className="glass-button hover:scale-105 transition-all duration-300">
                   <Plus className="mr-2 h-4 w-4" />
@@ -490,7 +443,7 @@ export default function OfferingsPage() {
                     />
                     <div className="glass-card-dark bg-blue-500/10 border border-blue-400/20 rounded-lg p-3 mt-2">
                       <p className="text-sm text-blue-200/90 flex items-start gap-2">
-                        <span className="text-blue-400 mt-0.5">ℹ</span>
+                        <span className="text-blue-400 mt-0.5">i</span>
                         Fund allocation will be determined automatically based on offering type
                       </p>
                     </div>
@@ -523,20 +476,20 @@ export default function OfferingsPage() {
                   </div>
 
                   <DialogFooter className="flex flex-col sm:flex-row gap-3 pt-6">
-                    <Button
+                    <GlassButton
                       type="button"
                       variant="outline"
                       onClick={() => setDialogOpen(false)}
-                      className="glass-card-dark bg-transparent border border-white/20 text-white hover:bg-white/10 hover:scale-105 transition-all duration-300 rounded-xl order-2 sm:order-1"
+                      className="order-2 sm:order-1"
                     >
                       Cancel
-                    </Button>
-                    <Button
+                    </GlassButton>
+                    <GlassButton
                       type="submit"
-                      className="glass-card-dark bg-white/10 backdrop-blur-xl border border-white/20 text-white hover:bg-white/15 hover:scale-105 transition-all duration-300 rounded-xl order-1 sm:order-2"
+                      className="order-1 sm:order-2"
                     >
                       {editingOffering ? 'Update' : 'Record'} Offering
-                    </Button>
+                    </GlassButton>
                   </DialogFooter>
                 </form>
               </DialogContent>
@@ -717,31 +670,20 @@ export default function OfferingsPage() {
                       </td>
                       <td className="p-4">
                         {(() => {
-                          // Debug: Log member data for this offering
-                          console.log(`Offering ${offering.id} member:`, offering.offering_member)
-
-                          if (offering.offering_member) {
+                          if (offering.offering_member && offering.offering_member.member) {
                             const memberData = offering.offering_member
-                            console.log(`Member data for offering ${offering.id}:`, memberData)
-
-                            if (memberData && memberData.member) {
-                              return (
-                                <div className="text-sm">
-                                  <div className="font-medium text-white/90">
-                                    {memberData.member.name || 'Unknown Member'}
-                                  </div>
-                                  {memberData.member.fellowship_name && (
-                                    <div className="text-white/60">{memberData.member.fellowship_name}</div>
-                                  )}
+                            return (
+                              <div className="text-sm">
+                                <div className="font-medium text-white/90">
+                                  {memberData.member.name || 'Unknown Member'}
                                 </div>
-                              )
-                            } else {
-                              console.warn(`Invalid member data structure for offering ${offering.id}:`, memberData)
-                              return <span className="text-white/50">Invalid Member Data</span>
-                            }
-                          } else {
-                            return <span className="text-white/50">No Member</span>
+                                {memberData.member.fellowship_name && (
+                                  <div className="text-white/60">{memberData.member.fellowship_name}</div>
+                                )}
+                              </div>
+                            )
                           }
+                          return <span className="text-white/50">No Member</span>
                         })()}
                       </td>
                       <td className="p-4 max-w-xs truncate text-white/80">{offering.notes || '-'}</td>
@@ -749,24 +691,22 @@ export default function OfferingsPage() {
                         <td className="p-4">
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" className="h-8 w-8 p-0 hover:bg-white/10">
+                              <GlassButton variant="ghost" size="sm" className="h-8 w-8 p-0">
                                 <MoreHorizontal className="h-4 w-4 text-white/70" />
-                              </Button>
+                              </GlassButton>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="glass-dropdown">
                               <DropdownMenuItem onClick={() => handleEdit(offering)}>
                                 <Edit className="mr-2 h-4 w-4" />
                                 Edit
                               </DropdownMenuItem>
-                              {hasRole('Admin') && (
-                                <DropdownMenuItem
-                                  onClick={() => handleDelete(offering.id)}
-                                  className="text-red-400 hover:text-red-300"
-                                >
-                                  <Trash2 className="mr-2 h-4 w-4" />
-                                  Delete
-                                </DropdownMenuItem>
-                              )}
+                              <DropdownMenuItem
+                                onClick={() => handleDelete(offering.id)}
+                                className="text-red-400 hover:text-red-300"
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Delete
+                              </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </td>
@@ -784,6 +724,7 @@ export default function OfferingsPage() {
           </div>
         </div>
       </div>
+      <ConfirmationDialog />
     </div>
   )
 }

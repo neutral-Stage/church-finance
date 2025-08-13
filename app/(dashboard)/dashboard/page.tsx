@@ -1,20 +1,31 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/lib/supabase'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { AnimatedCounter } from '@/components/ui/animated-counter'
+import { FullScreenLoader } from '@/components/ui/loader'
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
+  GlassCard,
+  GlassCardHeader,
+  GlassCardTitle,
+  GlassCardContent,
+  GlassButton,
+  GlassTable,
+  GlassTableHeader,
+  GlassTableBody,
+  GlassTableRow,
+  GlassTableHead,
+  GlassTableCell,
+  AnimatedBackground,
+  StatusBadge,
+  Heading,
+  Text,
+  Container,
+  Grid,
+  Section
+} from '@/components/ui'
 import {
   AlertTriangle,
   Plus,
@@ -23,7 +34,6 @@ import {
 } from 'lucide-react'
 import { FundSummary, TransactionWithFund, BillWithFund, AdvanceWithFund } from '@/types/database'
 import { formatCurrency, formatDate } from '@/lib/utils'
-import { FullScreenLoader } from '@/components/ui/loader'
 import Link from 'next/link'
 
 interface DashboardData {
@@ -36,64 +46,6 @@ interface DashboardData {
     expenses: number
     netIncome: number
   }
-}
-
-// Animated Counter Component
-function AnimatedCounter({ value, duration = 2000, prefix = '', suffix = '' }: {
-  value: number
-  duration?: number
-  prefix?: string
-  suffix?: string
-}) {
-  const [count, setCount] = useState(0)
-  const countRef = useRef<HTMLSpanElement>(null)
-  const [hasAnimated, setHasAnimated] = useState(false)
-
-  useEffect(() => {
-    if (hasAnimated || value === 0) return
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting) {
-          setHasAnimated(true)
-          const startTime = Date.now()
-          const startValue = 0
-          const endValue = value
-
-          const updateCount = () => {
-            const now = Date.now()
-            const progress = Math.min((now - startTime) / duration, 1)
-            const easeOutQuart = 1 - Math.pow(1 - progress, 4)
-            const currentValue = startValue + (endValue - startValue) * easeOutQuart
-
-            setCount(currentValue)
-
-            if (progress < 1) {
-              requestAnimationFrame(updateCount)
-            } else {
-              setCount(endValue)
-            }
-          }
-
-          requestAnimationFrame(updateCount)
-          observer.disconnect()
-        }
-      },
-      { threshold: 0.1 }
-    )
-
-    if (countRef.current) {
-      observer.observe(countRef.current)
-    }
-
-    return () => observer.disconnect()
-  }, [value, duration, hasAnimated])
-
-  return (
-    <span ref={countRef}>
-      {prefix}{typeof value === 'number' && value % 1 !== 0 ? count.toFixed(2) : Math.floor(count).toLocaleString()}{suffix}
-    </span>
-  )
 }
 
 export default function DashboardPage(): JSX.Element {
@@ -222,15 +174,7 @@ export default function DashboardPage(): JSX.Element {
     return data?.funds.reduce((sum, fund) => sum + Number(fund.current_balance), 0) || 0
   }
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'overdue': return 'destructive'
-      case 'pending': return 'secondary'
-      case 'outstanding': return 'destructive'
-      case 'partial': return 'secondary'
-      default: return 'default'
-    }
-  }
+
 
   if (loading) {
     return <FullScreenLoader message="Loading dashboard..." />
@@ -238,291 +182,291 @@ export default function DashboardPage(): JSX.Element {
 
   if (error) {
     return (
-      <Alert variant="destructive" className="bg-red-500/10 border-red-500/20 backdrop-blur-xl">
-        <AlertTriangle className="h-4 w-4 text-red-400" />
-        <AlertDescription className="text-red-300">Error loading dashboard: {error}</AlertDescription>
-      </Alert>
+      <Container className="py-8">
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription>Error loading dashboard: {error}</AlertDescription>
+        </Alert>
+      </Container>
     )
   }
 
   return (
     <div className="min-h-screen relative overflow-hidden">
-      {/* Animated background elements */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-white/5 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-white/5 rounded-full blur-3xl animate-pulse" style={{animationDelay: '2s'}}></div>
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-white/3 rounded-full blur-3xl animate-pulse" style={{animationDelay: '4s'}}></div>
-        <div className="absolute top-20 right-20 w-32 h-32 bg-white/3 rounded-full blur-2xl animate-pulse" style={{animationDelay: '1s'}}></div>
-        <div className="absolute bottom-20 left-20 w-40 h-40 bg-white/3 rounded-full blur-2xl animate-pulse" style={{animationDelay: '3s'}}></div>
-      </div>
-      
-      <div className="container mx-auto p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between animate-fade-in animate-slide-in-from-top-4 animate-duration-700">
-        <div>
-          <h1 className="text-4xl font-bold flex items-center gap-3 text-white">
-            <Activity className="h-10 w-10 text-white/80" />
-            Church Finance Dashboard
-          </h1>
-          <p className="text-white/60 mt-2 text-lg">
-            Welcome back, {user?.full_name || user?.email} - Overview of your church finances
-          </p>
-        </div>
-        {canEdit() && (
-          <div className="flex gap-2">
-            <Button asChild variant="outline" size="sm" className="bg-white/10 border-white/20 text-white/90 hover:bg-white/15 backdrop-blur-sm transition-all duration-300">
-              <Link href="/transactions">
-                <Plus className="h-4 w-4 mr-2" />
-                Add Transaction
-              </Link>
-            </Button>
-            <Button asChild className="bg-green-500/20 backdrop-blur-xl border-green-400/30 hover:bg-green-500/25 text-white transition-all duration-300">
-              <Link href="/offerings">
-                <Gift className="h-4 w-4 mr-2" />
-                Record Offering
-              </Link>
-            </Button>
+      <AnimatedBackground variant="default" />
+
+      <Container className="py-6 space-y-6">
+        {/* Header */}
+        <Section className="animate-fade-in animate-slide-in-from-top-4 animate-duration-700">
+          <div className="flex items-center justify-between flex-col md:flex-row gap-4">
+            <div>
+              <Heading size="h1" className="flex items-center gap-3">
+                <Activity className="h-10 w-10 text-white/80" />
+                Church Finance Dashboard
+              </Heading>
+              <Text size="lg" color="muted" className="mt-2">
+                Welcome back, {user?.full_name || user?.email} - Overview of your church finances
+              </Text>
+            </div>
+            {canEdit() && (
+              <div className="flex gap-4">
+                <GlassButton variant="default">
+                  <Link href="/transactions">
+                    Add Transaction
+                  </Link>
+                </GlassButton>
+                <GlassButton variant="default">
+                  <Link href="/offerings">
+                    Record Offering
+                  </Link>
+                </GlassButton>
+              </div>
+            )}
           </div>
-        )}
-      </div>
+        </Section>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className={`bg-white/10 backdrop-blur-xl border-white/20 hover:bg-white/15 transition-all duration-300 hover:scale-105 animate-fade-in animate-slide-in-from-bottom-4 animate-duration-700`} style={{ animationDelay: `800ms` }}>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-white/70">Total Funds</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-white/90">
-              <AnimatedCounter value={getTotalBalance()} />
-            </div>
-          </CardContent>
-        </Card>
+        {/* Summary Cards */}
+        <Grid cols={4} gap="xl" className="animate-fade-in animate-slide-in-from-bottom-4 animate-duration-700" style={{ animationDelay: '800ms' }}>
+          <GlassCard hover animation="slideUp">
+            <GlassCardHeader className="pb-2">
+              <GlassCardTitle className="text-white/70">Total Funds</GlassCardTitle>
+            </GlassCardHeader>
+            <GlassCardContent>
+              <Text size="2xl" weight="bold">
+                <AnimatedCounter value={getTotalBalance()} />
+              </Text>
+            </GlassCardContent>
+          </GlassCard>
 
-        <Card className={`bg-white/10 backdrop-blur-xl border-white/20 hover:bg-white/15 transition-all duration-300 hover:scale-105 animate-fade-in animate-slide-in-from-bottom-4 animate-duration-700`} style={{ animationDelay: `900ms` }}>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-white/70">Monthly Income</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-white/90">
-              <AnimatedCounter value={data?.monthlyStats.income || 0} />
-            </div>
-          </CardContent>
-        </Card>
+          <GlassCard hover animation="slideUp" style={{ animationDelay: '100ms' }}>
+            <GlassCardHeader className="pb-2">
+              <GlassCardTitle className="text-white/70">Monthly Income</GlassCardTitle>
+            </GlassCardHeader>
+            <GlassCardContent>
+              <Text size="2xl" weight="bold">
+                <AnimatedCounter value={data?.monthlyStats.income || 0} />
+              </Text>
+            </GlassCardContent>
+          </GlassCard>
 
-        <Card className={`bg-white/10 backdrop-blur-xl border-white/20 hover:bg-white/15 transition-all duration-300 hover:scale-105 animate-fade-in animate-slide-in-from-bottom-4 animate-duration-700`} style={{ animationDelay: `1000ms` }}>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-white/70">Monthly Expenses</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-white/90">
-              <AnimatedCounter value={data?.monthlyStats.expenses || 0} />
-            </div>
-          </CardContent>
-        </Card>
+          <GlassCard hover animation="slideUp" style={{ animationDelay: '200ms' }}>
+            <GlassCardHeader className="pb-2">
+              <GlassCardTitle className="text-white/70">Monthly Expenses</GlassCardTitle>
+            </GlassCardHeader>
+            <GlassCardContent>
+              <Text size="2xl" weight="bold">
+                <AnimatedCounter value={data?.monthlyStats.expenses || 0} />
+              </Text>
+            </GlassCardContent>
+          </GlassCard>
 
-        <Card className={`bg-green-500/20 backdrop-blur-xl border-green-400/30 hover:bg-green-500/25 transition-all duration-300 hover:scale-105 animate-fade-in animate-slide-in-from-bottom-4 animate-duration-700`} style={{ animationDelay: `1100ms` }}>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-green-200">Net Income</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-100">
-              <AnimatedCounter value={data?.monthlyStats.netIncome || 0} />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+          <GlassCard variant="success" hover animation="slideUp" style={{ animationDelay: '300ms' }}>
+            <GlassCardHeader className="pb-2">
+              <GlassCardTitle className="text-green-200">Net Income</GlassCardTitle>
+            </GlassCardHeader>
+            <GlassCardContent>
+              <Text size="2xl" weight="bold" className="text-green-100">
+                <AnimatedCounter value={data?.monthlyStats.netIncome || 0} />
+              </Text>
+            </GlassCardContent>
+          </GlassCard>
+        </Grid>
 
-      {/* Fund Balance Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {data?.funds.map((fund, index) => {
-          const balance = Number(fund.current_balance) || 0;
-          const income = Number(fund.total_income) || 0;
-          const expenses = Number(fund.total_expenses) || 0;
-          const offerings = Number(fund.total_offerings) || 0;
-          const totalIncome = income + offerings; // Merge offerings into income
+        {/* Fund Balance Cards */}
+        <Grid cols={3} gap="xl">
+          {data?.funds.map((fund, index) => {
+            const balance = Number(fund.current_balance) || 0;
+            const income = Number(fund.total_income) || 0;
+            const expenses = Number(fund.total_expenses) || 0;
+            const offerings = Number(fund.total_offerings) || 0;
+            const totalIncome = income + offerings; // Merge offerings into income
 
-          return (
-            <Card key={fund.id} className={`bg-white/10 backdrop-blur-xl border-white/20 hover:bg-white/15 transition-all duration-300 hover:scale-105 animate-fade-in animate-slide-in-from-bottom-4 animate-duration-700`} style={{ animationDelay: `${1200 + index * 100}ms` }}>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg font-semibold text-white/90">{fund.name}</CardTitle>
-                <div className="text-3xl font-bold text-white">
-                  <AnimatedCounter value={balance} />
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="grid grid-cols-2 gap-3 text-sm">
-                  <div className="bg-green-500/20 p-3 rounded-lg backdrop-blur-sm">
-                    <div className="text-green-300 font-medium text-base">
-                      <AnimatedCounter value={totalIncome} />
-                    </div>
-                    <div className="text-green-200/70 text-xs">Income</div>
-                  </div>
-                  <div className="bg-red-500/20 p-3 rounded-lg backdrop-blur-sm">
-                    <div className="text-red-300 font-medium text-base">
-                      <AnimatedCounter value={expenses} />
-                    </div>
-                    <div className="text-red-200/70 text-xs">Expenses</div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
-
-      <div className="mobile-grid lg:grid-cols-2">
-        {/* Recent Transactions */}
-        <Card className={`bg-white/10 backdrop-blur-xl border-white/20 hover:bg-white/15 transition-all duration-300 animate-fade-in animate-slide-in-from-bottom-4 animate-duration-700`} style={{ animationDelay: `1500ms` }}>
-          <CardHeader>
-            <CardTitle className="text-xl font-semibold text-white/90">Recent Transactions</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow className="border-white/20">
-                    <TableHead className="text-white/70">Description</TableHead>
-                    <TableHead className="text-white/70">Fund</TableHead>
-                    <TableHead className="text-white/70">Amount</TableHead>
-                    <TableHead className="text-white/70">Date</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {data?.recentTransactions.slice(0, 5).map((transaction) => (
-                    <TableRow key={transaction.id} className="border-white/10 hover:bg-white/5">
-                      <TableCell className="text-white/90">{transaction.description}</TableCell>
-                      <TableCell className="text-white/70">{transaction.fund?.name}</TableCell>
-                      <TableCell className={`font-medium ${transaction.type === 'income' ? 'text-green-400' : 'text-red-400'
-                        }`}>
-                        {transaction.type === 'income' ? '+' : '-'}{formatCurrency(Number(transaction.amount))}
-                      </TableCell>
-                      <TableCell className="text-white/70">
-                        {formatDate(transaction.transaction_date)}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-            <div className="mt-4 flex justify-center">
-              <Button
-                variant="outline"
-                asChild
-                className="bg-white/10 border-white/20 text-white/90 hover:bg-white/20 hover:text-white transition-all duration-300"
+            return (
+              <GlassCard
+                key={fund.id}
+                hover
+                animation="slideUp"
+                className="animate-fade-in animate-slide-in-from-bottom-4 animate-duration-700"
+                style={{ animationDelay: `${1200 + index * 100}ms` }}
               >
-                <Link href="/transactions">View All Transactions</Link>
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Alerts and Upcoming Items */}
-        <div className="space-y-6">
-          {/* Upcoming Bills */}
-          <Card className={`bg-white/10 backdrop-blur-xl border-white/20 hover:bg-white/15 transition-all duration-300 animate-fade-in animate-slide-in-from-bottom-4 animate-duration-700`} style={{ animationDelay: `1600ms` }}>
-            <CardHeader>
-              <CardTitle className="text-xl font-semibold text-white/90">Upcoming Bills</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {data?.upcomingBills.slice(0, 5).map((bill) => (
-                  <div
-                    key={bill.id}
-                    className="bg-white/5 p-4 rounded-xl hover:bg-white/10 transition-all duration-300"
-                  >
-                    <div className="flex justify-between items-start">
-                      <div className="flex-1">
-                        <h4 className="font-semibold text-white">{bill.vendor_name}</h4>
-                        <p className="text-sm text-white/70 mt-1">
-                          Due: {formatDate(bill.due_date)}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <div className="font-semibold text-white">
-                          {formatCurrency(Number(bill.amount))}
-                        </div>
-                        <Badge
-                          variant={getStatusColor(bill.status)}
-                          className="mt-1 text-xs"
-                        >
-                          {bill.status}
-                        </Badge>
-                      </div>
+                <GlassCardHeader className="pb-3">
+                  <GlassCardTitle>{fund.name}</GlassCardTitle>
+                  <Text size="2xl" weight="bold">
+                    <AnimatedCounter value={balance} />
+                  </Text>
+                </GlassCardHeader>
+                <GlassCardContent className="space-y-3">
+                  <Grid cols={2} gap="lg">
+                    <div className="bg-green-500/20 p-3 rounded-lg backdrop-blur-sm">
+                      <Text size="base" weight="medium" className="text-green-300">
+                        <AnimatedCounter value={totalIncome} />
+                      </Text>
+                      <Text size="xs" className="text-green-200/70">Income</Text>
                     </div>
-                  </div>
-                ))}
-                {data?.upcomingBills.length === 0 && (
-                  <p className="text-center text-white/60 py-8">
-                    No upcoming bills
-                  </p>
-                )}
-              </div>
-              <div className="mt-4 flex justify-center">
-                <Button
-                  variant="outline"
-                  asChild
-                  className="bg-white/10 border-white/20 text-white/90 hover:bg-white/20 hover:text-white transition-all duration-300"
-                >
-                  <Link href="/bills">Manage Bills</Link>
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+                    <div className="bg-red-500/20 p-3 rounded-lg backdrop-blur-sm">
+                      <Text size="base" weight="medium" className="text-red-300">
+                        <AnimatedCounter value={expenses} />
+                      </Text>
+                      <Text size="xs" className="text-red-200/70">Expenses</Text>
+                    </div>
+                  </Grid>
+                </GlassCardContent>
+              </GlassCard>
+            );
+          })}
+        </Grid>
 
-          {/* Outstanding Advances */}
-          <Card className={`bg-white/10 backdrop-blur-xl border-white/20 hover:bg-white/15 transition-all duration-300 animate-fade-in animate-slide-in-from-bottom-4 animate-duration-700`} style={{ animationDelay: `1700ms` }}>
-            <CardHeader>
-              <CardTitle className="text-xl font-semibold text-white/90">Outstanding Advances</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {data?.outstandingAdvances.slice(0, 5).map((advance) => (
-                  <div
-                    key={advance.id}
-                    className="bg-white/5 p-4 rounded-xl hover:bg-white/10 transition-all duration-300"
-                  >
-                    <div className="flex justify-between items-start">
-                      <div className="flex-1">
-                        <h4 className="font-semibold text-white">{advance.recipient_name}</h4>
-                        <p className="text-sm text-white/70 mt-1">
-                          Expected: {formatDate(advance.expected_return_date)}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <div className="font-semibold text-white">
-                          {formatCurrency(Number(advance.amount) - Number(advance.amount_returned))}
+        <div className="mobile-grid lg:grid-cols-2">
+          {/* Recent Transactions */}
+          <GlassCard
+            hover
+            animation="slideUp"
+            className="animate-fade-in animate-slide-in-from-left-mobile animate-duration-700"
+            style={{ animationDelay: '1500ms' }}
+          >
+            <GlassCardHeader className="flex flex-row items-center justify-between">
+              <GlassCardTitle>Recent Transactions</GlassCardTitle>
+              <GlassButton variant="ghost" size="sm">
+                <Link href="/transactions">View All</Link>
+              </GlassButton>
+            </GlassCardHeader>
+            <GlassCardContent>
+              <GlassTable>
+                <GlassTableHeader>
+                  <GlassTableRow>
+                    <GlassTableHead>Date</GlassTableHead>
+                    <GlassTableHead>Description</GlassTableHead>
+                    <GlassTableHead>Fund</GlassTableHead>
+                    <GlassTableHead>Amount</GlassTableHead>
+                  </GlassTableRow>
+                </GlassTableHeader>
+                <GlassTableBody>
+                  {data?.recentTransactions.slice(0, 5).map((transaction) => (
+                    <GlassTableRow key={transaction.id}>
+                      <GlassTableCell>
+                        {formatDate(transaction.transaction_date)}
+                      </GlassTableCell>
+                      <GlassTableCell>{transaction.description}</GlassTableCell>
+                      <GlassTableCell>{transaction.fund?.name}</GlassTableCell>
+                      <GlassTableCell
+                        numeric
+                        className={`font-medium ${transaction.type === 'income' ? 'text-green-400' : 'text-red-400'
+                          }`}
+                      >
+                        {transaction.type === 'income' ? '+' : '-'}{formatCurrency(Number(transaction.amount))}
+                      </GlassTableCell>
+                    </GlassTableRow>
+                  ))}
+                </GlassTableBody>
+              </GlassTable>
+            </GlassCardContent>
+          </GlassCard>
+
+          {/* Alerts and Upcoming Items */}
+          <div className="space-y-6">
+            {/* Upcoming Bills */}
+            <GlassCard
+              hover
+              animation="slideUp"
+              className="animate-fade-in animate-slide-in-from-right-mobile animate-duration-700"
+              style={{ animationDelay: '1600ms' }}
+            >
+              <GlassCardHeader className="flex flex-row items-center justify-between">
+                <GlassCardTitle>Upcoming Bills</GlassCardTitle>
+                <GlassButton variant="ghost" size="sm">
+                  <Link href="/bills">View All</Link>
+                </GlassButton>
+              </GlassCardHeader>
+              <GlassCardContent>
+                <div className="space-y-3">
+                  {data?.upcomingBills.slice(0, 5).map((bill) => {
+                    const daysUntilDue = Math.ceil(
+                      (new Date(bill.due_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)
+                    );
+                    const isOverdue = daysUntilDue < 0;
+                    const isDueSoon = daysUntilDue <= 7 && daysUntilDue >= 0;
+
+                    return (
+                      <div key={bill.id} className="flex items-center justify-between p-3 bg-white/5 rounded-lg backdrop-blur-sm hover:bg-white/10 transition-all duration-200">
+                        <div className="flex-1">
+                          <Text weight="medium">{bill.vendor_name}</Text>
+                          <Text size="sm" className="text-white/60">
+                            Due: {formatDate(bill.due_date)}
+                          </Text>
                         </div>
-                        <Badge
-                          variant={getStatusColor(advance.status)}
-                          className="mt-1 text-xs"
+                        <div className="flex items-center gap-3">
+                          <Text weight="semibold">
+                            {formatCurrency(Number(bill.amount))}
+                          </Text>
+                          <StatusBadge
+                            variant={isOverdue ? 'error' : isDueSoon ? 'warning' : 'success'}
+                            size="sm"
+                          >
+                            {isOverdue ? 'Overdue' : isDueSoon ? 'Due Soon' : 'Upcoming'}
+                          </StatusBadge>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {data?.upcomingBills.length === 0 && (
+                    <Text className="text-center text-white/60 py-8">
+                      No upcoming bills
+                    </Text>
+                  )}
+                </div>
+              </GlassCardContent>
+            </GlassCard>
+
+            {/* Outstanding Advances */}
+            <GlassCard
+              hover
+              animation="slideUp"
+              className="animate-fade-in animate-slide-in-from-bottom-4 animate-duration-700"
+              style={{ animationDelay: '1700ms' }}
+            >
+              <GlassCardHeader className="flex flex-row items-center justify-between">
+                <GlassCardTitle>Outstanding Advances</GlassCardTitle>
+                <GlassButton asChild variant="ghost" size="sm">
+                  <Link href="/advances">View All</Link>
+                </GlassButton>
+              </GlassCardHeader>
+              <GlassCardContent>
+                <div className="space-y-3">
+                  {data?.outstandingAdvances.slice(0, 5).map((advance) => (
+                    <div
+                      key={advance.id}
+                      className="flex items-center justify-between p-3 bg-white/5 rounded-lg backdrop-blur-sm hover:bg-white/10 transition-all duration-200"
+                    >
+                      <div className="flex-1">
+                        <Text weight="medium">{advance.recipient_name}</Text>
+                        <Text size="sm" className="text-white/60">
+                          Issued: {formatDate(advance.created_at)}
+                        </Text>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <Text weight="semibold">
+                          {formatCurrency(Number(advance.amount))}
+                        </Text>
+                        <StatusBadge
+                          variant={advance.status === 'outstanding' ? 'warning' : advance.status === 'partial' ? 'secondary' : 'success'}
+                          size="sm"
                         >
                           {advance.status}
-                        </Badge>
+                        </StatusBadge>
                       </div>
                     </div>
-                  </div>
-                ))}
-                {data?.outstandingAdvances.length === 0 && (
-                  <p className="text-center text-white/60 py-8">
-                    No outstanding advances
-                  </p>
-                )}
-              </div>
-              <div className="mt-4 flex justify-center">
-                <Button
-                  variant="outline"
-                  asChild
-                  className="bg-white/10 border-white/20 text-white/90 hover:bg-white/20 hover:text-white transition-all duration-300"
-                >
-                  <Link href="/advances">Manage Advances</Link>
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+                  ))}
+                  {data?.outstandingAdvances.length === 0 && (
+                    <Text className="text-center text-white/60 py-8">
+                      No outstanding advances
+                    </Text>
+                  )}
+                </div>
+              </GlassCardContent>
+            </GlassCard>
+          </div>
         </div>
-      </div>
-      </div>
+      </Container>
     </div>
   )
 }

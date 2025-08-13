@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { GlassButton } from '@/components/ui/glass-button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -58,7 +59,7 @@ function AnimatedCounter({ value, duration = 2000, formatter = (v) => formatCurr
     }
 
     return () => observer.disconnect()
-  }, [])
+  }, [isVisible])
 
   useEffect(() => {
     if (!isVisible) return
@@ -70,12 +71,12 @@ function AnimatedCounter({ value, duration = 2000, formatter = (v) => formatCurr
     const animate = (currentTime: number) => {
       if (!startTime) startTime = currentTime
       const progress = Math.min((currentTime - startTime) / duration, 1)
-      
+
       const easeOutCubic = 1 - Math.pow(1 - progress, 3)
       const currentCount = Math.floor(startValue + (endValue - startValue) * easeOutCubic)
-      
+
       setCount(currentCount)
-      
+
       if (progress < 1) {
         requestAnimationFrame(animate)
       }
@@ -87,7 +88,7 @@ function AnimatedCounter({ value, duration = 2000, formatter = (v) => formatCurr
   return <span ref={ref} className="text-2xl font-bold">{formatter(count)}</span>
 }
 
-export default function FundsPage() {
+export default function FundsPage(): JSX.Element {
   const { user, hasRole } = useAuth()
   const [funds, setFunds] = useState<Fund[]>([])
   const [recentTransactions, setRecentTransactions] = useState<TransactionWithFund[]>([])
@@ -107,7 +108,7 @@ export default function FundsPage() {
   const fetchData = async () => {
     try {
       setLoading(true)
-      
+
       // Fetch funds
       const { data: fundsData, error: fundsError } = await supabase
         .from('funds')
@@ -137,7 +138,7 @@ export default function FundsPage() {
 
   const handleTransfer = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (!transferForm.from_fund_id || !transferForm.to_fund_id || !transferForm.amount || !transferForm.description) {
       toast.error('Please fill in all required fields')
       return
@@ -214,15 +215,15 @@ export default function FundsPage() {
 
   // Calculate fund statistics
   const totalBalance = funds.reduce((sum, fund) => sum + fund.current_balance, 0)
-  const fundWithHighestBalance = funds.reduce((max, fund) => 
+  const fundWithHighestBalance = funds.reduce((max, fund) =>
     fund.current_balance > max.current_balance ? fund : max, funds[0] || { current_balance: 0, name: 'N/A' })
-  const fundWithLowestBalance = funds.reduce((min, fund) => 
+  const fundWithLowestBalance = funds.reduce((min, fund) =>
     fund.current_balance < min.current_balance ? fund : min, funds[0] || { current_balance: 0, name: 'N/A' })
 
   // Get fund-specific transactions for the last 30 days
   const thirtyDaysAgo = new Date()
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
-  
+
   const getFundActivity = (fundId: string) => {
     return recentTransactions
       .filter(t => t.fund_id === fundId && new Date(t.created_at) >= thirtyDaysAgo)
@@ -242,12 +243,12 @@ export default function FundsPage() {
       {/* Animated background elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-40 -right-40 w-80 h-80 bg-white/10 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-white/10 rounded-full blur-3xl animate-pulse" style={{animationDelay: '2s'}}></div>
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-white/5 rounded-full blur-3xl animate-pulse" style={{animationDelay: '4s'}}></div>
-        <div className="absolute top-20 right-20 w-32 h-32 bg-white/5 rounded-full blur-2xl animate-pulse" style={{animationDelay: '1s'}}></div>
-        <div className="absolute bottom-20 left-20 w-40 h-40 bg-white/5 rounded-full blur-2xl animate-pulse" style={{animationDelay: '3s'}}></div>
+        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-white/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }}></div>
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-white/5 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '4s' }}></div>
+        <div className="absolute top-20 right-20 w-32 h-32 bg-white/5 rounded-full blur-2xl animate-pulse" style={{ animationDelay: '1s' }}></div>
+        <div className="absolute bottom-20 left-20 w-40 h-40 bg-white/5 rounded-full blur-2xl animate-pulse" style={{ animationDelay: '3s' }}></div>
       </div>
-      
+
       <div className="container mx-auto p-6 space-y-6">
         <div className="glass-card-dark backdrop-blur-xl bg-white/10 border border-white/20 rounded-2xl p-8 mb-12 animate-fade-in animate-slide-in-from-bottom-4 shadow-lg hover:bg-white/15 transition-all duration-500" style={{ animationDelay: '0ms' }}>
           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
@@ -336,12 +337,12 @@ export default function FundsPage() {
                         />
                       </div>
                       <DialogFooter>
-                        <Button type="button" variant="outline" onClick={() => setTransferDialogOpen(false)} className="glass-card-dark bg-transparent border border-white/20 text-white hover:bg-white/10 hover:scale-105 transition-all duration-300 rounded-xl">
+                        <GlassButton type="button" variant="outline" onClick={() => setTransferDialogOpen(false)}>
                           Cancel
-                        </Button>
-                        <Button type="submit" className="glass-card-dark bg-white/10 backdrop-blur-xl border border-white/20 text-white hover:bg-white/15 hover:scale-105 transition-all duration-300 rounded-xl">
+                        </GlassButton>
+                        <GlassButton type="submit">
                           Transfer Funds
-                        </Button>
+                        </GlassButton>
                       </DialogFooter>
                     </form>
                   </DialogContent>
@@ -390,7 +391,7 @@ export default function FundsPage() {
           ].map((item, index) => {
             const IconComponent = item.icon
             return (
-              <Card 
+              <Card
                 key={index}
                 className="bg-white/10 backdrop-blur-xl border-white/20 hover:bg-white/15 transition-all duration-300 hover:scale-105 animate-fade-in animate-slide-in-from-bottom-4"
                 style={{ animationDelay: (index * 100) + 'ms' }}
@@ -421,9 +422,9 @@ export default function FundsPage() {
           {funds.map((fund, index) => {
             const activity = getFundActivity(fund.id)
             const netChange = activity.income - activity.expense
-            
+
             return (
-              <Card 
+              <Card
                 key={fund.id}
                 className="glass-card-dark bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl hover:bg-white/15 hover:scale-105 hover:shadow-2xl transition-all duration-500 animate-fade-in animate-slide-in-from-bottom-4 shadow-lg"
                 style={{ animationDelay: (500 + index * 100) + 'ms' }}
@@ -448,7 +449,7 @@ export default function FundsPage() {
                       <AnimatedCounter value={fund.current_balance} />
                       <p className="text-sm text-white/70 mt-2 font-medium">Current Balance</p>
                     </div>
-                    
+
                     <div className="space-y-4">
                       <h4 className="text-base font-semibold text-white flex items-center">
                         <Sparkles className="w-5 h-5 mr-2 text-blue-300" />
@@ -503,18 +504,18 @@ export default function FundsPage() {
                   </thead>
                   <tbody>
                     {recentTransactions.slice(0, 10).map((transaction, index) => (
-                      <tr 
-                        key={transaction.id} 
+                      <tr
+                        key={transaction.id}
                         className="border-b border-white/20 hover:bg-white/10 transition-all duration-300 animate-fade-in animate-slide-in-from-bottom-4 group"
                         style={{ animationDelay: (900 + index * 50) + 'ms' }}
                       >
                         <td className="p-4 text-white/80 font-medium">{formatDate(transaction.transaction_date)}</td>
                         <td className="p-4 text-white/80 font-medium">{transaction.fund.name}</td>
                         <td className="p-4">
-                          <Badge 
+                          <Badge
                             variant={transaction.type === 'income' ? 'success' : 'destructive'}
-                            className={transaction.type === 'income' 
-                              ? 'bg-green-500/20 text-green-300 border border-green-500/30 shadow-lg font-semibold' 
+                            className={transaction.type === 'income'
+                              ? 'bg-green-500/20 text-green-300 border border-green-500/30 shadow-lg font-semibold'
                               : 'bg-red-500/20 text-red-300 border border-red-500/30 shadow-lg font-semibold'
                             }
                           >
