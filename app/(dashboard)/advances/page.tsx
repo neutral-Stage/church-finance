@@ -381,10 +381,10 @@ export default function AdvancesPage() {
                 New Advance
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[500px] bg-white/10 backdrop-blur-xl border-white/20">
+            <DialogContent className="sm:max-w-[500px]">
               <DialogHeader>
-                <DialogTitle className="text-white/90">{editingAdvance ? 'Edit Advance' : 'New Advance'}</DialogTitle>
-                <DialogDescription className="text-white/60">
+                <DialogTitle className="text-white">{editingAdvance ? 'Edit Advance' : 'New Advance'}</DialogTitle>
+                <DialogDescription className="text-white/70">
                   {editingAdvance ? 'Update advance information' : 'Create a new advance payment'}
                 </DialogDescription>
               </DialogHeader>
@@ -686,11 +686,11 @@ export default function AdvancesPage() {
 
       {/* Repayment Dialog */}
       <Dialog open={repaymentDialogOpen} onOpenChange={setRepaymentDialogOpen}>
-        <DialogContent className="sm:max-w-[425px] bg-white/10 backdrop-blur-xl border-white/20">
+        <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle className="text-white/90">Record Repayment</DialogTitle>
-            <DialogDescription className="text-white/60">
-              Record a repayment for {selectedAdvanceForRepayment?.recipient_name}&apos;s advance
+            <DialogTitle className="text-white">Confirm Repayment</DialogTitle>
+            <DialogDescription className="text-white/70">
+              Are you sure you want to mark this advance as repaid?
             </DialogDescription>
           </DialogHeader>
           {selectedAdvanceForRepayment && (

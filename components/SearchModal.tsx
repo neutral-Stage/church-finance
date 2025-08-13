@@ -225,7 +225,7 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="glass-card-dark border-white/10 max-w-2xl max-h-[80vh] overflow-hidden p-0 backdrop-blur-md bg-black/20">
+      <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden p-0">
         <DialogHeader className="p-6 pb-0">
           <DialogTitle className="text-white flex items-center font-semibold">
             <div className="relative mr-3">

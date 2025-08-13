@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { AnimatedCounter } from '@/components/ui/animated-counter'
+import { MemberCombobox } from '@/components/ui/member-combobox'
 
 import { formatCurrency, formatDate, formatDateForInput } from '@/lib/utils'
 import { Plus, MoreHorizontal, Edit, Trash2, Calendar, Users, DollarSign, TrendingUp } from 'lucide-react'
@@ -50,14 +51,12 @@ export default function OfferingsPage() {
   const { hasRole } = useAuth()
   const [offerings, setOfferings] = useState<OfferingWithFund[]>([])
   const [funds, setFunds] = useState<Fund[]>([])
-  const [members, setMembers] = useState<Member[]>([])
   const [loading, setLoading] = useState(true)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingOffering, setEditingOffering] = useState<Offering | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [filterType, setFilterType] = useState('all')
   const [filterFund, setFilterFund] = useState('all')
-  const [memberSearchTerm, setMemberSearchTerm] = useState('')
 
   const [form, setForm] = useState<OfferingForm>({
     service_date: formatDateForInput(new Date()),
@@ -114,17 +113,8 @@ export default function OfferingsPage() {
 
       if (fundsError) throw fundsError
 
-      // Fetch members
-      const { data: membersData, error: membersError } = await supabase
-        .from('members')
-        .select('*')
-        .order('name')
-
-      if (membersError) throw membersError
-
       setOfferings(offeringsData || [])
       setFunds(fundsData || [])
-      setMembers(membersData || [])
     } catch (error) {
       console.error('Error fetching data:', error)
       toast.error('Failed to load offerings data')
@@ -252,7 +242,6 @@ export default function OfferingsPage() {
       selected_member: 'none',
       notes: ''
     })
-    setMemberSearchTerm('')
   }
 
   const filteredOfferings = offerings.filter(offering => {
@@ -271,14 +260,6 @@ export default function OfferingsPage() {
       selected_member: memberId
     }))
   }
-
-  // Filter members based on search term
-  const filteredMembers = members.filter(member => {
-    if (!memberSearchTerm) return true
-    const searchLower = memberSearchTerm.toLowerCase()
-    return member.name.toLowerCase().includes(searchLower) ||
-           (member.fellowship_name && member.fellowship_name.toLowerCase().includes(searchLower))
-  })
 
 
 
@@ -337,97 +318,115 @@ export default function OfferingsPage() {
                 Record Offering
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px] glass-card border-white/20">
-              <DialogHeader>
-                <DialogTitle className="text-white">
+            <DialogContent className="sm:max-w-[500px]">
+              <DialogHeader className="space-y-3 pb-6">
+                <DialogTitle className="text-xl font-semibold bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent">
                   {editingOffering ? 'Edit Offering' : 'Record New Offering'}
                 </DialogTitle>
-                <DialogDescription className="text-white/70">
-                  {editingOffering ? 'Update the offering details.' : 'Record a new offering or tithe.'}
+                <DialogDescription className="text-white/70 text-sm leading-relaxed">
+                  {editingOffering ? 'Update the offering details below.' : 'Record a new offering or tithe with automatic fund allocation.'}
                 </DialogDescription>
               </DialogHeader>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+              <form onSubmit={handleSubmit} className="space-y-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="service_date" className="text-white/90">Service Date *</Label>
+                    <Label htmlFor="service_date" className="text-white/90 font-medium text-sm">
+                      Service Date *
+                    </Label>
                     <Input
                       id="service_date"
                       type="date"
                       value={form.service_date}
                       onChange={(e) => setForm({ ...form, service_date: e.target.value })}
                       required
-                      className="glass-input"
+                      className="glass-card-dark bg-white/10 backdrop-blur-xl border border-white/20 text-white placeholder:text-white/50 rounded-xl focus:border-white/40 focus:ring-white/20 hover:bg-white/15 transition-all duration-300"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="type" className="text-white/90">Offering Type *</Label>
+                    <Label htmlFor="type" className="text-white/90 font-medium text-sm">
+                      Offering Type *
+                    </Label>
                     <Select value={form.type} onValueChange={(value) => setForm({ ...form, type: value })}>
-                      <SelectTrigger className="glass-input">
-                        <SelectValue placeholder="Select type" />
+                      <SelectTrigger className="glass-card-dark bg-white/10 backdrop-blur-xl border border-white/20 text-white rounded-xl hover:bg-white/15 transition-all duration-300">
+                        <SelectValue placeholder="Select offering type" />
                       </SelectTrigger>
-                      <SelectContent className="glass-dropdown">
+                      <SelectContent className="glass-card-dark bg-white/10 backdrop-blur-xl border border-white/20 rounded-xl">
                         {OFFERING_TYPES.map((type) => (
-                          <SelectItem key={type} value={type}>{type}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="amount" className="text-white/90">Total Amount *</Label>
-                  <Input
-                    id="amount"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={form.amount}
-                    onChange={(e) => setForm({ ...form, amount: e.target.value })}
-                    required
-                    className="glass-input"
-                  />
-                  <p className="text-sm text-white/60">
-                    Fund allocation will be determined automatically based on offering type
-                  </p>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="member" className="text-white/90">Member</Label>
-                  <div className="space-y-2">
-                    <Input
-                      placeholder="Search members..."
-                      value={memberSearchTerm}
-                      onChange={(e) => setMemberSearchTerm(e.target.value)}
-                      className="mb-2 glass-input"
-                    />
-                    <Select value={form.selected_member} onValueChange={selectMember}>
-                      <SelectTrigger className="glass-input">
-                        <SelectValue placeholder="Select a member (optional)" />
-                      </SelectTrigger>
-                      <SelectContent className="glass-dropdown">
-                        <SelectItem value="none">No member selected</SelectItem>
-                        {filteredMembers.map((member) => (
-                          <SelectItem key={member.id} value={member.id}>
-                            {member.name}{member.fellowship_name ? ` (${member.fellowship_name})` : ''}
+                          <SelectItem 
+                            key={type} 
+                            value={type}
+                            className="text-white hover:bg-white/20 focus:bg-white/20 rounded-lg transition-colors duration-200"
+                          >
+                            {type}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   </div>
                 </div>
+                
                 <div className="space-y-2">
-                  <Label htmlFor="notes" className="text-white/90">Notes</Label>
+                  <Label htmlFor="amount" className="text-white/90 font-medium text-sm">
+                    Total Amount *
+                  </Label>
+                  <Input
+                    id="amount"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder="0.00"
+                    value={form.amount}
+                    onChange={(e) => setForm({ ...form, amount: e.target.value })}
+                    required
+                    className="glass-card-dark bg-white/10 backdrop-blur-xl border border-white/20 text-white placeholder:text-white/50 rounded-xl focus:border-white/40 focus:ring-white/20 hover:bg-white/15 transition-all duration-300"
+                  />
+                  <div className="glass-card-dark bg-blue-500/10 border border-blue-400/20 rounded-lg p-3 mt-2">
+                    <p className="text-sm text-blue-200/90 flex items-start gap-2">
+                      <span className="text-blue-400 mt-0.5">ℹ</span>
+                      Fund allocation will be determined automatically based on offering type
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="member" className="text-white/90 font-medium text-sm">
+                    Member (Optional)
+                  </Label>
+                  <MemberCombobox
+                    value={form.selected_member}
+                    onValueChange={selectMember}
+                    placeholder="Search and select member..."
+                    className="w-full"
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="notes" className="text-white/90 font-medium text-sm">
+                    Notes
+                  </Label>
                   <Textarea
                     id="notes"
                     value={form.notes}
                     onChange={(e) => setForm({ ...form, notes: e.target.value })}
                     placeholder="Additional notes about this offering..."
-                    className="glass-input"
+                    rows={3}
+                    className="glass-card-dark bg-white/10 backdrop-blur-xl border border-white/20 text-white placeholder:text-white/50 rounded-xl focus:border-white/40 focus:ring-white/20 hover:bg-white/15 transition-all duration-300 resize-none"
                   />
                 </div>
-                <DialogFooter>
-                  <Button type="button" variant="outline" onClick={() => setDialogOpen(false)} className="glass-button-outline">
+                
+                <DialogFooter className="flex flex-col sm:flex-row gap-3 pt-6">
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    onClick={() => setDialogOpen(false)} 
+                    className="glass-card-dark bg-transparent border border-white/20 text-white hover:bg-white/10 hover:scale-105 transition-all duration-300 rounded-xl order-2 sm:order-1"
+                  >
                     Cancel
                   </Button>
-                  <Button type="submit" className="glass-button">
+                  <Button 
+                    type="submit" 
+                    className="glass-card-dark bg-white/10 backdrop-blur-xl border border-white/20 text-white hover:bg-white/15 hover:scale-105 transition-all duration-300 rounded-xl order-1 sm:order-2"
+                  >
                     {editingOffering ? 'Update' : 'Record'} Offering
                   </Button>
                 </DialogFooter>

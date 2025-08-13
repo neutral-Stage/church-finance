@@ -430,9 +430,9 @@ export default function BillsPage(): JSX.Element {
                       Add Bill
                     </Button>
                   </DialogTrigger>
-                  <DialogContent className="sm:max-w-[500px] bg-black/80 backdrop-blur-xl border border-white/20">
+                  <DialogContent className="sm:max-w-[500px]">
                     <DialogHeader>
-                      <DialogTitle className="bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent">{editingBill ? 'Edit Bill' : 'Add New Bill'}</DialogTitle>
+                      <DialogTitle className="text-white">{editingBill ? 'Edit Bill' : 'Add New Bill'}</DialogTitle>
                       <DialogDescription className="text-white/70">
                         {editingBill ? 'Update bill information' : 'Create a new bill or recurring payment'}
                       </DialogDescription>
@@ -551,9 +551,9 @@ export default function BillsPage(): JSX.Element {
                       Petty Cash
                     </Button>
                   </DialogTrigger>
-                  <DialogContent className="sm:max-w-[500px] bg-black/80 backdrop-blur-xl border border-white/20">
+                  <DialogContent className="sm:max-w-[500px]">
                     <DialogHeader>
-                      <DialogTitle className="bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent">{editingPettyCash ? 'Edit Petty Cash' : 'New Petty Cash Request'}</DialogTitle>
+                      <DialogTitle className="text-white">{editingPettyCash ? 'Edit Petty Cash' : 'New Petty Cash Request'}</DialogTitle>
                       <DialogDescription className="text-white/70">
                         {editingPettyCash ? 'Update petty cash information' : 'Create a new petty cash request'}
                       </DialogDescription>

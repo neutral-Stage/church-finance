@@ -285,7 +285,7 @@ export default function FundsPage() {
                       Transfer Funds
                     </Button>
                   </DialogTrigger>
-                  <DialogContent className="glass-card-dark sm:max-w-[425px] bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl">
+                  <DialogContent className="sm:max-w-[425px]">
                     <DialogHeader>
                       <DialogTitle className="text-white bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent">Transfer Between Funds</DialogTitle>
                       <DialogDescription className="text-white/70">

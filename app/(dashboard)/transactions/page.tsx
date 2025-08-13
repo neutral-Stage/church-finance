@@ -393,7 +393,7 @@ export default function TransactionsPage() {
                   Add Transaction
                 </Button>
               </DialogTrigger>
-            <DialogContent className="sm:max-w-[600px] bg-black/80 backdrop-blur-xl border border-white/20">
+            <DialogContent className="sm:max-w-[600px]">
               <DialogHeader>
                 <DialogTitle className="text-white text-xl">
                   {editingTransaction ? 'Edit Transaction' : 'Add New Transaction'}

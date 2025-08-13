@@ -472,7 +472,7 @@ export default function MembersPage() {
 
       {/* Add/Edit Member Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-[425px] glass-card border-white/20">
+        <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle className="text-white/90">
               {editingMember ? 'Edit Member' : 'Add New Member'}
