@@ -89,7 +89,14 @@ export default function ProfileSettings() {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="min-h-screen relative overflow-hidden">
+      {/* Background Animation */}
+      <div className="absolute inset-0 bg-gradient-to-br from-blue-900/20 via-purple-900/20 to-pink-900/20" />
+      <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl animate-blob" />
+      <div className="absolute top-1/3 right-1/4 w-64 h-64 bg-purple-500/10 rounded-full blur-3xl animate-blob animation-delay-2000" />
+      <div className="absolute bottom-1/4 left-1/3 w-64 h-64 bg-pink-500/10 rounded-full blur-3xl animate-blob animation-delay-4000" />
+      
+      <div className="container mx-auto p-6 space-y-6 relative z-10">
       {/* Header */}
       <div className="flex items-center space-x-4">
         <div className="relative">
@@ -275,6 +282,7 @@ export default function ProfileSettings() {
             </form>
           </CardContent>
         </Card>
+      </div>
       </div>
     </div>
   )

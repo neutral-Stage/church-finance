@@ -364,7 +364,15 @@ export default function AdvancesPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="min-h-screen relative overflow-hidden bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+      {/* Animated Background Elements */}
+      <div className="absolute inset-0 overflow-hidden">
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-gradient-to-r from-purple-400/30 to-pink-400/30 rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute top-3/4 right-1/4 w-96 h-96 bg-gradient-to-r from-blue-400/20 to-purple-400/20 rounded-full blur-3xl animate-pulse" style={{animationDelay: '2s'}}></div>
+        <div className="absolute bottom-1/4 left-1/3 w-80 h-80 bg-gradient-to-r from-indigo-400/25 to-purple-400/25 rounded-full blur-3xl animate-pulse" style={{animationDelay: '4s'}}></div>
+      </div>
+      
+      <div className="relative z-10 container mx-auto p-6 space-y-6">
       <div className="flex justify-between items-center animate-fade-in animate-slide-in-from-top-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent flex items-center gap-3">
@@ -749,6 +757,7 @@ export default function AdvancesPage() {
           )}
         </DialogContent>
       </Dialog>
+      </div>
     </div>
   )
 }

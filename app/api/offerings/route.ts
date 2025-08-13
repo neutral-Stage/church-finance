@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
+import { Database } from '@/types/database';
+import { retrySupabaseQuery, logNetworkError, withTimeout } from '@/lib/retry-utils';
 
 // GET - Fetch all offerings
 export async function GET(request: NextRequest) {
@@ -14,7 +16,7 @@ export async function GET(request: NextRequest) {
       .from('offerings')
       .select(`
         *,
-        offering_members(
+        offering_member:offering_member(
           member:members(*)
         )
       `)
@@ -31,12 +33,30 @@ export async function GET(request: NextRequest) {
       query = query.eq('type', type);
     }
 
-    const { data: offerings, error } = await query;
+    const { data: offerings, error } = await retrySupabaseQuery(
+       () => query,
+       {
+         maxAttempts: 3,
+         baseDelay: 1000,
+         retryCondition: (error) => {
+           const message = error?.message?.toLowerCase() || ''
+           return (
+             message.includes('failed to fetch') ||
+             message.includes('timeout') ||
+             message.includes('connection') ||
+             message.includes('aborted')
+           )
+         }
+       }
+     )
 
     if (error) {
-      console.error('Error fetching offerings:', error);
+      logNetworkError(error, 'GET /api/offerings');
       return NextResponse.json(
-        { error: 'Failed to fetch offerings' },
+        { 
+          error: 'Failed to fetch offerings. Please check your connection and try again.',
+          details: error.message 
+        },
         { status: 500 }
       );
     }
@@ -59,11 +79,40 @@ export async function POST(request: NextRequest) {
     const { amount, type, notes, service_date, fund_allocations, member_id } = body;
 
     // Validate required fields
-    if (!amount || !type || !service_date) {
+    if (!amount || !type || !service_date || !member_id) {
       return NextResponse.json(
-        { error: 'Amount, type, and service_date are required' },
+        { error: 'Missing required fields: amount, type, service_date, member_id' },
         { status: 400 }
       );
+    }
+
+    // Convert fund IDs to fund names for fund_allocations
+    const processedFundAllocations: Record<string, number> = {};
+    if (fund_allocations && typeof fund_allocations === 'object') {
+      // Get fund names for the provided fund IDs
+      const fundIds = Object.keys(fund_allocations);
+      if (fundIds.length > 0) {
+        const { data: funds, error: fundsError } = await supabase
+          .from('funds')
+          .select('id, name')
+          .in('id', fundIds);
+
+        if (fundsError) {
+          console.error('Error fetching funds:', fundsError);
+          return NextResponse.json(
+            { error: 'Failed to fetch fund information' },
+            { status: 500 }
+          );
+        }
+
+        // Create fund_allocations object with fund names as keys
+        for (const fund of funds || []) {
+          const allocation = fund_allocations[fund.id];
+          if (typeof allocation === 'number' && allocation > 0) {
+            processedFundAllocations[fund.name] = allocation;
+          }
+        }
+      }
     }
 
     // Create the offering record
@@ -74,7 +123,7 @@ export async function POST(request: NextRequest) {
         type,
         notes: notes || null,
         service_date,
-        fund_allocations: fund_allocations || {},
+        fund_allocations: processedFundAllocations,
       })
       .select()
       .single();
@@ -87,45 +136,59 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create member relationship if provided
-    if (member_id && member_id !== 'none') {
-      const { error: memberError } = await supabase
-        .from('offering_members')
-        .insert({
-          offering_id: offering.id,
-          member_id: member_id
-        });
+    // Create member relationship (now required)
+    // The unique constraint on offering_id ensures only one member per offering
+    const { error: memberError } = await supabase
+      .from('offering_member')
+      .insert({
+        offering_id: offering.id,
+        member_id: member_id
+      });
 
-      if (memberError) {
-        console.error('Error creating member relationship:', memberError);
+    if (memberError) {
+      console.error('Error creating member relationship:', memberError);
+      // Check if it's a unique constraint violation
+      if (memberError.code === '23505') {
+        return NextResponse.json(
+          { error: 'This offering already has a member assigned. Each offering can only have one member.' },
+          { status: 409 }
+        );
       }
+      return NextResponse.json(
+        { error: 'Failed to create member relationship' },
+        { status: 500 }
+      );
     }
 
-    // Update fund balances based on allocations
+    // Create transaction records for fund allocations
     if (fund_allocations && typeof fund_allocations === 'object') {
-      for (const [fundId, allocation] of Object.entries(fund_allocations)) {
-        if (typeof allocation === 'number' && allocation > 0) {
-          // Update fund balance using RPC function if available
-          try {
-            await supabase.rpc('update_fund_balance', {
-              fund_id: fundId,
-              amount_change: allocation
-            });
+      // Get fund information for transaction records
+      const fundIds = Object.keys(fund_allocations);
+      if (fundIds.length > 0) {
+        const { data: funds } = await supabase
+          .from('funds')
+          .select('id, name')
+          .in('id', fundIds);
 
-            // Create transaction record
-            await supabase
-              .from('transactions')
-              .insert({
-                type: 'income',
-                amount: allocation,
-                description: `Offering: ${type}${notes ? ' - ' + notes : ''}`,
-                category: 'Offering',
-                payment_method: 'cash',
-                fund_id: fundId,
-                transaction_date: service_date
-              });
-          } catch (error) {
-            console.error('Error updating fund or creating transaction:', error);
+        for (const fund of funds || []) {
+          const allocation = fund_allocations[fund.id];
+          if (typeof allocation === 'number' && allocation > 0) {
+            try {
+              // Create transaction record
+              await supabase
+                .from('transactions')
+                .insert({
+                  type: 'income',
+                  amount: allocation,
+                  description: `Offering: ${type}${notes ? ' - ' + notes : ''}`,
+                  category: 'Offering',
+                  payment_method: 'cash',
+                  fund_id: fund.id,
+                  transaction_date: service_date
+                });
+            } catch (error) {
+              console.error('Error creating transaction:', error);
+            }
           }
         }
       }
@@ -191,22 +254,43 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    // Update member relationship
+    // Update member relationship (now required)
     if (member_id !== undefined) {
+      if (!member_id) {
+        return NextResponse.json(
+          { error: 'Member ID is required' },
+          { status: 400 }
+        );
+      }
+
       // Delete existing relationships
       await supabase
-        .from('offering_members')
+        .from('offering_member')
         .delete()
         .eq('offering_id', id);
 
-      // Create new relationship if member selected
-      if (member_id && member_id !== 'none') {
-        await supabase
-          .from('offering_members')
-          .insert({
-            offering_id: id,
-            member_id: member_id
-          });
+      // Create new relationship
+      // The unique constraint on offering_id ensures only one member per offering
+      const { error: memberError } = await supabase
+        .from('offering_member')
+        .insert({
+          offering_id: id,
+          member_id: member_id
+        });
+
+      if (memberError) {
+        console.error('Error updating member relationship:', memberError);
+        // Check if it's a unique constraint violation
+        if (memberError.code === '23505') {
+          return NextResponse.json(
+            { error: 'This offering already has a member assigned. Each offering can only have one member.' },
+            { status: 409 }
+          );
+        }
+        return NextResponse.json(
+          { error: 'Failed to update member relationship' },
+          { status: 500 }
+        );
       }
     }
 
@@ -250,7 +334,7 @@ export async function DELETE(request: NextRequest) {
 
     // Delete member relationships first
     await supabase
-      .from('offering_members')
+      .from('offering_member')
       .delete()
       .eq('offering_id', id);
 

@@ -56,6 +56,7 @@ import {
 import { Fund, TransactionWithFund, TransactionInsert } from '@/types/database'
 import { formatCurrency, formatDate, formatDateForInput } from '@/lib/utils'
 import { toast } from 'sonner'
+import { FullScreenLoader } from '@/components/ui/loader'
 
 interface TransactionFormData {
   type: 'income' | 'expense'
@@ -350,14 +351,7 @@ export default function TransactionsPage() {
   }
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="relative">
-          <div className="w-16 h-16 rounded-full bg-gradient-to-r from-blue-500/20 to-purple-500/20 backdrop-blur-sm animate-pulse"></div>
-          <div className="absolute inset-0 w-16 h-16 rounded-full border-4 border-transparent border-t-blue-500 animate-spin"></div>
-        </div>
-      </div>
-    )
+    return <FullScreenLoader message="Loading transactions..." />
   }
 
   if (error) {
@@ -370,7 +364,16 @@ export default function TransactionsPage() {
   }
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
+    <div className="min-h-screen relative overflow-hidden">
+      {/* Background Animation */}
+      <div className="absolute inset-0">
+        <div className="absolute top-20 left-10 w-72 h-72 bg-purple-500/10 rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute top-40 right-20 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl animate-pulse" style={{animationDelay: '1s'}}></div>
+        <div className="absolute bottom-20 left-1/3 w-80 h-80 bg-indigo-500/10 rounded-full blur-3xl animate-pulse" style={{animationDelay: '2s'}}></div>
+        <div className="absolute bottom-40 right-10 w-64 h-64 bg-cyan-500/10 rounded-full blur-3xl animate-pulse" style={{animationDelay: '0.5s'}}></div>
+      </div>
+      
+      <div className="relative z-10 container mx-auto p-6 space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between animate-fade-in animate-slide-in-from-bottom-4" style={{animationDelay: '0.1s'}}>
           <div className="animate-slide-in-left">
@@ -767,6 +770,7 @@ export default function TransactionsPage() {
           </div>
         </CardContent>
         </Card>
+      </div>
     </div>
   )
 }

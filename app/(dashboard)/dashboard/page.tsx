@@ -23,6 +23,7 @@ import {
 } from 'lucide-react'
 import { FundSummary, TransactionWithFund, BillWithFund, AdvanceWithFund } from '@/types/database'
 import { formatCurrency, formatDate } from '@/lib/utils'
+import { FullScreenLoader } from '@/components/ui/loader'
 import Link from 'next/link'
 
 interface DashboardData {
@@ -232,17 +233,7 @@ export default function DashboardPage(): JSX.Element {
   }
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="relative">
-            <Activity className="h-12 w-12 animate-spin text-white/60 mx-auto mb-4" />
-            <Activity className="h-8 w-8 animate-spin text-white/80 mx-auto mb-4 absolute top-2 left-1/2 transform -translate-x-1/2 animate-reverse-spin" />
-          </div>
-          <p className="text-white/70 text-lg">Loading dashboard data...</p>
-        </div>
-      </div>
-    )
+    return <FullScreenLoader message="Loading dashboard..." />
   }
 
   if (error) {
@@ -255,11 +246,21 @@ export default function DashboardPage(): JSX.Element {
   }
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
+    <div className="min-h-screen relative overflow-hidden">
+      {/* Animated background elements */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-white/5 rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-white/5 rounded-full blur-3xl animate-pulse" style={{animationDelay: '2s'}}></div>
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-white/3 rounded-full blur-3xl animate-pulse" style={{animationDelay: '4s'}}></div>
+        <div className="absolute top-20 right-20 w-32 h-32 bg-white/3 rounded-full blur-2xl animate-pulse" style={{animationDelay: '1s'}}></div>
+        <div className="absolute bottom-20 left-20 w-40 h-40 bg-white/3 rounded-full blur-2xl animate-pulse" style={{animationDelay: '3s'}}></div>
+      </div>
+      
+      <div className="container mx-auto p-6 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between animate-fade-in animate-slide-in-from-top-4 animate-duration-700">
         <div>
-          <h1 className="text-4xl font-bold flex items-center gap-3 bg-gradient-to-r from-white via-white/90 to-white/70 bg-clip-text text-transparent">
+          <h1 className="text-4xl font-bold flex items-center gap-3 text-white">
             <Activity className="h-10 w-10 text-white/80" />
             Church Finance Dashboard
           </h1>
@@ -275,7 +276,7 @@ export default function DashboardPage(): JSX.Element {
                 Add Transaction
               </Link>
             </Button>
-            <Button asChild className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white border-0 transition-all duration-300">
+            <Button asChild className="bg-green-500/20 backdrop-blur-xl border-green-400/30 hover:bg-green-500/25 text-white transition-all duration-300">
               <Link href="/offerings">
                 <Gift className="h-4 w-4 mr-2" />
                 Record Offering
@@ -320,7 +321,7 @@ export default function DashboardPage(): JSX.Element {
           </CardContent>
         </Card>
 
-        <Card className={`bg-gradient-to-br from-green-500/20 to-emerald-600/20 backdrop-blur-xl border-green-400/30 hover:from-green-500/25 hover:to-emerald-600/25 transition-all duration-300 hover:scale-105 animate-fade-in animate-slide-in-from-bottom-4 animate-duration-700`} style={{ animationDelay: `1100ms` }}>
+        <Card className={`bg-green-500/20 backdrop-blur-xl border-green-400/30 hover:bg-green-500/25 transition-all duration-300 hover:scale-105 animate-fade-in animate-slide-in-from-bottom-4 animate-duration-700`} style={{ animationDelay: `1100ms` }}>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-green-200">Net Income</CardTitle>
           </CardHeader>
@@ -520,6 +521,7 @@ export default function DashboardPage(): JSX.Element {
             </CardContent>
           </Card>
         </div>
+      </div>
       </div>
     </div>
   )

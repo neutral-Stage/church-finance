@@ -87,12 +87,12 @@ function AnimatedCounter({ value, duration = 2000, formatter = (v) => v.toString
     const animate = (currentTime: number) => {
       if (!startTime) startTime = currentTime
       const progress = Math.min((currentTime - startTime) / duration, 1)
-      
+
       const easeOutCubic = 1 - Math.pow(1 - progress, 3)
       const currentCount = Math.floor(startValue + (endValue - startValue) * easeOutCubic)
-      
+
       setCount(currentCount)
-      
+
       if (progress < 1) {
         requestAnimationFrame(animate)
       }
@@ -116,7 +116,7 @@ export default function MemberContributionsPage() {
   const fetchMemberContributions = useCallback(async () => {
     try {
       setLoading(true)
-      
+
       // Fetch all offerings with their member and fund information
       const { data: offeringsData, error: offeringsError } = await supabase
         .from('offerings')
@@ -127,7 +127,7 @@ export default function MemberContributionsPage() {
           amount,
           notes,
           fund_allocations,
-          offering_members!inner(
+          offering_member!inner(
             member:members(
               id,
               name,
@@ -142,6 +142,14 @@ export default function MemberContributionsPage() {
 
       if (offeringsError) throw offeringsError
 
+      // Process offerings data to convert offering_member array to single object
+      const processedOfferings = offeringsData?.map(offering => ({
+        ...offering,
+        offering_member: offering.offering_member && offering.offering_member.length > 0
+          ? offering.offering_member[0]
+          : null
+      })) || []
+
       // Fetch funds for fund name lookup
       const { data: fundsData, error: fundsError } = await supabase
         .from('funds')
@@ -153,15 +161,15 @@ export default function MemberContributionsPage() {
 
       // Group contributions by member
       const memberMap = new Map<string, MemberContribution>()
-      
-      offeringsData?.forEach((offering) => {
+
+      processedOfferings.forEach((offering) => {
         // Since we use inner join, each offering should have exactly one member
-        const memberRecord = offering.offering_members?.[0]?.member
+        const memberRecord = offering.offering_member?.member
         if (!memberRecord) return
-        
+
         const member = Array.isArray(memberRecord) ? memberRecord[0] : memberRecord
         if (!member) return
-        
+
         if (!memberMap.has(member.id)) {
           memberMap.set(member.id, {
             member,
@@ -171,9 +179,9 @@ export default function MemberContributionsPage() {
             last_contribution_date: ''
           })
         }
-        
+
         const memberContrib = memberMap.get(member.id)!
-        
+
         // Determine fund name from fund_allocations
         let fundName = 'Unknown'
         if (offering.fund_allocations && typeof offering.fund_allocations === 'object') {
@@ -183,7 +191,7 @@ export default function MemberContributionsPage() {
             fundName = fundsMap.get(fundIds[0]) || 'Unknown'
           }
         }
-        
+
         memberContrib.contributions.push({
           id: offering.id,
           service_date: offering.service_date,
@@ -192,26 +200,26 @@ export default function MemberContributionsPage() {
           fund_name: fundName,
           notes: offering.notes
         })
-        
+
         memberContrib.total_amount += offering.amount
         memberContrib.contribution_count += 1
-        
-        if (!memberContrib.last_contribution_date || 
-            offering.service_date > memberContrib.last_contribution_date) {
+
+        if (!memberContrib.last_contribution_date ||
+          offering.service_date > memberContrib.last_contribution_date) {
           memberContrib.last_contribution_date = offering.service_date
         }
       })
-      
+
       // Sort contributions within each member by date (newest first)
       memberMap.forEach((memberContrib) => {
-        memberContrib.contributions.sort((a, b) => 
+        memberContrib.contributions.sort((a, b) =>
           new Date(b.service_date).getTime() - new Date(a.service_date).getTime()
         )
       })
-      
+
       const contributions = Array.from(memberMap.values())
       setMemberContributions(contributions)
-      
+
       // Extract unique fellowships for filtering
       const uniqueFellowships = [...new Set(
         contributions
@@ -219,7 +227,7 @@ export default function MemberContributionsPage() {
           .filter(Boolean)
       )] as string[]
       setFellowships(uniqueFellowships.sort())
-      
+
     } catch (error) {
       console.error('Error fetching member contributions:', error)
       toast.error('Failed to load member contributions')
@@ -231,11 +239,11 @@ export default function MemberContributionsPage() {
   const filterAndSortContributions = useCallback(() => {
     const filtered = memberContributions.filter(mc => {
       const matchesSearch = mc.member.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           (mc.member.fellowship_name?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false)
-      
-      const matchesFellowship = selectedFellowship === 'all' || 
-                               mc.member.fellowship_name === selectedFellowship
-      
+        (mc.member.fellowship_name?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false)
+
+      const matchesFellowship = selectedFellowship === 'all' ||
+        mc.member.fellowship_name === selectedFellowship
+
       return matchesSearch && matchesFellowship
     })
 
@@ -267,7 +275,7 @@ export default function MemberContributionsPage() {
   }, [filterAndSortContributions])
 
   const exportToCSV = () => {
-    const csvData = filteredContributions.flatMap(mc => 
+    const csvData = filteredContributions.flatMap(mc =>
       mc.contributions.map(contrib => ({
         'Member Name': mc.member.name,
         'Fellowship': mc.member.fellowship_name || '',
@@ -292,7 +300,7 @@ export default function MemberContributionsPage() {
     a.download = `member-contributions-${new Date().toISOString().split('T')[0]}.csv`
     a.click()
     window.URL.revokeObjectURL(url)
-    
+
     toast.success('Contributions exported successfully')
   }
 
@@ -307,7 +315,7 @@ export default function MemberContributionsPage() {
           <div className="text-center">
             <div className="relative">
               <div className="animate-spin rounded-full h-12 w-12 border-4 border-white/20 border-t-white/80 mx-auto mb-4"></div>
-              <div className="animate-spin rounded-full h-8 w-8 border-4 border-white/10 border-t-white/60 mx-auto absolute top-2 left-1/2 transform -translate-x-1/2" style={{animationDirection: 'reverse', animationDuration: '1.5s'}}></div>
+              <div className="animate-spin rounded-full h-8 w-8 border-4 border-white/10 border-t-white/60 mx-auto absolute top-2 left-1/2 transform -translate-x-1/2" style={{ animationDirection: 'reverse', animationDuration: '1.5s' }}></div>
             </div>
             <p className="text-white/80 font-medium">Loading member contributions...</p>
           </div>
@@ -328,8 +336,8 @@ export default function MemberContributionsPage() {
             Track individual member contribution history and generate reports
           </p>
         </div>
-        <Button 
-          onClick={exportToCSV} 
+        <Button
+          onClick={exportToCSV}
           className="flex items-center gap-2 bg-white/10 hover:bg-white/20 border border-white/20 backdrop-blur-xl transition-all duration-300 hover:scale-105"
         >
           <Download className="h-4 w-4" />
@@ -339,7 +347,7 @@ export default function MemberContributionsPage() {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="bg-white/10 backdrop-blur-xl border-white/20 hover:bg-white/15 transition-all duration-300 hover:scale-105 animate-fade-in animate-slide-in-from-bottom-4" style={{animationDelay: '100ms'}}>
+        <Card className="bg-white/10 backdrop-blur-xl border-white/20 hover:bg-white/15 transition-all duration-300 hover:scale-105 animate-fade-in animate-slide-in-from-bottom-4" style={{ animationDelay: '100ms' }}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-white/90">Total Members</CardTitle>
             <div className="p-2 bg-blue-500/20 rounded-lg backdrop-blur-sm">
@@ -352,8 +360,8 @@ export default function MemberContributionsPage() {
             </div>
           </CardContent>
         </Card>
-        
-        <Card className="bg-white/10 backdrop-blur-xl border-white/20 hover:bg-white/15 transition-all duration-300 hover:scale-105 animate-fade-in animate-slide-in-from-bottom-4" style={{animationDelay: '200ms'}}>
+
+        <Card className="bg-white/10 backdrop-blur-xl border-white/20 hover:bg-white/15 transition-all duration-300 hover:scale-105 animate-fade-in animate-slide-in-from-bottom-4" style={{ animationDelay: '200ms' }}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-white/90">Total Contributions</CardTitle>
             <div className="p-2 bg-green-500/20 rounded-lg backdrop-blur-sm">
@@ -366,8 +374,8 @@ export default function MemberContributionsPage() {
             </div>
           </CardContent>
         </Card>
-        
-        <Card className="bg-white/10 backdrop-blur-xl border-white/20 hover:bg-white/15 transition-all duration-300 hover:scale-105 animate-fade-in animate-slide-in-from-bottom-4" style={{animationDelay: '300ms'}}>
+
+        <Card className="bg-white/10 backdrop-blur-xl border-white/20 hover:bg-white/15 transition-all duration-300 hover:scale-105 animate-fade-in animate-slide-in-from-bottom-4" style={{ animationDelay: '300ms' }}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-white/90">Average per Member</CardTitle>
             <div className="p-2 bg-purple-500/20 rounded-lg backdrop-blur-sm">
@@ -380,8 +388,8 @@ export default function MemberContributionsPage() {
             </div>
           </CardContent>
         </Card>
-        
-        <Card className="bg-white/10 backdrop-blur-xl border-white/20 hover:bg-white/15 transition-all duration-300 hover:scale-105 animate-fade-in animate-slide-in-from-bottom-4" style={{animationDelay: '400ms'}}>
+
+        <Card className="bg-white/10 backdrop-blur-xl border-white/20 hover:bg-white/15 transition-all duration-300 hover:scale-105 animate-fade-in animate-slide-in-from-bottom-4" style={{ animationDelay: '400ms' }}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-white/90">Active Contributors</CardTitle>
             <div className="p-2 bg-orange-500/20 rounded-lg backdrop-blur-sm">
@@ -403,7 +411,7 @@ export default function MemberContributionsPage() {
       </div>
 
       {/* Filters */}
-      <Card className="bg-white/10 backdrop-blur-xl border-white/20 animate-fade-in animate-slide-in-from-bottom-4" style={{animationDelay: '500ms'}}>
+      <Card className="bg-white/10 backdrop-blur-xl border-white/20 animate-fade-in animate-slide-in-from-bottom-4" style={{ animationDelay: '500ms' }}>
         <CardHeader>
           <CardTitle className="text-white/90 flex items-center gap-2">
             <Gift className="h-5 w-5" />
@@ -421,7 +429,7 @@ export default function MemberContributionsPage() {
                 className="bg-white/5 border-white/20 text-white placeholder:text-white/50 focus:border-white/40"
               />
             </div>
-            
+
             <div>
               <label className="text-sm font-medium mb-2 block text-white/80">Fellowship</label>
               <Select value={selectedFellowship} onValueChange={setSelectedFellowship}>
@@ -438,7 +446,7 @@ export default function MemberContributionsPage() {
                 </SelectContent>
               </Select>
             </div>
-            
+
             <div>
               <label className="text-sm font-medium mb-2 block text-white/80">Sort By</label>
               <Select value={sortBy} onValueChange={setSortBy}>
@@ -460,17 +468,17 @@ export default function MemberContributionsPage() {
       {/* Member Contributions List */}
       <div className="space-y-4">
         {filteredContributions.length === 0 ? (
-          <Card className="bg-white/10 backdrop-blur-xl border-white/20 animate-fade-in animate-slide-in-from-bottom-4" style={{animationDelay: '600ms'}}>
+          <Card className="bg-white/10 backdrop-blur-xl border-white/20 animate-fade-in animate-slide-in-from-bottom-4" style={{ animationDelay: '600ms' }}>
             <CardContent className="text-center py-8">
               <p className="text-white/60">No member contributions found.</p>
             </CardContent>
           </Card>
         ) : (
           filteredContributions.map((memberContrib, index) => (
-            <Card 
-              key={memberContrib.member.id} 
-              className="bg-white/10 backdrop-blur-xl border-white/20 hover:bg-white/15 transition-all duration-300 animate-fade-in animate-slide-in-from-bottom-4" 
-              style={{animationDelay: `${600 + (index * 50)}ms`}}
+            <Card
+              key={memberContrib.member.id}
+              className="bg-white/10 backdrop-blur-xl border-white/20 hover:bg-white/15 transition-all duration-300 animate-fade-in animate-slide-in-from-bottom-4"
+              style={{ animationDelay: `${600 + (index * 50)}ms` }}
             >
               <CardHeader>
                 <div className="flex items-center justify-between">

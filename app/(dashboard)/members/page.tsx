@@ -12,6 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { Plus, Edit, Trash2, Phone, MapPin, Briefcase, Users, Loader2 } from 'lucide-react';
+import { FullScreenLoader } from '@/components/ui/loader';
 import { AnimatedCounter } from '@/components/ui/animated-counter';
 
 interface Member {
@@ -280,19 +281,21 @@ export default function MembersPage() {
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="relative">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-white/20 bg-white/10 backdrop-blur-xl"></div>
-          <div className="absolute inset-0 animate-spin rounded-full h-32 w-32 border-t-2 border-blue-400" style={{animationDelay: '0.1s'}}></div>
-          <Loader2 className="absolute inset-0 m-auto h-8 w-8 text-white animate-spin" style={{animationDelay: '0.2s'}} />
-        </div>
-      </div>
-    );
+    return <FullScreenLoader message="Loading members..." />;
   }
 
   return (
-    <div className="space-y-6">
+    <div className="min-h-screen relative overflow-hidden">
+      {/* Background Animation */}
+      <div className="absolute inset-0">
+        <div className="absolute top-20 left-20 w-72 h-72 bg-white/10 rounded-full blur-3xl animate-pulse" style={{animationDelay: '0s'}}></div>
+        <div className="absolute top-40 right-32 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl animate-pulse" style={{animationDelay: '2s'}}></div>
+        <div className="absolute bottom-32 left-1/3 w-80 h-80 bg-purple-500/10 rounded-full blur-3xl animate-pulse" style={{animationDelay: '4s'}}></div>
+        <div className="absolute bottom-20 right-20 w-64 h-64 bg-green-500/10 rounded-full blur-3xl animate-pulse" style={{animationDelay: '1s'}}></div>
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[32rem] h-[32rem] bg-gradient-to-r from-blue-500/5 to-purple-500/5 rounded-full blur-3xl animate-pulse" style={{animationDelay: '3s'}}></div>
+      </div>
+      
+      <div className="relative z-10 container mx-auto p-6 space-y-6">
       <div className="flex justify-between items-center animate-fade-in">
         <div>
           <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent">
@@ -548,6 +551,7 @@ export default function MembersPage() {
           </form>
         </DialogContent>
       </Dialog>
+      </div>
     </div>
   );
 }

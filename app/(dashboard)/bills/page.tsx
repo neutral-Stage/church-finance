@@ -14,6 +14,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { formatCurrency, formatDate, formatDateForInput, isOverdue } from '@/lib/utils'
 import { Plus, MoreHorizontal, AlertTriangle, CheckCircle, Clock, Receipt, FileText, CreditCard } from 'lucide-react'
+import { FullScreenLoader } from '@/components/ui/loader'
 import { toast } from 'sonner'
 import type { Database } from '@/types/database'
 
@@ -333,78 +334,67 @@ export default function BillsPage(): JSX.Element {
   const totalPettyCashAmount = pettyCash.reduce((sum, pc) => sum + pc.amount, 0)
 
   // Animated Counter Component
-  const AnimatedCounter = ({ value, prefix = '', suffix = '' }: { value: number; prefix?: string; suffix?: string }) => {
+  interface AnimatedCounterProps {
+    value: number
+    duration?: number
+    formatter?: (value: number) => string
+  }
+
+  function AnimatedCounter({ value, duration = 2000, formatter = (v) => v.toString() }: AnimatedCounterProps) {
     const [count, setCount] = useState(0)
     const [isVisible, setIsVisible] = useState(false)
-    const counterRef = useRef<HTMLDivElement>(null)
+    const ref = useRef<HTMLSpanElement>(null)
 
     useEffect(() => {
       const observer = new IntersectionObserver(
         ([entry]) => {
           if (entry.isIntersecting && !isVisible) {
             setIsVisible(true)
-            const duration = 1000
-            const steps = 60
-            const increment = value / steps
-            let current = 0
-
-            const timer = setInterval(() => {
-              current += increment
-              if (current >= value) {
-                setCount(value)
-                clearInterval(timer)
-              } else {
-                setCount(Math.floor(current))
-              }
-            }, duration / steps)
-
-            return () => clearInterval(timer)
           }
         },
         { threshold: 0.1 }
       )
 
-      if (counterRef.current) {
-        observer.observe(counterRef.current)
+      if (ref.current) {
+        observer.observe(ref.current)
       }
 
       return () => observer.disconnect()
-    }, [value, isVisible])
+    }, [])
 
-    return (
-      <div ref={counterRef} className="text-2xl font-bold">
-        {prefix}{count}{suffix}
-      </div>
-    )
+    useEffect(() => {
+      if (!isVisible) return
+
+      let startTime: number
+      const startValue = count
+      const endValue = value
+
+      const animate = (currentTime: number) => {
+        if (!startTime) startTime = currentTime
+        const progress = Math.min((currentTime - startTime) / duration, 1)
+        
+        const easeOutCubic = 1 - Math.pow(1 - progress, 3)
+        const currentCount = Math.floor(startValue + (endValue - startValue) * easeOutCubic)
+        
+        setCount(currentCount)
+        
+        if (progress < 1) {
+          requestAnimationFrame(animate)
+        }
+      }
+
+      requestAnimationFrame(animate)
+    }, [isVisible, value, duration, count])
+
+    return <span ref={ref} className="text-2xl font-bold">{formatter(count)}</span>
   }
 
   if (loading) {
-    return (
-      <div className="min-h-screen gradient-background relative overflow-hidden">
-        {/* Animated background elements */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute -top-40 -right-40 w-80 h-80 bg-purple-500/10 rounded-full blur-3xl animate-pulse"></div>
-          <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-blue-500/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }}></div>
-          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-indigo-500/5 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '4s' }}></div>
-        </div>
-
-        <div className="container mx-auto p-6">
-          <div className="flex items-center justify-center h-64">
-            <div className="text-center">
-              <div className="relative">
-                <div className="animate-spin rounded-full h-12 w-12 border-4 border-white/20 border-t-white/80 mx-auto mb-4"></div>
-                <div className="animate-spin rounded-full h-8 w-8 border-4 border-white/10 border-t-white/60 mx-auto absolute top-2 left-1/2 transform -translate-x-1/2" style={{ animationDirection: 'reverse', animationDuration: '1.5s' }}></div>
-              </div>
-              <p className="text-white/80 font-medium">Loading bills and petty cash...</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    )
+    return <FullScreenLoader message="Loading bills and petty cash..." />
   }
 
   return (
-    <div className="min-h-screen gradient-background relative overflow-hidden">
+    <div className="min-h-screen relative overflow-hidden">
       {/* Animated background elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-40 -right-40 w-80 h-80 bg-purple-500/10 rounded-full blur-3xl animate-pulse"></div>
@@ -412,24 +402,28 @@ export default function BillsPage(): JSX.Element {
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-indigo-500/5 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '4s' }}></div>
       </div>
 
-      <div className="relative z-10 space-y-6 animate-fade-in p-6">
-        <div className="flex justify-between items-center animate-in slide-in-from-top-4 duration-700">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent">
-              Bills &amp; Petty Cash
-            </h1>
-            <p className="text-white/70 mt-1">Manage bills, payments, and petty cash requests</p>
-          </div>
-          <div className="flex gap-2">
-            {hasRole('Admin') && (
-              <>
-                <Dialog open={billDialogOpen} onOpenChange={setBillDialogOpen}>
-                  <DialogTrigger asChild>
-                    <Button variant="outline" onClick={() => openBillDialog()}>
-                      <Plus className="mr-2 h-4 w-4" />
-                      Add Bill
-                    </Button>
-                  </DialogTrigger>
+      <div className="container mx-auto p-6 space-y-6">
+        <div className="glass-card-dark bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl p-8 mb-12 animate-fade-in animate-slide-in-from-bottom-4 shadow-lg hover:bg-white/15 transition-all duration-500" style={{ animationDelay: '0ms' }}>
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+            <div className="flex-1">
+              <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-white via-white/90 to-white/80 bg-clip-text text-transparent mb-3">
+                Bills & Petty Cash
+              </h1>
+              <p className="text-white/70 text-lg font-medium">
+                Manage bills and petty cash requests
+              </p>
+            </div>
+            <div className="flex-shrink-0">
+              <div className="flex gap-4">
+                {hasRole('Admin') && (
+                  <>
+                    <Dialog open={billDialogOpen} onOpenChange={setBillDialogOpen}>
+                      <DialogTrigger asChild>
+                        <Button className="bg-blue-600 hover:bg-blue-700 text-white border-0 shadow-xl hover:shadow-2xl transition-all duration-300 px-6 py-3 text-base font-semibold" onClick={() => openBillDialog()}>
+                          <Plus className="w-5 h-5 mr-2" />
+                          Add Bill
+                        </Button>
+                      </DialogTrigger>
                   <DialogContent className="sm:max-w-[500px]">
                     <DialogHeader>
                       <DialogTitle className="text-white">{editingBill ? 'Edit Bill' : 'Add New Bill'}</DialogTitle>
@@ -544,13 +538,13 @@ export default function BillsPage(): JSX.Element {
                   </DialogContent>
                 </Dialog>
 
-                <Dialog open={pettyCashDialogOpen} onOpenChange={setPettyCashDialogOpen}>
-                  <DialogTrigger asChild>
-                    <Button onClick={() => openPettyCashDialog()}>
-                      <Plus className="mr-2 h-4 w-4" />
-                      Petty Cash
-                    </Button>
-                  </DialogTrigger>
+                  <Dialog open={pettyCashDialogOpen} onOpenChange={setPettyCashDialogOpen}>
+                    <DialogTrigger asChild>
+                      <Button className="bg-green-600 hover:bg-green-700 text-white border-0 shadow-xl hover:shadow-2xl transition-all duration-300 px-6 py-3 text-base font-semibold" onClick={() => openPettyCashDialog()}>
+                        <Plus className="w-5 h-5 mr-2" />
+                        Petty Cash
+                      </Button>
+                    </DialogTrigger>
                   <DialogContent className="sm:max-w-[500px]">
                     <DialogHeader>
                       <DialogTitle className="text-white">{editingPettyCash ? 'Edit Petty Cash' : 'New Petty Cash Request'}</DialogTitle>
@@ -632,18 +626,20 @@ export default function BillsPage(): JSX.Element {
                     </form>
                   </DialogContent>
                 </Dialog>
-              </>
-            )}
+                </>
+              )}
+              </div>
+            </div>
           </div>
         </div>
 
         {/* Summary Cards */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <Card className="bg-white/10 backdrop-blur-xl border-white/20 hover:bg-white/15 transition-all duration-300 hover:scale-105 animate-in fade-in-0 slide-in-from-bottom-4" style={{ animationDelay: '100ms' }}>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+          <Card className="bg-white/10 backdrop-blur-xl border-white/20 hover:bg-white/15 transition-all duration-300 hover:scale-105 animate-fade-in animate-slide-in-from-bottom-4" style={{ animationDelay: '100ms' }}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-white/90">Overdue Bills</CardTitle>
               <div className="p-2 bg-red-500/20 rounded-lg backdrop-blur-sm">
-                <AlertTriangle className="h-4 w-4 text-red-400" />
+                <AlertTriangle className="h-4 w-4 text-red-300" />
               </div>
             </CardHeader>
             <CardContent>
@@ -653,11 +649,11 @@ export default function BillsPage(): JSX.Element {
               </p>
             </CardContent>
           </Card>
-          <Card className="bg-white/10 backdrop-blur-xl border-white/20 hover:bg-white/15 transition-all duration-300 hover:scale-105 animate-in fade-in-0 slide-in-from-bottom-4" style={{ animationDelay: '200ms' }}>
+          <Card className="bg-white/10 backdrop-blur-xl border-white/20 hover:bg-white/15 transition-all duration-300 hover:scale-105 animate-fade-in animate-slide-in-from-bottom-4" style={{ animationDelay: '200ms' }}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-white/90">Pending Bills</CardTitle>
               <div className="p-2 bg-yellow-500/20 rounded-lg backdrop-blur-sm">
-                <Clock className="h-4 w-4 text-yellow-400" />
+                <Clock className="h-4 w-4 text-yellow-300" />
               </div>
             </CardHeader>
             <CardContent>
@@ -667,11 +663,11 @@ export default function BillsPage(): JSX.Element {
               </p>
             </CardContent>
           </Card>
-          <Card className="bg-white/10 backdrop-blur-xl border-white/20 hover:bg-white/15 transition-all duration-300 hover:scale-105 animate-in fade-in-0 slide-in-from-bottom-4" style={{ animationDelay: '300ms' }}>
+          <Card className="bg-white/10 backdrop-blur-xl border-white/20 hover:bg-white/15 transition-all duration-300 hover:scale-105 animate-fade-in animate-slide-in-from-bottom-4" style={{ animationDelay: '300ms' }}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-white/90">Pending Petty Cash</CardTitle>
               <div className="p-2 bg-blue-500/20 rounded-lg backdrop-blur-sm">
-                <Receipt className="h-4 w-4 text-blue-400" />
+                <Receipt className="h-4 w-4 text-blue-300" />
               </div>
             </CardHeader>
             <CardContent>
@@ -681,11 +677,11 @@ export default function BillsPage(): JSX.Element {
               </p>
             </CardContent>
           </Card>
-          <Card className="bg-white/10 backdrop-blur-xl border-white/20 hover:bg-white/15 transition-all duration-300 hover:scale-105 animate-in fade-in-0 slide-in-from-bottom-4" style={{ animationDelay: '400ms' }}>
+          <Card className="bg-white/10 backdrop-blur-xl border-white/20 hover:bg-white/15 transition-all duration-300 hover:scale-105 animate-fade-in animate-slide-in-from-bottom-4" style={{ animationDelay: '400ms' }}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-white/90">Approved Petty Cash</CardTitle>
               <div className="p-2 bg-green-500/20 rounded-lg backdrop-blur-sm">
-                <CheckCircle className="h-4 w-4 text-green-400" />
+                <CheckCircle className="h-4 w-4 text-green-300" />
               </div>
             </CardHeader>
             <CardContent>
@@ -698,11 +694,11 @@ export default function BillsPage(): JSX.Element {
         </div>
 
         {/* Tab Navigation */}
-        <div className="flex space-x-1 bg-white/10 backdrop-blur-xl border border-white/20 p-1 rounded-lg w-fit animate-in fade-in-0 slide-in-from-bottom-4 duration-700" style={{ animationDelay: '500ms' }}>
+        <div className="flex space-x-1 bg-white/10 backdrop-blur-xl border border-white/20 p-2 rounded-xl w-fit animate-in fade-in-0 slide-in-from-bottom-4 duration-700 shadow-lg" style={{ animationDelay: '500ms' }}>
           <button
             onClick={() => setActiveTab('bills')}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-300 ${activeTab === 'bills'
-              ? 'bg-white/20 text-white shadow-sm backdrop-blur-sm'
+            className={`px-6 py-3 rounded-lg text-sm font-semibold transition-all duration-300 ${activeTab === 'bills'
+              ? 'bg-white/30 text-white shadow-lg backdrop-blur-sm'
               : 'text-white/70 hover:text-white hover:bg-white/10'
               }`}
           >
@@ -711,8 +707,8 @@ export default function BillsPage(): JSX.Element {
           </button>
           <button
             onClick={() => setActiveTab('petty-cash')}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-300 ${activeTab === 'petty-cash'
-              ? 'bg-white/20 text-white shadow-sm backdrop-blur-sm'
+            className={`px-6 py-3 rounded-lg text-sm font-semibold transition-all duration-300 ${activeTab === 'petty-cash'
+              ? 'bg-white/30 text-white shadow-lg backdrop-blur-sm'
               : 'text-white/70 hover:text-white hover:bg-white/10'
               }`}
           >
@@ -723,27 +719,27 @@ export default function BillsPage(): JSX.Element {
 
         {/* Bills Table */}
         {activeTab === 'bills' && (
-          <Card className="bg-white/10 backdrop-blur-xl border-white/20 animate-in fade-in-0 slide-in-from-bottom-4 duration-700" style={{ animationDelay: '600ms' }}>
-            <CardHeader>
-              <CardTitle className="text-white flex items-center gap-2">
-                <FileText className="w-5 h-5" />
-                Bills
+          <Card className="bg-white/10 backdrop-blur-xl border-white/20 animate-in fade-in-0 slide-in-from-bottom-4 duration-700 shadow-lg hover:bg-white/15 transition-all duration-500" style={{ animationDelay: '600ms' }}>
+            <CardHeader className="pb-6">
+              <CardTitle className="text-2xl text-white font-bold bg-gradient-to-r from-white via-white/90 to-white/80 bg-clip-text text-transparent flex items-center gap-3">
+                <FileText className="w-6 h-6" />
+                Bills Management
               </CardTitle>
-              <CardDescription className="text-white/70">Manage bills and recurring payments</CardDescription>
+              <CardDescription className="text-white/70 text-base font-medium">Manage bills and recurring payments</CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="rounded-md border border-white/20 bg-white/5 backdrop-blur-sm">
+            <CardContent className="pt-0">
+              <div className="rounded-xl border border-white/20 bg-white/5 backdrop-blur-xl shadow-lg">
                 <div className="overflow-x-auto">
                   <table className="w-full">
                     <thead>
-                      <tr className="border-b border-white/20 bg-white/10">
-                        <th className="h-12 px-4 text-left align-middle font-medium text-white/90">Vendor</th>
-                        <th className="h-12 px-4 text-left align-middle font-medium text-white/90">Description</th>
-                        <th className="h-12 px-4 text-left align-middle font-medium text-white/90">Amount</th>
-                        <th className="h-12 px-4 text-left align-middle font-medium text-white/90">Due Date</th>
-                        <th className="h-12 px-4 text-left align-middle font-medium text-white/90">Status</th>
-                        <th className="h-12 px-4 text-left align-middle font-medium text-white/90">Recurring</th>
-                        <th className="h-12 px-4 text-left align-middle font-medium text-white/90">Actions</th>
+                      <tr className="border-b border-white/30 bg-white/10">
+                        <th className="h-14 px-6 text-left align-middle font-semibold text-white/90 text-sm">Vendor</th>
+                        <th className="h-14 px-6 text-left align-middle font-semibold text-white/90 text-sm">Description</th>
+                        <th className="h-14 px-6 text-left align-middle font-semibold text-white/90 text-sm">Amount</th>
+                        <th className="h-14 px-6 text-left align-middle font-semibold text-white/90 text-sm">Due Date</th>
+                        <th className="h-14 px-6 text-left align-middle font-semibold text-white/90 text-sm">Status</th>
+                        <th className="h-14 px-6 text-left align-middle font-semibold text-white/90 text-sm">Recurring</th>
+                        <th className="h-14 px-6 text-left align-middle font-semibold text-white/90 text-sm">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -751,10 +747,10 @@ export default function BillsPage(): JSX.Element {
                         const overdue = bill.status !== 'paid' && isOverdue(bill.due_date)
 
                         return (
-                          <tr key={bill.id} className="border-b border-white/10 hover:bg-white/5 transition-colors duration-200 animate-in fade-in-0 slide-in-from-bottom-2" style={{ animationDelay: `${700 + index * 50}ms` }}>
-                            <td className="p-4 font-medium text-white/90">{bill.vendor_name}</td>
-                            <td className="p-4 max-w-xs truncate text-white/80">{bill.category || '-'}</td>
-                            <td className="p-4 font-medium text-white/90">{formatCurrency(bill.amount)}</td>
+                          <tr key={bill.id} className="border-b border-white/20 hover:bg-white/10 transition-all duration-300 group animate-in fade-in-0 slide-in-from-bottom-2" style={{ animationDelay: `${700 + index * 50}ms` }}>
+                            <td className="p-6 font-bold text-white/90 text-base">{bill.vendor_name}</td>
+                            <td className="p-6 max-w-xs truncate text-white/80 font-medium">{bill.category || '-'}</td>
+                            <td className="p-6 font-bold text-white/90 text-lg">{formatCurrency(bill.amount)}</td>
                             <td className="p-4">
                               <div className={overdue ? 'text-red-400 font-medium' : 'text-white/80'}>
                                 {formatDate(bill.due_date)}
@@ -767,13 +763,13 @@ export default function BillsPage(): JSX.Element {
                                   bill.status === 'paid' ? 'success' :
                                     bill.status === 'overdue' || overdue ? 'destructive' : 'warning'
                                 }
-                                className={`${bill.status === 'paid' ? 'bg-green-500/20 text-green-300 border-green-500/30' :
+                                className={`shadow-lg font-semibold ${bill.status === 'paid' ? 'bg-green-500/20 text-green-300 border-green-500/30' :
                                   bill.status === 'overdue' || overdue ? 'bg-red-500/20 text-red-300 border-red-500/30' :
                                     'bg-yellow-500/20 text-yellow-300 border-yellow-500/30'
                                   } backdrop-blur-sm`}
-                              >
-                                {overdue && bill.status === 'pending' ? 'overdue' : bill.status}
-                              </Badge>
+                                >
+                                  {overdue && bill.status === 'pending' ? 'overdue' : bill.status}
+                                </Badge>
                             </td>
                             <td className="p-4">
                               {bill.frequency !== 'one-time' && (
@@ -819,8 +815,12 @@ export default function BillsPage(): JSX.Element {
                   </table>
                 </div>
                 {bills.length === 0 && (
-                  <div className="text-center py-8 text-white/60">
-                    No bills found. Create your first bill to get started.
+                  <div className="text-center py-12">
+                    <div className="bg-white/5 backdrop-blur-xl rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-6">
+                      <FileText className="w-10 h-10 text-white/50" />
+                    </div>
+                    <p className="text-white/70 text-lg font-medium">No bills found</p>
+                    <p className="text-white/50 text-sm mt-2">Create your first bill to get started</p>
                   </div>
                 )}
               </div>
@@ -829,43 +829,43 @@ export default function BillsPage(): JSX.Element {
         )}
 
         {/* Petty Cash Table */}
-        {activeTab === 'petty-cash' && (
-          <Card className="bg-white/10 backdrop-blur-xl border-white/20 animate-in fade-in-0 slide-in-from-bottom-4 duration-700" style={{ animationDelay: '600ms' }}>
-            <CardHeader>
-              <CardTitle className="text-white flex items-center gap-2">
-                <CreditCard className="w-5 h-5" />
-                Petty Cash Requests
-              </CardTitle>
-              <CardDescription className="text-white/70">Manage petty cash requests and approvals</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="rounded-md border border-white/20 bg-white/5 backdrop-blur-sm">
+         {activeTab === 'petty-cash' && (
+           <Card className="bg-white/10 backdrop-blur-xl border-white/20 animate-in fade-in-0 slide-in-from-bottom-4 duration-700 shadow-lg hover:bg-white/15 transition-all duration-500" style={{ animationDelay: '600ms' }}>
+             <CardHeader className="pb-6">
+               <CardTitle className="text-2xl text-white font-bold bg-gradient-to-r from-white via-white/90 to-white/80 bg-clip-text text-transparent flex items-center gap-3">
+                 <CreditCard className="w-6 h-6" />
+                 Petty Cash Management
+               </CardTitle>
+               <CardDescription className="text-white/70 text-base font-medium">Manage petty cash requests and approvals</CardDescription>
+             </CardHeader>
+            <CardContent className="pt-0">
+              <div className="rounded-xl border border-white/20 bg-white/5 backdrop-blur-xl shadow-lg">
                 <div className="overflow-x-auto">
                   <table className="w-full">
                     <thead>
-                      <tr className="border-b border-white/20 bg-white/10">
-                        <th className="h-12 px-4 text-left align-middle font-medium text-white/90">Date</th>
-                        <th className="h-12 px-4 text-left align-middle font-medium text-white/90">Recipient</th>
-                        <th className="h-12 px-4 text-left align-middle font-medium text-white/90">Description</th>
-                        <th className="h-12 px-4 text-left align-middle font-medium text-white/90">Amount</th>
-                        <th className="h-12 px-4 text-left align-middle font-medium text-white/90">Status</th>
-                        <th className="h-12 px-4 text-left align-middle font-medium text-white/90">Actions</th>
+                      <tr className="border-b border-white/30 bg-white/10">
+                        <th className="h-14 px-6 text-left align-middle font-semibold text-white/90 text-sm">Date</th>
+                        <th className="h-14 px-6 text-left align-middle font-semibold text-white/90 text-sm">Recipient</th>
+                        <th className="h-14 px-6 text-left align-middle font-semibold text-white/90 text-sm">Description</th>
+                        <th className="h-14 px-6 text-left align-middle font-semibold text-white/90 text-sm">Amount</th>
+                        <th className="h-14 px-6 text-left align-middle font-semibold text-white/90 text-sm">Status</th>
+                        <th className="h-14 px-6 text-left align-middle font-semibold text-white/90 text-sm">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
                       {pettyCash.map((pc, index) => (
-                        <tr key={pc.id} className="border-b border-white/10 hover:bg-white/5 transition-colors duration-200 animate-in fade-in-0 slide-in-from-bottom-2" style={{ animationDelay: `${700 + index * 50}ms` }}>
-                          <td className="p-4 text-white/80">{formatDate(pc.created_at)}</td>
-                          <td className="p-4 font-medium text-white/90">{pc.approved_by || 'N/A'}</td>
-                          <td className="p-4 max-w-xs truncate text-white/80">{pc.purpose}</td>
-                          <td className="p-4 font-medium text-white/90">{formatCurrency(pc.amount)}</td>
-                          <td className="p-4">
-                            <Badge variant="secondary" className={`${pc.receipt_available ? 'bg-green-500/20 text-green-300 border-green-500/30' : 'bg-gray-500/20 text-gray-300 border-gray-500/30'
+                        <tr key={pc.id} className="border-b border-white/20 hover:bg-white/10 transition-all duration-300 group animate-in fade-in-0 slide-in-from-bottom-2" style={{ animationDelay: `${700 + index * 50}ms` }}>
+                          <td className="p-6 text-white/80 font-medium">{formatDate(pc.created_at)}</td>
+                          <td className="p-6 font-bold text-white/90">{pc.approved_by || 'N/A'}</td>
+                          <td className="p-6 max-w-xs truncate text-white/80 font-medium">{pc.purpose}</td>
+                          <td className="p-6 font-bold text-white/90 text-lg">{formatCurrency(pc.amount)}</td>
+                          <td className="p-6">
+                            <Badge variant="secondary" className={`shadow-lg font-semibold ${pc.receipt_available ? 'bg-green-500/20 text-green-300 border-green-500/30' : 'bg-gray-500/20 text-gray-300 border-gray-500/30'
                               } backdrop-blur-sm`}>
                               {pc.receipt_available ? 'Receipt Available' : 'No Receipt'}
                             </Badge>
                           </td>
-                          <td className="p-4">
+                          <td className="p-6">
                             {hasRole('Admin') && (
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
@@ -893,8 +893,12 @@ export default function BillsPage(): JSX.Element {
                   </table>
                 </div>
                 {pettyCash.length === 0 && (
-                  <div className="text-center py-8 text-white/60">
-                    No petty cash requests found. Create your first request to get started.
+                  <div className="text-center py-12">
+                    <div className="bg-white/5 backdrop-blur-xl rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-6">
+                      <CreditCard className="w-10 h-10 text-white/50" />
+                    </div>
+                    <p className="text-white/70 text-lg font-medium">No petty cash requests found</p>
+                    <p className="text-white/50 text-sm mt-2">Create your first request to get started</p>
                   </div>
                 )}
               </div>

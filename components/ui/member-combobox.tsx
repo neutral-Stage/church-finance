@@ -93,7 +93,7 @@ export function MemberCombobox({
 
   const handleClear = () => {
     setSelectedMember(null)
-    onValueChange('none')
+    onValueChange('')
     setSearchTerm('')
   }
 
@@ -169,17 +169,6 @@ export function MemberCombobox({
               </div>
             ) : (
               <>
-                <button
-                  type="button"
-                  onClick={() => handleSelect({ id: 'none', name: 'No member selected' })}
-                  className="w-full px-3 py-2 text-left hover:bg-white/10 transition-colors text-white/70 border-b border-white/5"
-                >
-                  <div className="flex items-center justify-between">
-                    <span>No member selected</span>
-                    {value === 'none' && <Check className="h-4 w-4" />}
-                  </div>
-                </button>
-                
                 {members.length === 0 && searchTerm ? (
                   <div className="p-3 text-center text-white/50">
                     No members found

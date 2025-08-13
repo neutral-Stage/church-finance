@@ -349,7 +349,14 @@ export default function ReportsPage() {
   }
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="min-h-screen relative overflow-hidden">
+      {/* Background Animation */}
+      <div className="absolute inset-0 bg-gradient-to-br from-blue-900/20 via-purple-900/20 to-pink-900/20" />
+      <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl animate-blob" />
+      <div className="absolute top-1/3 right-1/4 w-64 h-64 bg-purple-500/10 rounded-full blur-3xl animate-blob animation-delay-2000" />
+      <div className="absolute bottom-1/4 left-1/3 w-64 h-64 bg-pink-500/10 rounded-full blur-3xl animate-blob animation-delay-4000" />
+      
+      <div className="container mx-auto p-6 space-y-6 relative z-10 animate-fade-in">
       <div className="flex items-center justify-between animate-slide-in-from-bottom-4" style={{animationDelay: '100ms'}}>
         <div>
           <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent">
@@ -430,10 +437,10 @@ export default function ReportsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-400">
-              <AnimatedCounter value={summary.totalIncome} prefix="₦" />
+              <AnimatedCounter value={summary.totalIncome} prefix="৳" />
             </div>
             <p className="text-xs text-white/60">
-              Including <AnimatedCounter value={summary.totalOfferings} prefix="₦" className="text-white/80" /> in offerings
+              Including <AnimatedCounter value={summary.totalOfferings} prefix="৳" className="text-white/80" /> in offerings
             </p>
           </CardContent>
         </Card>
@@ -446,10 +453,10 @@ export default function ReportsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-red-400">
-              <AnimatedCounter value={summary.totalExpenses} prefix="₦" />
+              <AnimatedCounter value={summary.totalExpenses} prefix="৳" />
             </div>
             <p className="text-xs text-white/60">
-              Including <AnimatedCounter value={summary.totalBills} prefix="₦" className="text-white/80" /> in bills
+              Including <AnimatedCounter value={summary.totalBills} prefix="৳" className="text-white/80" /> in bills
             </p>
           </CardContent>
         </Card>
@@ -462,7 +469,7 @@ export default function ReportsPage() {
           </CardHeader>
           <CardContent>
             <div className={`text-2xl font-bold ${summary.netIncome >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-              <AnimatedCounter value={summary.netIncome} prefix="₦" />
+              <AnimatedCounter value={summary.netIncome} prefix="৳" />
             </div>
             <p className="text-xs text-white/60">
               {summary.netIncome >= 0 ? 'Surplus' : 'Deficit'} for period
@@ -478,7 +485,7 @@ export default function ReportsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-blue-400">
-              <AnimatedCounter value={summary.totalAdvances} prefix="₦" />
+              <AnimatedCounter value={summary.totalAdvances} prefix="৳" />
             </div>
             <p className="text-xs text-white/60">
               <AnimatedCounter value={reportData.advances.length} className="text-white/80" /> advance{reportData.advances.length !== 1 ? 's' : ''} issued
@@ -503,7 +510,7 @@ export default function ReportsPage() {
                 </div>
                 <div className="text-right">
                   <div className="text-lg font-bold text-white/90">
-                    <AnimatedCounter value={fund.current_balance} prefix="₦" />
+                    <AnimatedCounter value={fund.current_balance} prefix="৳" />
                   </div>
                   <Badge variant={fund.current_balance >= 0 ? 'success' : 'destructive'} className="bg-white/10 backdrop-blur-sm border-white/20">
                     {fund.current_balance >= 0 ? 'Positive' : 'Negative'}
@@ -539,7 +546,7 @@ export default function ReportsPage() {
                     </div>
                     <div className="text-right">
                       <div className={`font-medium ${transaction.type === 'income' ? 'text-green-400' : 'text-red-400'}`}>
-                        {transaction.type === 'income' ? '+' : '-'}<AnimatedCounter value={transaction.amount} prefix="₦" />
+                        {transaction.type === 'income' ? '+' : '-'}<AnimatedCounter value={transaction.amount} prefix="৳" />
                       </div>
                       <div className="text-sm text-white/60">
                         {formatDate(transaction.transaction_date)}
@@ -586,7 +593,7 @@ export default function ReportsPage() {
                     </div>
                     <div className="text-right">
                       <div className="font-medium text-green-400">
-                        <AnimatedCounter value={offering.amount} prefix="₦" />
+                        <AnimatedCounter value={offering.amount} prefix="৳" />
                       </div>
                       <div className="text-sm text-white/60">
                         {formatDate(offering.service_date)}
@@ -615,6 +622,7 @@ export default function ReportsPage() {
           </div>
         </CardContent>
       </Card>
+      </div>
     </div>
   )
 }

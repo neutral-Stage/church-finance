@@ -284,13 +284,22 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
   )
 
   return (
-    <div className="flex h-screen gradient-background relative overflow-hidden">
-      {/* Background decoration */}
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 relative overflow-hidden">
+      {/* Enhanced Background Elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-white/5 rounded-full blur-3xl animate-pulse" />
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-white/5 rounded-full blur-3xl animate-pulse" style={{animationDelay: '2s'}} />
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-white/3 rounded-full blur-3xl animate-pulse" style={{animationDelay: '4s'}} />
+        {/* Primary animated orbs */}
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-gradient-to-r from-blue-600/20 to-purple-600/20 rounded-full blur-3xl animate-pulse" />
+        <div className="absolute top-3/4 right-1/4 w-80 h-80 bg-gradient-to-r from-purple-600/15 to-pink-600/15 rounded-full blur-3xl animate-pulse" style={{animationDelay: '2s'}} />
+        <div className="absolute bottom-1/4 left-1/2 w-64 h-64 bg-gradient-to-r from-indigo-600/10 to-blue-600/10 rounded-full blur-3xl animate-pulse" style={{animationDelay: '4s'}} />
+        
+        {/* Secondary floating elements */}
+        <div className="absolute top-10 right-10 w-32 h-32 bg-white/5 rounded-full blur-xl animate-bounce" style={{animationDelay: '1s'}} />
+        <div className="absolute bottom-10 left-10 w-24 h-24 bg-white/3 rounded-full blur-xl animate-bounce" style={{animationDelay: '3s'}} />
+        <div className="absolute top-1/2 right-1/3 w-40 h-40 bg-gradient-to-r from-cyan-600/8 to-blue-600/8 rounded-full blur-2xl animate-pulse" style={{animationDelay: '5s'}} />
       </div>
+      
+      {/* Main Dashboard Container */}
+      <div className="flex h-screen relative z-10">
       
       {/* Desktop Sidebar */}
       <div className="hidden lg:flex relative z-10">
@@ -468,8 +477,9 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
         </main>
       </div>
       
-      {/* Search Modal */}
-      <SearchModal isOpen={searchOpen} onClose={() => setSearchOpen(false)} />
+        {/* Search Modal */}
+        <SearchModal isOpen={searchOpen} onClose={() => setSearchOpen(false)} />
+      </div>
     </div>
   )
 }

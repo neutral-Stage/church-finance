@@ -249,7 +249,7 @@ export interface Database {
           updated_at?: string | null
         }
       }
-      offering_members: {
+      offering_member: {
         Row: {
           id: string
           offering_id: string
@@ -307,7 +307,7 @@ export type Bill = Database['public']['Tables']['bills']['Row']
 export type Advance = Database['public']['Tables']['advances']['Row']
 export type PettyCash = Database['public']['Tables']['petty_cash']['Row']
 export type Member = Database['public']['Tables']['members']['Row']
-export type OfferingMember = Database['public']['Tables']['offering_members']['Row']
+export type OfferingMember = Database['public']['Tables']['offering_member']['Row']
 export type FundSummary = Database['public']['Views']['fund_summary']['Row']
 
 // Insert types
@@ -318,7 +318,7 @@ export type BillInsert = Database['public']['Tables']['bills']['Insert']
 export type AdvanceInsert = Database['public']['Tables']['advances']['Insert']
 export type PettyCashInsert = Database['public']['Tables']['petty_cash']['Insert']
 export type MemberInsert = Database['public']['Tables']['members']['Insert']
-export type OfferingMemberInsert = Database['public']['Tables']['offering_members']['Insert']
+export type OfferingMemberInsert = Database['public']['Tables']['offering_member']['Insert']
 
 // Update types
 export type FundUpdate = Database['public']['Tables']['funds']['Update']
@@ -328,7 +328,7 @@ export type BillUpdate = Database['public']['Tables']['bills']['Update']
 export type AdvanceUpdate = Database['public']['Tables']['advances']['Update']
 export type PettyCashUpdate = Database['public']['Tables']['petty_cash']['Update']
 export type MemberUpdate = Database['public']['Tables']['members']['Update']
-export type OfferingMemberUpdate = Database['public']['Tables']['offering_members']['Update']
+export type OfferingMemberUpdate = Database['public']['Tables']['offering_member']['Update']
 
 // Extended types with relationships
 export interface TransactionWithFund extends Transaction {

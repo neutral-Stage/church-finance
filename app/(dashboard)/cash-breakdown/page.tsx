@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase'
 import { Banknote, Download, Save, RefreshCw, Calculator } from 'lucide-react'
+import { FullScreenLoader } from '@/components/ui/loader'
 
 interface CashBreakdownData {
   id: string
@@ -236,21 +237,19 @@ export default function CashBreakdownPage() {
   }, [])
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="relative">
-            <RefreshCw className="h-12 w-12 animate-spin text-white/60 mx-auto mb-4" />
-            <RefreshCw className="h-8 w-8 animate-spin text-white/80 mx-auto mb-4 absolute top-2 left-1/2 transform -translate-x-1/2 animate-reverse-spin" />
-          </div>
-          <p className="text-white/70 text-lg">Loading cash breakdown data...</p>
-        </div>
-      </div>
-    )
+    return <FullScreenLoader message="Loading cash breakdown data..." />
   }
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
+    <div className="min-h-screen relative overflow-hidden bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+      {/* Animated Background Elements */}
+      <div className="absolute inset-0 overflow-hidden">
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-gradient-to-r from-purple-400/30 to-pink-400/30 rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute top-3/4 right-1/4 w-96 h-96 bg-gradient-to-r from-blue-400/20 to-purple-400/20 rounded-full blur-3xl animate-pulse" style={{animationDelay: '2s'}}></div>
+        <div className="absolute bottom-1/4 left-1/3 w-80 h-80 bg-gradient-to-r from-indigo-400/25 to-purple-400/25 rounded-full blur-3xl animate-pulse" style={{animationDelay: '4s'}}></div>
+      </div>
+      
+      <div className="relative z-10 container mx-auto p-6 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between animate-fade-in animate-slide-in-from-top-4 animate-duration-700">
         <div>
@@ -384,6 +383,7 @@ export default function CashBreakdownPage() {
           </div>
         </CardContent>
       </Card>
+      </div>
     </div>
   )
 }

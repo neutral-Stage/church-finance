@@ -13,10 +13,12 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { AnimatedCounter } from '@/components/ui/animated-counter'
 import { MemberCombobox } from '@/components/ui/member-combobox'
+import { FullScreenLoader } from '@/components/ui/loader'
 
 import { formatCurrency, formatDate, formatDateForInput } from '@/lib/utils'
-import { Plus, MoreHorizontal, Edit, Trash2, Calendar, Users, DollarSign, TrendingUp } from 'lucide-react'
+import { Plus, MoreHorizontal, Edit, Trash2, Calendar, Users, DollarSign, TrendingUp, AlertCircle, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
+import { retrySupabaseQuery, logNetworkError, isNetworkError } from '@/lib/retry-utils'
 import type { Database } from '@/types/database'
 
 type Offering = Database['public']['Tables']['offerings']['Row']
@@ -24,9 +26,9 @@ type Fund = Database['public']['Tables']['funds']['Row']
 type Member = Database['public']['Tables']['members']['Row']
 
 interface OfferingWithFund extends Offering {
-  offering_members?: {
+  offering_member?: {
     member: Member
-  }[]
+  }
 }
 
 interface OfferingForm {
@@ -63,7 +65,7 @@ export default function OfferingsPage() {
     type: '',
     amount: '',
     fund_allocations: {},
-    selected_member: 'none',
+    selected_member: '',
     notes: ''
   })
 
@@ -76,7 +78,7 @@ export default function OfferingsPage() {
     const managementFund = funds.find(f => f.name.toLowerCase().includes('management'))
     const missionFund = funds.find(f => f.name.toLowerCase().includes('mission'))
     const buildingFund = funds.find(f => f.name.toLowerCase().includes('building'))
-    
+
     switch (offeringType) {
       case 'Mission Fund Offering':
         return missionFund ? { [missionFund.id]: amount } : {}
@@ -88,36 +90,127 @@ export default function OfferingsPage() {
     }
   }
 
-  const fetchData = async () => {
+  const fetchData = async (retryCount = 0) => {
     try {
       setLoading(true)
-      
-      // Fetch offerings with member relationships
-      const { data: offeringsData, error: offeringsError } = await supabase
-        .from('offerings')
-        .select(`
-          *,
-          offering_members(
-            member:members(*)
-          )
-        `)
-        .order('service_date', { ascending: false })
 
-      if (offeringsError) throw offeringsError
+      console.log('=== DEBUGGING MEMBER DATA RETRIEVAL ===')
+
+      // Fetch offerings with member relationships
+      const { data: offeringsData, error: offeringsError } = await retrySupabaseQuery<any[]>(
+        () => supabase
+          .from('offerings')
+          .select(`
+             *,
+             offering_member(
+               member:members(*)
+             )
+           `)
+          .order('service_date', { ascending: false }),
+        {
+          maxAttempts: 3,
+          baseDelay: 1000,
+          retryCondition: (error) => isNetworkError(error)
+        }
+      )
+
+      if (offeringsError) {
+        console.error('Supabase offerings error:', offeringsError)
+        logNetworkError(offeringsError, 'fetchData - offerings')
+        if (isNetworkError(offeringsError)) {
+          toast.error('Connection failed. Please check your internet connection and try again.', {
+            action: {
+              label: 'Retry',
+              onClick: () => fetchData(retryCount + 1)
+            }
+          })
+        } else {
+          throw offeringsError
+        }
+        return
+      }
+
+      // Enhanced Debug: Log the actual data structure
+      console.log('1. Raw Supabase response:', offeringsData)
+      console.log('2. Total offerings fetched:', offeringsData?.length || 0)
+
+      if (offeringsData && offeringsData.length > 0) {
+        console.log('3. First offering structure:', offeringsData[0])
+        console.log('4. First offering offering_member field:', offeringsData[0].offering_member)
+        console.log('5. Type of offering_member:', typeof offeringsData[0].offering_member)
+        console.log('6. Is offering_member an array?', Array.isArray(offeringsData[0].offering_member))
+
+        if (offeringsData[0].offering_member) {
+          console.log('7. offering_member length:', offeringsData[0].offering_member.length)
+          if (offeringsData[0].offering_member.length > 0) {
+            console.log('8. First offering_member item:', offeringsData[0].offering_member[0])
+            console.log('9. Member data in first item:', offeringsData[0].offering_member[0]?.member)
+          }
+        }
+      }
+
+      // Process offerings data to convert offering_member array to single object
+      const processedOfferings = offeringsData?.map((offering, index) => {
+        console.log(`Processing offering ${index + 1}:`, {
+          id: offering.id,
+          type: offering.type,
+          offering_member_raw: offering.offering_member,
+          offering_member_length: offering.offering_member?.length || 0
+        })
+
+        const processed = {
+          ...offering,
+          offering_member: offering.offering_member && offering.offering_member.length > 0
+            ? offering.offering_member[0]
+            : null
+        }
+
+        console.log(`Processed offering ${index + 1}:`, {
+          id: processed.id,
+          type: processed.type,
+          offering_member_processed: processed.offering_member,
+          member_name: processed.offering_member?.member?.name || 'NO MEMBER NAME'
+        })
+
+        return processed
+      }) || []
+
+      console.log('10. Final processed offerings:', processedOfferings)
+      console.log('11. Sample processed offering with member:', processedOfferings[0])
+      console.log('12. Member name from first offering:', processedOfferings[0]?.offering_member?.member?.name || 'NO MEMBER NAME FOUND')
 
       // Fetch funds
-      const { data: fundsData, error: fundsError } = await supabase
-        .from('funds')
-        .select('*')
-        .order('name')
+      const { data: fundsData, error: fundsError } = await retrySupabaseQuery<any[]>(
+        () => supabase
+          .from('funds')
+          .select('*')
+          .order('name'),
+        {
+          maxAttempts: 3,
+          baseDelay: 1000,
+          retryCondition: (error) => isNetworkError(error)
+        }
+      )
 
-      if (fundsError) throw fundsError
+      if (fundsError) {
+        logNetworkError(fundsError, 'fetchData - funds')
+        throw fundsError
+      }
 
-      setOfferings(offeringsData || [])
-      setFunds(fundsData || [])
+      setOfferings(processedOfferings)
+      setFunds(fundsData as any[] || [])
     } catch (error) {
       console.error('Error fetching data:', error)
-      toast.error('Failed to load offerings data')
+      if (isNetworkError(error)) {
+        toast.error('Network connection failed. Please check your internet connection.', {
+          action: {
+            label: 'Retry',
+            onClick: () => fetchData(retryCount + 1)
+          }
+        })
+      } else {
+        toast.error('Failed to load offerings data')
+      }
     } finally {
       setLoading(false)
     }
@@ -125,16 +218,21 @@ export default function OfferingsPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (!form.service_date || !form.type || !form.amount) {
       toast.error('Please fill in all required fields')
+      return
+    }
+
+    if (!form.selected_member || form.selected_member === 'none') {
+      toast.error('Please select a member for this offering')
       return
     }
 
     try {
       const amount = parseFloat(form.amount)
       const fundAllocations = getFundAllocationForOfferingType(form.type, amount)
-      
+
       const requestData = {
         service_date: form.service_date,
         type: form.type,
@@ -158,6 +256,11 @@ export default function OfferingsPage() {
 
         if (!response.ok) {
           const error = await response.json()
+          // Handle specific error cases
+          if (response.status === 409) {
+            toast.error('This offering already has a member assigned. Each offering can only have one member.')
+            return
+          }
           throw new Error(error.error || 'Failed to update offering')
         }
 
@@ -173,6 +276,11 @@ export default function OfferingsPage() {
 
         if (!response.ok) {
           const error = await response.json()
+          // Handle specific error cases
+          if (response.status === 409) {
+            toast.error('This offering already has a member assigned. Each offering can only have one member.')
+            return
+          }
           throw new Error(error.error || 'Failed to create offering')
         }
 
@@ -190,17 +298,19 @@ export default function OfferingsPage() {
   }
 
   const handleEdit = async (offering: OfferingWithFund) => {
+    console.log('Editing offering:', offering)
+    console.log('Offering member data:', offering.offering_member)
+
     setEditingOffering(offering)
-    
-    // Fetch member relationship for this offering
-    const { data: memberRelations } = await supabase
-      .from('offering_members')
-      .select('member_id')
-      .eq('offering_id', offering.id)
-      .limit(1)
-    
-    const selectedMemberId = memberRelations?.[0]?.member_id || 'none'
-    
+
+    // Use already loaded member relationship data with proper null checks
+    const selectedMemberId = offering.offering_member?.member?.id || ''
+
+    console.log('Selected member ID for edit:', selectedMemberId)
+    if (offering.offering_member?.member) {
+      console.log('Member details:', offering.offering_member.member)
+    }
+
     setForm({
       service_date: offering.service_date,
       type: offering.type,
@@ -239,17 +349,17 @@ export default function OfferingsPage() {
       type: '',
       amount: '',
       fund_allocations: {},
-      selected_member: 'none',
+      selected_member: '',
       notes: ''
     })
   }
 
   const filteredOfferings = offerings.filter(offering => {
     const matchesSearch = offering.type.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         offering.notes?.toLowerCase().includes(searchTerm.toLowerCase())
+      offering.notes?.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesType = filterType === 'all' || offering.type === filterType
     const matchesFund = filterFund === 'all' || Object.keys(offering.fund_allocations || {}).includes(filterFund)
-    
+
     return matchesSearch && matchesType && matchesFund
   })
 
@@ -266,10 +376,10 @@ export default function OfferingsPage() {
   // Calculate summary statistics
   const totalOfferings = filteredOfferings.reduce((sum, offering) => sum + offering.amount, 0)
   const totalContributors = filteredOfferings.reduce((sum, offering) => {
-    return sum + (offering.offering_members?.length || 0)
+    return sum + (offering.offering_member ? 1 : 0)
   }, 0)
   const averageOffering = filteredOfferings.length > 0 ? totalOfferings / filteredOfferings.length : 0
-  
+
   // Group by offering type for breakdown
   const offeringsByType = filteredOfferings.reduce((acc, offering) => {
     acc[offering.type] = (acc[offering.type] || 0) + offering.amount
@@ -288,374 +398,390 @@ export default function OfferingsPage() {
   }, {} as Record<string, number>)
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="flex flex-col items-center space-y-4">
-          <div className="relative">
-            <div className="w-12 h-12 border-4 border-white/20 border-t-white rounded-full animate-spin"></div>
-            <div className="absolute inset-0 w-12 h-12 border-4 border-transparent border-t-blue-400 rounded-full animate-spin" style={{animationDelay: '0.15s'}}></div>
-          </div>
-          <div className="text-lg text-white/80">Loading offerings...</div>
-        </div>
-      </div>
-    )
+    return <FullScreenLoader message="Loading offerings..." />
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center animate-fade-in">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent">
-            Offerings & Tithes
-          </h1>
-          <p className="text-white/70">Track and manage church offerings and tithes</p>
-        </div>
-        {hasRole('Admin') && (
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-            <DialogTrigger asChild>
-              <Button onClick={() => { setEditingOffering(null); resetForm(); }} className="glass-button hover:scale-105 transition-all duration-300">
-                <Plus className="mr-2 h-4 w-4" />
-                Record Offering
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[500px]">
-              <DialogHeader className="space-y-3 pb-6">
-                <DialogTitle className="text-xl font-semibold bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent">
-                  {editingOffering ? 'Edit Offering' : 'Record New Offering'}
-                </DialogTitle>
-                <DialogDescription className="text-white/70 text-sm leading-relaxed">
-                  {editingOffering ? 'Update the offering details below.' : 'Record a new offering or tithe with automatic fund allocation.'}
-                </DialogDescription>
-              </DialogHeader>
-              <form onSubmit={handleSubmit} className="space-y-6">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+    <div className="min-h-screen relative overflow-hidden bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+      {/* Animated Background Elements */}
+      <div className="absolute inset-0 overflow-hidden">
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-gradient-to-r from-purple-400/30 to-pink-400/30 rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute top-3/4 right-1/4 w-96 h-96 bg-gradient-to-r from-blue-400/20 to-purple-400/20 rounded-full blur-3xl animate-pulse" style={{animationDelay: '2s'}}></div>
+        <div className="absolute bottom-1/4 left-1/3 w-80 h-80 bg-gradient-to-r from-indigo-400/25 to-purple-400/25 rounded-full blur-3xl animate-pulse" style={{animationDelay: '4s'}}></div>
+      </div>
+      
+      <div className="relative z-10 container mx-auto p-6 space-y-6">
+        <div className="flex justify-between items-center animate-fade-in">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent">
+              Offerings & Tithes
+            </h1>
+            <p className="text-white/70">Track and manage church offerings and tithes</p>
+          </div>
+          {hasRole('Admin') && (
+            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+              <DialogTrigger asChild>
+                <Button onClick={() => { setEditingOffering(null); resetForm(); }} className="glass-button hover:scale-105 transition-all duration-300">
+                  <Plus className="mr-2 h-4 w-4" />
+                  Record Offering
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[500px]">
+                <DialogHeader className="space-y-3 pb-6">
+                  <DialogTitle className="text-xl font-semibold bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent">
+                    {editingOffering ? 'Edit Offering' : 'Record New Offering'}
+                  </DialogTitle>
+                  <DialogDescription className="text-white/70 text-sm leading-relaxed">
+                    {editingOffering ? 'Update the offering details below.' : 'Record a new offering or tithe with automatic fund allocation.'}
+                  </DialogDescription>
+                </DialogHeader>
+                <form onSubmit={handleSubmit} className="space-y-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="service_date" className="text-white/90 font-medium text-sm">
+                        Service Date *
+                      </Label>
+                      <Input
+                        id="service_date"
+                        type="date"
+                        value={form.service_date}
+                        onChange={(e) => setForm({ ...form, service_date: e.target.value })}
+                        required
+                        className="glass-card-dark bg-white/10 backdrop-blur-xl border border-white/20 text-white placeholder:text-white/50 rounded-xl focus:border-white/40 focus:ring-white/20 hover:bg-white/15 transition-all duration-300"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="type" className="text-white/90 font-medium text-sm">
+                        Offering Type *
+                      </Label>
+                      <Select value={form.type} onValueChange={(value) => setForm({ ...form, type: value })}>
+                        <SelectTrigger className="glass-card-dark bg-white/10 backdrop-blur-xl border border-white/20 text-white rounded-xl hover:bg-white/15 transition-all duration-300">
+                          <SelectValue placeholder="Select offering type" />
+                        </SelectTrigger>
+                        <SelectContent className="glass-card-dark bg-white/10 backdrop-blur-xl border border-white/20 rounded-xl">
+                          {OFFERING_TYPES.map((type) => (
+                            <SelectItem
+                              key={type}
+                              value={type}
+                              className="text-white hover:bg-white/20 focus:bg-white/20 rounded-lg transition-colors duration-200"
+                            >
+                              {type}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
                   <div className="space-y-2">
-                    <Label htmlFor="service_date" className="text-white/90 font-medium text-sm">
-                      Service Date *
+                    <Label htmlFor="amount" className="text-white/90 font-medium text-sm">
+                      Total Amount *
                     </Label>
                     <Input
-                      id="service_date"
-                      type="date"
-                      value={form.service_date}
-                      onChange={(e) => setForm({ ...form, service_date: e.target.value })}
+                      id="amount"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      placeholder="0.00"
+                      value={form.amount}
+                      onChange={(e) => setForm({ ...form, amount: e.target.value })}
                       required
                       className="glass-card-dark bg-white/10 backdrop-blur-xl border border-white/20 text-white placeholder:text-white/50 rounded-xl focus:border-white/40 focus:ring-white/20 hover:bg-white/15 transition-all duration-300"
                     />
+                    <div className="glass-card-dark bg-blue-500/10 border border-blue-400/20 rounded-lg p-3 mt-2">
+                      <p className="text-sm text-blue-200/90 flex items-start gap-2">
+                        <span className="text-blue-400 mt-0.5">ℹ</span>
+                        Fund allocation will be determined automatically based on offering type
+                      </p>
+                    </div>
                   </div>
+
                   <div className="space-y-2">
-                    <Label htmlFor="type" className="text-white/90 font-medium text-sm">
-                      Offering Type *
+                    <Label htmlFor="member" className="text-white/90 font-medium text-sm">
+                      Member *
                     </Label>
-                    <Select value={form.type} onValueChange={(value) => setForm({ ...form, type: value })}>
-                      <SelectTrigger className="glass-card-dark bg-white/10 backdrop-blur-xl border border-white/20 text-white rounded-xl hover:bg-white/15 transition-all duration-300">
-                        <SelectValue placeholder="Select offering type" />
-                      </SelectTrigger>
-                      <SelectContent className="glass-card-dark bg-white/10 backdrop-blur-xl border border-white/20 rounded-xl">
-                        {OFFERING_TYPES.map((type) => (
-                          <SelectItem 
-                            key={type} 
-                            value={type}
-                            className="text-white hover:bg-white/20 focus:bg-white/20 rounded-lg transition-colors duration-200"
-                          >
-                            {type}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <MemberCombobox
+                      value={form.selected_member}
+                      onValueChange={selectMember}
+                      placeholder="Search and select member..."
+                      className="w-full"
+                    />
                   </div>
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="amount" className="text-white/90 font-medium text-sm">
-                    Total Amount *
-                  </Label>
-                  <Input
-                    id="amount"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    placeholder="0.00"
-                    value={form.amount}
-                    onChange={(e) => setForm({ ...form, amount: e.target.value })}
-                    required
-                    className="glass-card-dark bg-white/10 backdrop-blur-xl border border-white/20 text-white placeholder:text-white/50 rounded-xl focus:border-white/40 focus:ring-white/20 hover:bg-white/15 transition-all duration-300"
-                  />
-                  <div className="glass-card-dark bg-blue-500/10 border border-blue-400/20 rounded-lg p-3 mt-2">
-                    <p className="text-sm text-blue-200/90 flex items-start gap-2">
-                      <span className="text-blue-400 mt-0.5">ℹ</span>
-                      Fund allocation will be determined automatically based on offering type
-                    </p>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="notes" className="text-white/90 font-medium text-sm">
+                      Notes
+                    </Label>
+                    <Textarea
+                      id="notes"
+                      value={form.notes}
+                      onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                      placeholder="Additional notes about this offering..."
+                      rows={3}
+                      className="glass-card-dark bg-white/10 backdrop-blur-xl border border-white/20 text-white placeholder:text-white/50 rounded-xl focus:border-white/40 focus:ring-white/20 hover:bg-white/15 transition-all duration-300 resize-none"
+                    />
                   </div>
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="member" className="text-white/90 font-medium text-sm">
-                    Member (Optional)
-                  </Label>
-                  <MemberCombobox
-                    value={form.selected_member}
-                    onValueChange={selectMember}
-                    placeholder="Search and select member..."
-                    className="w-full"
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="notes" className="text-white/90 font-medium text-sm">
-                    Notes
-                  </Label>
-                  <Textarea
-                    id="notes"
-                    value={form.notes}
-                    onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                    placeholder="Additional notes about this offering..."
-                    rows={3}
-                    className="glass-card-dark bg-white/10 backdrop-blur-xl border border-white/20 text-white placeholder:text-white/50 rounded-xl focus:border-white/40 focus:ring-white/20 hover:bg-white/15 transition-all duration-300 resize-none"
-                  />
-                </div>
-                
-                <DialogFooter className="flex flex-col sm:flex-row gap-3 pt-6">
-                  <Button 
-                    type="button" 
-                    variant="outline" 
-                    onClick={() => setDialogOpen(false)} 
-                    className="glass-card-dark bg-transparent border border-white/20 text-white hover:bg-white/10 hover:scale-105 transition-all duration-300 rounded-xl order-2 sm:order-1"
-                  >
-                    Cancel
-                  </Button>
-                  <Button 
-                    type="submit" 
-                    className="glass-card-dark bg-white/10 backdrop-blur-xl border border-white/20 text-white hover:bg-white/15 hover:scale-105 transition-all duration-300 rounded-xl order-1 sm:order-2"
-                  >
-                    {editingOffering ? 'Update' : 'Record'} Offering
-                  </Button>
-                </DialogFooter>
-              </form>
-            </DialogContent>
-          </Dialog>
-        )}
-      </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <div className="glass-card p-6 animate-fade-in animate-slide-in-from-bottom-4" style={{ animationDelay: '0.1s' }}>
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-white/70">Total Offerings</p>
-              <p className="text-2xl font-bold bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent">
-                <AnimatedCounter value={totalOfferings} />
-              </p>
-            </div>
-            <div className="p-3 bg-green-500/20 backdrop-blur-sm rounded-xl">
-              <DollarSign className="h-8 w-8 text-green-400" />
-            </div>
-          </div>
+                  <DialogFooter className="flex flex-col sm:flex-row gap-3 pt-6">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setDialogOpen(false)}
+                      className="glass-card-dark bg-transparent border border-white/20 text-white hover:bg-white/10 hover:scale-105 transition-all duration-300 rounded-xl order-2 sm:order-1"
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      type="submit"
+                      className="glass-card-dark bg-white/10 backdrop-blur-xl border border-white/20 text-white hover:bg-white/15 hover:scale-105 transition-all duration-300 rounded-xl order-1 sm:order-2"
+                    >
+                      {editingOffering ? 'Update' : 'Record'} Offering
+                    </Button>
+                  </DialogFooter>
+                </form>
+              </DialogContent>
+            </Dialog>
+          )}
         </div>
-        <div className="glass-card p-6 animate-fade-in animate-slide-in-from-bottom-4" style={{ animationDelay: '0.2s' }}>
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-white/70">Total Contributors</p>
-              <p className="text-2xl font-bold bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent">
-                <AnimatedCounter value={totalContributors} />
-              </p>
-            </div>
-            <div className="p-3 bg-blue-500/20 backdrop-blur-sm rounded-xl">
-              <Users className="h-8 w-8 text-blue-400" />
-            </div>
-          </div>
-        </div>
-        <div className="glass-card p-6 animate-fade-in animate-slide-in-from-bottom-4" style={{ animationDelay: '0.3s' }}>
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-white/70">Average Offering</p>
-              <p className="text-2xl font-bold bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent">
-                <AnimatedCounter value={averageOffering} />
-              </p>
-            </div>
-            <div className="p-3 bg-purple-500/20 backdrop-blur-sm rounded-xl">
-              <TrendingUp className="h-8 w-8 text-purple-400" />
-            </div>
-          </div>
-        </div>
-        <div className="glass-card p-6 animate-fade-in animate-slide-in-from-bottom-4" style={{ animationDelay: '0.4s' }}>
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-white/70">This Month</p>
-              <p className="text-2xl font-bold bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent">
-                <AnimatedCounter value={
-                  offerings
-                    .filter(o => new Date(o.service_date).getMonth() === new Date().getMonth())
-                    .reduce((sum, o) => sum + o.amount, 0)
-                } />
-              </p>
-            </div>
-            <div className="p-3 bg-orange-500/20 backdrop-blur-sm rounded-xl">
-              <Calendar className="h-8 w-8 text-orange-400" />
-            </div>
-          </div>
-        </div>
-      </div>
 
-      {/* Breakdown Cards */}
-      <div className="grid gap-6 md:grid-cols-2 mb-8">
-        <div className="glass-card p-6 animate-fade-in animate-slide-in-from-bottom-4" style={{ animationDelay: '0.5s' }}>
+        {/* Summary Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <div className="glass-card p-6 animate-fade-in animate-slide-in-from-bottom-4" style={{ animationDelay: '0.1s' }}>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-white/70">Total Offerings</p>
+                <p className="text-2xl font-bold bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent">
+                  <AnimatedCounter value={totalOfferings} />
+                </p>
+              </div>
+              <div className="p-3 bg-green-500/20 backdrop-blur-sm rounded-xl">
+                <DollarSign className="h-8 w-8 text-green-400" />
+              </div>
+            </div>
+          </div>
+          <div className="glass-card p-6 animate-fade-in animate-slide-in-from-bottom-4" style={{ animationDelay: '0.2s' }}>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-white/70">Total Contributors</p>
+                <p className="text-2xl font-bold bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent">
+                  <AnimatedCounter value={totalContributors} />
+                </p>
+              </div>
+              <div className="p-3 bg-blue-500/20 backdrop-blur-sm rounded-xl">
+                <Users className="h-8 w-8 text-blue-400" />
+              </div>
+            </div>
+          </div>
+          <div className="glass-card p-6 animate-fade-in animate-slide-in-from-bottom-4" style={{ animationDelay: '0.3s' }}>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-white/70">Average Offering</p>
+                <p className="text-2xl font-bold bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent">
+                  <AnimatedCounter value={averageOffering} />
+                </p>
+              </div>
+              <div className="p-3 bg-purple-500/20 backdrop-blur-sm rounded-xl">
+                <TrendingUp className="h-8 w-8 text-purple-400" />
+              </div>
+            </div>
+          </div>
+          <div className="glass-card p-6 animate-fade-in animate-slide-in-from-bottom-4" style={{ animationDelay: '0.4s' }}>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-white/70">This Month</p>
+                <p className="text-2xl font-bold bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent">
+                  <AnimatedCounter value={
+                    offerings
+                      .filter(o => new Date(o.service_date).getMonth() === new Date().getMonth())
+                      .reduce((sum, o) => sum + o.amount, 0)
+                  } />
+                </p>
+              </div>
+              <div className="p-3 bg-orange-500/20 backdrop-blur-sm rounded-xl">
+                <Calendar className="h-8 w-8 text-orange-400" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Breakdown Cards */}
+        <div className="grid gap-6 md:grid-cols-2 mb-8">
+          <div className="glass-card p-6 animate-fade-in animate-slide-in-from-bottom-4" style={{ animationDelay: '0.5s' }}>
+            <h3 className="text-lg font-semibold bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent mb-4">
+              Offerings by Type
+            </h3>
+            <div className="space-y-3">
+              {Object.entries(offeringsByType)
+                .sort(([, a], [, b]) => b - a)
+                .map(([type, amount]) => (
+                  <div key={type} className="flex justify-between items-center p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-all duration-300">
+                    <span className="text-sm text-white/80">{type}</span>
+                    <span className="font-medium text-white">{formatCurrency(amount)}</span>
+                  </div>
+                ))}
+            </div>
+          </div>
+          <div className="glass-card p-6 animate-fade-in animate-slide-in-from-bottom-4" style={{ animationDelay: '0.6s' }}>
+            <h3 className="text-lg font-semibold bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent mb-4">
+              Fund Allocation
+            </h3>
+            <div className="space-y-3">
+              {Object.entries(offeringsByFund)
+                .sort(([, a], [, b]) => b - a)
+                .map(([fund, amount]) => (
+                  <div key={fund} className="flex justify-between items-center p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-all duration-300">
+                    <span className="text-sm text-white/80">{fund}</span>
+                    <span className="font-medium text-white">{formatCurrency(amount)}</span>
+                  </div>
+                ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Filters */}
+        <div className="glass-card p-6 mb-8 animate-fade-in animate-slide-in-from-bottom-4" style={{ animationDelay: '0.7s' }}>
           <h3 className="text-lg font-semibold bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent mb-4">
-            Offerings by Type
+            Offering Records
           </h3>
-          <div className="space-y-3">
-            {Object.entries(offeringsByType)
-              .sort(([,a], [,b]) => b - a)
-              .map(([type, amount]) => (
-                <div key={type} className="flex justify-between items-center p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-all duration-300">
-                  <span className="text-sm text-white/80">{type}</span>
-                  <span className="font-medium text-white">{formatCurrency(amount)}</span>
-                </div>
-              ))}
+          <div className="flex flex-col sm:flex-row gap-4 mb-6">
+            <Input
+              placeholder="Search offerings..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="glass-input sm:max-w-xs"
+            />
+            <Select value={filterType} onValueChange={setFilterType}>
+              <SelectTrigger className="glass-input sm:max-w-xs">
+                <SelectValue placeholder="Filter by type" />
+              </SelectTrigger>
+              <SelectContent className="glass-dropdown">
+                <SelectItem value="all">All Types</SelectItem>
+                {OFFERING_TYPES.map((type) => (
+                  <SelectItem key={type} value={type}>{type}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={filterFund} onValueChange={setFilterFund}>
+              <SelectTrigger className="glass-input sm:max-w-xs">
+                <SelectValue placeholder="Filter by fund" />
+              </SelectTrigger>
+              <SelectContent className="glass-dropdown">
+                <SelectItem value="all">All Funds</SelectItem>
+                {funds.map((fund) => (
+                  <SelectItem key={fund.id} value={fund.id}>{fund.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-        </div>
-        <div className="glass-card p-6 animate-fade-in animate-slide-in-from-bottom-4" style={{ animationDelay: '0.6s' }}>
-          <h3 className="text-lg font-semibold bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent mb-4">
-            Fund Allocation
-          </h3>
-          <div className="space-y-3">
-            {Object.entries(offeringsByFund)
-              .sort(([,a], [,b]) => b - a)
-              .map(([fund, amount]) => (
-                <div key={fund} className="flex justify-between items-center p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-all duration-300">
-                  <span className="text-sm text-white/80">{fund}</span>
-                  <span className="font-medium text-white">{formatCurrency(amount)}</span>
-                </div>
-              ))}
-          </div>
-        </div>
-      </div>
 
-      {/* Filters */}
-      <div className="glass-card p-6 mb-8 animate-fade-in animate-slide-in-from-bottom-4" style={{ animationDelay: '0.7s' }}>
-        <h3 className="text-lg font-semibold bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent mb-4">
-          Offering Records
-        </h3>
-        <div className="flex flex-col sm:flex-row gap-4 mb-6">
-          <Input
-            placeholder="Search offerings..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="glass-input sm:max-w-xs"
-          />
-          <Select value={filterType} onValueChange={setFilterType}>
-            <SelectTrigger className="glass-input sm:max-w-xs">
-              <SelectValue placeholder="Filter by type" />
-            </SelectTrigger>
-            <SelectContent className="glass-dropdown">
-              <SelectItem value="all">All Types</SelectItem>
-              {OFFERING_TYPES.map((type) => (
-                <SelectItem key={type} value={type}>{type}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={filterFund} onValueChange={setFilterFund}>
-            <SelectTrigger className="glass-input sm:max-w-xs">
-              <SelectValue placeholder="Filter by fund" />
-            </SelectTrigger>
-            <SelectContent className="glass-dropdown">
-              <SelectItem value="all">All Funds</SelectItem>
-              {funds.map((fund) => (
-                <SelectItem key={fund.id} value={fund.id}>{fund.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* Offerings Table */}
-        <div className="rounded-lg border border-white/20 bg-white/5 backdrop-blur-sm overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-white/20 bg-white/10">
-                  <th className="h-12 px-4 text-left align-middle font-medium text-white/90">Service Date</th>
-                  <th className="h-12 px-4 text-left align-middle font-medium text-white/90">Type</th>
-                  <th className="h-12 px-4 text-left align-middle font-medium text-white/90">Amount</th>
-                  <th className="h-12 px-4 text-left align-middle font-medium text-white/90">Fund</th>
-                  <th className="h-12 px-4 text-left align-middle font-medium text-white/90">Member</th>
-                  <th className="h-12 px-4 text-left align-middle font-medium text-white/90">Notes</th>
-                  {hasRole('Admin') && (
-                    <th className="h-12 px-4 text-left align-middle font-medium text-white/90">Actions</th>
-                  )}
-                </tr>
-              </thead>
-              <tbody>
-                {filteredOfferings.map((offering) => (
-                  <tr key={offering.id} className="border-b border-white/10 hover:bg-white/5 transition-colors">
-                    <td className="p-4 text-white/80">{formatDate(offering.service_date)}</td>
-                    <td className="p-4">
-                      <Badge variant="outline" className="border-white/30 text-white/90">{offering.type}</Badge>
-                    </td>
-                    <td className="p-4 font-medium text-white">{formatCurrency(offering.amount)}</td>
-                    <td className="p-4">
-                      {Object.keys(offering.fund_allocations || {}).length > 0 ? (
-                        <div className="space-y-1">
-                          {Object.entries((offering.fund_allocations as Record<string, number>) || {}).map(([fundId, amount]) => {
-                            const fund = funds.find(f => f.id === fundId)
-                            return fund && typeof amount === 'number' ? (
-                              <div key={fundId} className="text-sm text-white/80">
-                                {fund.name}: {formatCurrency(amount)}
-                              </div>
-                            ) : null
-                          })}
-                        </div>
-                      ) : (
-                        <span className="text-white/50">-</span>
-                      )}
-                    </td>
-                    <td className="p-4">
-                      {offering.offering_members && offering.offering_members.length > 0 ? (
-                        <div className="text-sm">
-                          <div className="font-medium text-white/90">{offering.offering_members[0].member.name}</div>
-                          {offering.offering_members[0].member.fellowship_name && (
-                            <div className="text-white/60">{offering.offering_members[0].member.fellowship_name}</div>
-                          )}
-                        </div>
-                      ) : (
-                        <span className="text-white/50">-</span>
-                      )}
-                    </td>
-                    <td className="p-4 max-w-xs truncate text-white/80">{offering.notes || '-'}</td>
+          {/* Offerings Table */}
+          <div className="rounded-lg border border-white/20 bg-white/5 backdrop-blur-sm overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-white/20 bg-white/10">
+                    <th className="h-12 px-4 text-left align-middle font-medium text-white/90">Service Date</th>
+                    <th className="h-12 px-4 text-left align-middle font-medium text-white/90">Type</th>
+                    <th className="h-12 px-4 text-left align-middle font-medium text-white/90">Amount</th>
+                    <th className="h-12 px-4 text-left align-middle font-medium text-white/90">Fund</th>
+                    <th className="h-12 px-4 text-left align-middle font-medium text-white/90">Member</th>
+                    <th className="h-12 px-4 text-left align-middle font-medium text-white/90">Notes</th>
                     {hasRole('Admin') && (
-                      <td className="p-4">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" className="h-8 w-8 p-0 hover:bg-white/10">
-                              <MoreHorizontal className="h-4 w-4 text-white/70" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="glass-dropdown">
-                            <DropdownMenuItem onClick={() => handleEdit(offering)}>
-                              <Edit className="mr-2 h-4 w-4" />
-                              Edit
-                            </DropdownMenuItem>
-                            {hasRole('Admin') && (
-                              <DropdownMenuItem 
-                                onClick={() => handleDelete(offering.id)}
-                                className="text-red-400 hover:text-red-300"
-                              >
-                                <Trash2 className="mr-2 h-4 w-4" />
-                                Delete
-                              </DropdownMenuItem>
-                            )}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </td>
+                      <th className="h-12 px-4 text-left align-middle font-medium text-white/90">Actions</th>
                     )}
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          {filteredOfferings.length === 0 && (
-            <div className="text-center py-8 text-white/60">
-              No offerings found matching your criteria.
+                </thead>
+                <tbody>
+                  {filteredOfferings.map((offering) => (
+                    <tr key={offering.id} className="border-b border-white/10 hover:bg-white/5 transition-colors">
+                      <td className="p-4 text-white/80">{formatDate(offering.service_date)}</td>
+                      <td className="p-4">
+                        <Badge variant="outline" className="border-white/30 text-white/90">{offering.type}</Badge>
+                      </td>
+                      <td className="p-4 font-medium text-white">{formatCurrency(offering.amount)}</td>
+                      <td className="p-4">
+                        {Object.keys(offering.fund_allocations || {}).length > 0 ? (
+                          <div className="space-y-1">
+                            {Object.entries((offering.fund_allocations as Record<string, number>) || {}).map(([fundId, amount]) => {
+                              const fund = funds.find(f => f.id === fundId)
+                              return fund && typeof amount === 'number' ? (
+                                <div key={fundId} className="text-sm text-white/80">
+                                  {fund.name}: {formatCurrency(amount)}
+                                </div>
+                              ) : null
+                            })}
+                          </div>
+                        ) : (
+                          <span className="text-white/50">-</span>
+                        )}
+                      </td>
+                      <td className="p-4">
+                        {(() => {
+                          // Debug: Log member data for this offering
+                          console.log(`Offering ${offering.id} member:`, offering.offering_member)
+
+                          if (offering.offering_member) {
+                            const memberData = offering.offering_member
+                            console.log(`Member data for offering ${offering.id}:`, memberData)
+
+                            if (memberData && memberData.member) {
+                              return (
+                                <div className="text-sm">
+                                  <div className="font-medium text-white/90">
+                                    {memberData.member.name || 'Unknown Member'}
+                                  </div>
+                                  {memberData.member.fellowship_name && (
+                                    <div className="text-white/60">{memberData.member.fellowship_name}</div>
+                                  )}
+                                </div>
+                              )
+                            } else {
+                              console.warn(`Invalid member data structure for offering ${offering.id}:`, memberData)
+                              return <span className="text-white/50">Invalid Member Data</span>
+                            }
+                          } else {
+                            return <span className="text-white/50">No Member</span>
+                          }
+                        })()}
+                      </td>
+                      <td className="p-4 max-w-xs truncate text-white/80">{offering.notes || '-'}</td>
+                      {hasRole('Admin') && (
+                        <td className="p-4">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" className="h-8 w-8 p-0 hover:bg-white/10">
+                                <MoreHorizontal className="h-4 w-4 text-white/70" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="glass-dropdown">
+                              <DropdownMenuItem onClick={() => handleEdit(offering)}>
+                                <Edit className="mr-2 h-4 w-4" />
+                                Edit
+                              </DropdownMenuItem>
+                              {hasRole('Admin') && (
+                                <DropdownMenuItem
+                                  onClick={() => handleDelete(offering.id)}
+                                  className="text-red-400 hover:text-red-300"
+                                >
+                                  <Trash2 className="mr-2 h-4 w-4" />
+                                  Delete
+                                </DropdownMenuItem>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-          )}
+            {filteredOfferings.length === 0 && (
+              <div className="text-center py-8 text-white/60">
+                No offerings found matching your criteria.
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

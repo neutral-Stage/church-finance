@@ -7,7 +7,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Loader2, Church, Mail, Lock, Eye, EyeOff, RefreshCw } from 'lucide-react'
+import { Church, Mail, Lock, Eye, EyeOff, Loader2 } from 'lucide-react'
+import { FullScreenLoader } from '@/components/ui/loader'
 import Link from 'next/link'
 
 export default function LoginPage(): JSX.Element {
@@ -42,24 +43,7 @@ export default function LoginPage(): JSX.Element {
   }
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-4 relative overflow-hidden">
-        {/* Animated background elements */}
-        <div className="absolute inset-0 overflow-hidden">
-          <div className="absolute -top-40 -right-40 w-80 h-80 bg-white/10 rounded-full blur-3xl animate-pulse"></div>
-          <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-white/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }}></div>
-          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-white/5 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '4s' }}></div>
-        </div>
-
-        <div className="relative z-10 text-center">
-          <div className="relative mb-6">
-            <RefreshCw className="h-12 w-12 animate-spin text-white/60 mx-auto mb-4" />
-            <RefreshCw className="h-8 w-8 animate-spin text-white/80 mx-auto mb-4 absolute top-2 left-1/2 transform -translate-x-1/2" style={{ animation: 'spin 1s linear infinite reverse' }} />
-          </div>
-          <p className="text-white/70 text-lg font-medium">Signing you in...</p>
-        </div>
-      </div>
-    )
+    return <FullScreenLoader message="Signing you in..." />
   }
 
   return (
