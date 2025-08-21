@@ -36,7 +36,7 @@ export function AnimatedCounter({
     }
 
     return () => observer.disconnect()
-  }, [])
+  }, [isVisible])
 
   useEffect(() => {
     if (!isVisible) return

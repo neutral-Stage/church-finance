@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -26,7 +26,7 @@ interface SearchResult {
   description: string
   type: 'member' | 'transaction' | 'offering' | 'report' | 'bill' | 'advance'
   url: string
-  metadata?: any
+  metadata?: Record<string, unknown>
 }
 
 interface SearchModalProps {
@@ -58,19 +58,7 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
     }
   }, [isOpen])
 
-  useEffect(() => {
-    const searchWithQuery = async () => {
-      if (query.trim()) {
-        await performSearch(query)
-      } else {
-        setResults([])
-        setLoading(false)
-      }
-    }
-    searchWithQuery()
-  }, [query])
-
-  const performSearch = async (searchQuery: string) => {
+  const performSearch = useCallback(async (searchQuery: string) => {
     if (!user) return
 
     setLoading(true)
@@ -183,12 +171,24 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
 
       setResults(searchResults)
       setSelectedIndex(0)
-    } catch (error) {
-      console.error('Search error:', error)
+    } catch {
+      // Silently handle search error
     } finally {
       setLoading(false)
     }
-  }
+  }, [user])
+
+  useEffect(() => {
+    const searchWithQuery = async () => {
+      if (query.trim()) {
+        await performSearch(query)
+      } else {
+        setResults([])
+        setLoading(false)
+      }
+    }
+    searchWithQuery()
+  }, [query, performSearch])
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'ArrowDown') {

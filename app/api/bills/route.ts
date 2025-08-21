@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerClient } from '@/lib/supabase';
+import { createServerClient, createAdminClient } from '@/lib/supabase';
 
 // GET - Fetch all bills
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
     const { searchParams } = new URL(request.url);
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
@@ -33,7 +33,6 @@ export async function GET(request: NextRequest) {
     const { data: bills, error } = await query;
 
     if (error) {
-      console.error('Error fetching bills:', error);
       return NextResponse.json(
         { error: 'Failed to fetch bills' },
         { status: 500 }
@@ -41,8 +40,7 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json({ bills });
-  } catch (error) {
-    console.error('Unexpected error:', error);
+  } catch {
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -53,7 +51,18 @@ export async function GET(request: NextRequest) {
 // POST - Create new bill
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
+    const adminSupabase = createAdminClient();
+    
+    // Check authentication
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      )
+    }
+    
     const body = await request.json();
     const { 
       vendor, 
@@ -74,7 +83,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create the bill
-    const { data: bill, error: billError } = await supabase
+    const { data: bill, error: billError } = await adminSupabase
       .from('bills')
       .insert({
         vendor,
@@ -90,7 +99,6 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (billError) {
-      console.error('Error creating bill:', billError);
       return NextResponse.json(
         { error: 'Failed to create bill' },
         { status: 500 }
@@ -99,13 +107,12 @@ export async function POST(request: NextRequest) {
 
     // If status is 'paid' and fund_id is provided, update fund balance and create transaction
     if (status === 'paid' && fund_id) {
-      const { error: fundError } = await supabase.rpc('update_fund_balance', {
+      const { error: fundError } = await adminSupabase.rpc('update_fund_balance', {
         fund_id: fund_id,
         amount_change: -parseFloat(amount)
       });
 
       if (fundError) {
-        console.error('Error updating fund balance:', fundError);
         // Rollback the bill creation
         await supabase.from('bills').delete().eq('id', bill.id);
         return NextResponse.json(
@@ -115,7 +122,7 @@ export async function POST(request: NextRequest) {
       }
 
       // Create a transaction record
-      const { error: transactionError } = await supabase
+      const { error: transactionError } = await adminSupabase
         .from('transactions')
         .insert({
           type: 'expense',
@@ -128,14 +135,12 @@ export async function POST(request: NextRequest) {
         });
 
       if (transactionError) {
-        console.error('Error creating transaction:', transactionError);
         // Note: We don't rollback here as the bill and fund update are valid
       }
     }
 
     return NextResponse.json({ bill }, { status: 201 });
-  } catch (error) {
-    console.error('Unexpected error:', error);
+  } catch {
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -146,7 +151,18 @@ export async function POST(request: NextRequest) {
 // PUT - Update bill
 export async function PUT(request: NextRequest) {
   try {
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
+    const adminSupabase = createAdminClient();
+    
+    // Check authentication
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      )
+    }
+    
     const body = await request.json();
     const { 
       id, 
@@ -199,7 +215,7 @@ export async function PUT(request: NextRequest) {
       updateData.paid_date = null;
     }
 
-    const { data: bill, error: updateError } = await supabase
+    const { data: bill, error: updateError } = await adminSupabase
       .from('bills')
       .update(updateData)
       .eq('id', id)
@@ -207,7 +223,6 @@ export async function PUT(request: NextRequest) {
       .single();
 
     if (updateError) {
-      console.error('Error updating bill:', updateError);
       return NextResponse.json(
         { error: 'Failed to update bill' },
         { status: 500 }
@@ -224,13 +239,13 @@ export async function PUT(request: NextRequest) {
 
     // If status changed from paid to unpaid, revert the fund balance
     if (oldStatus === 'paid' && newStatus !== 'paid' && oldFundId) {
-      await supabase.rpc('update_fund_balance', {
+      await adminSupabase.rpc('update_fund_balance', {
         fund_id: oldFundId,
         amount_change: oldAmount
       });
 
       // Delete the transaction
-      await supabase
+      await adminSupabase
         .from('transactions')
         .delete()
         .eq('reference_type', 'bill')
@@ -238,13 +253,13 @@ export async function PUT(request: NextRequest) {
     }
     // If status changed from unpaid to paid, deduct from fund balance
     else if (oldStatus !== 'paid' && newStatus === 'paid' && newFundId) {
-      await supabase.rpc('update_fund_balance', {
+      await adminSupabase.rpc('update_fund_balance', {
         fund_id: newFundId,
         amount_change: -newAmount
       });
 
       // Create a transaction
-      await supabase
+      await adminSupabase
         .from('transactions')
         .insert({
           type: 'expense',
@@ -260,7 +275,7 @@ export async function PUT(request: NextRequest) {
     else if (newStatus === 'paid' && (amount !== undefined || fund_id !== undefined)) {
       // Revert old fund balance
       if (oldFundId) {
-        await supabase.rpc('update_fund_balance', {
+        await adminSupabase.rpc('update_fund_balance', {
           fund_id: oldFundId,
           amount_change: oldAmount
         });
@@ -268,14 +283,14 @@ export async function PUT(request: NextRequest) {
 
       // Apply new fund balance
       if (newFundId) {
-        await supabase.rpc('update_fund_balance', {
+        await adminSupabase.rpc('update_fund_balance', {
           fund_id: newFundId,
           amount_change: -newAmount
         });
       }
 
       // Update the transaction
-      await supabase
+      await adminSupabase
         .from('transactions')
         .update({
           amount: newAmount,
@@ -287,8 +302,7 @@ export async function PUT(request: NextRequest) {
     }
 
     return NextResponse.json({ bill });
-  } catch (error) {
-    console.error('Unexpected error:', error);
+  } catch {
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -297,9 +311,20 @@ export async function PUT(request: NextRequest) {
 }
 
 // DELETE - Delete bill
-export async function DELETE(request: NextRequest) {
+export async function DELETE(request: Request) {
   try {
-    const supabase = createServerClient();
+    const supabase = await createServerClient()
+    const adminSupabase = createAdminClient()
+    
+    // Check authentication
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      )
+    }
+    
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
 
@@ -325,13 +350,12 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Delete the bill
-    const { error: deleteError } = await supabase
+    const { error: deleteError } = await adminSupabase
       .from('bills')
       .delete()
       .eq('id', id);
 
     if (deleteError) {
-      console.error('Error deleting bill:', deleteError);
       return NextResponse.json(
         { error: 'Failed to delete bill' },
         { status: 500 }
@@ -340,13 +364,13 @@ export async function DELETE(request: NextRequest) {
 
     // If the bill was paid, revert the fund balance
     if (bill.status === 'paid' && bill.fund_id) {
-      await supabase.rpc('update_fund_balance', {
+      await adminSupabase.rpc('update_fund_balance', {
         fund_id: bill.fund_id,
         amount_change: bill.amount
       });
 
       // Delete related transaction
-      await supabase
+      await adminSupabase
         .from('transactions')
         .delete()
         .eq('reference_type', 'bill')
@@ -354,8 +378,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     return NextResponse.json({ message: 'Bill deleted successfully' });
-  } catch (error) {
-    console.error('Unexpected error:', error);
+  } catch {
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

@@ -4,7 +4,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react'
 import { User, Session } from '@supabase/supabase-js'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
-import { UserRole, AuthUser } from '@/types/database'
+import { UserRole, AuthUser, User as DatabaseUser } from '@/types/database'
 import { Button } from '@/components/ui/button'
 
 // Re-export UserRole for use in other components
@@ -36,7 +36,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const { data: { session }, error } = await supabase.auth.getSession()
       if (session) {
         setSession(session)
-        setUser(mapUserFromSession(session.user))
+        const authUser = await mapUserFromSession(session.user)
+        setUser(authUser)
       }
       setLoading(false)
     }
@@ -48,7 +49,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       async (event, session) => {
         setSession(session)
         if (session?.user) {
-          setUser(mapUserFromSession(session.user))
+          const authUser = await mapUserFromSession(session.user)
+          setUser(authUser)
         } else {
           setUser(null)
         }
@@ -59,14 +61,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.unsubscribe()
   }, [])
 
-  const mapUserFromSession = (user: User): AuthUser => {
-    return {
-      id: user.id,
-      email: user.email || '',
-      role: (user.user_metadata?.role as UserRole) || 'Viewer',
-      full_name: user.user_metadata?.full_name,
-      created_at: user.created_at
+  const mapUserFromSession = async (user: User): Promise<AuthUser> => {
+    const userMetadata = user.user_metadata || {}
+    
+    // Try to fetch user data from the users table
+    const { data: userData, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', user.id)
+      .single()
+    
+    if (error || !userData) {
+      // Fallback to auth metadata if users table data is not available
+      return {
+        id: user.id,
+        email: user.email || '',
+        role: (userMetadata.role as UserRole) || 'viewer',
+        full_name: userMetadata.full_name || '',
+        created_at: user.created_at
+      }
     }
+    
+    // Use data from users table
+     return {
+       id: userData.id,
+       email: userData.email,
+       role: userData.role,
+       full_name: userData.full_name || '',
+       phone: userData.phone || '',
+       address: userData.address || '',
+       bio: userData.bio || '',
+       avatar_url: userData.avatar_url || '',
+       created_at: userData.created_at
+     }
   }
 
   const signIn = async (email: string, password: string) => {
@@ -83,7 +110,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       password,
       options: {
         data: {
-          role: 'Viewer', // Default role
+          role: 'viewer', // Default role
           ...metadata
         }
       }
@@ -92,31 +119,48 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const signOut = async () => {
-    await supabase.auth.signOut()
+    try {
+      // Sign out from Supabase
+      await supabase.auth.signOut()
+      
+      // Clear local state immediately to prevent race conditions
+      setUser(null)
+      setSession(null)
+      
+      // Small delay to ensure auth state is cleared
+      setTimeout(() => {
+        window.location.href = '/auth/login'
+      }, 100)
+    } catch (error) {
+      // Clear state and redirect even on error
+      setUser(null)
+      setSession(null)
+      window.location.href = '/auth/login'
+    }
   }
 
   const hasRole = (role: UserRole): boolean => {
     if (!user) return false
 
     const roleHierarchy: Record<UserRole, number> = {
-      'Viewer': 1,
-      'Treasurer': 2,
-      'Admin': 3
+      'viewer': 1,
+      'treasurer': 2,
+      'admin': 3
     }
 
     return roleHierarchy[user.role] >= roleHierarchy[role]
   }
 
   const canEdit = (): boolean => {
-    return hasRole('Treasurer')
+    return hasRole('treasurer')
   }
 
   const canDelete = (): boolean => {
-    return hasRole('Admin')
+    return hasRole('admin')
   }
 
   const canApprove = (): boolean => {
-    return hasRole('Treasurer')
+    return hasRole('treasurer')
   }
 
   const value = {
@@ -148,7 +192,7 @@ export function useAuth() {
 }
 
 // Higher-order component for protected routes
-export function withAuth<P extends object>(
+export function withAuth<P extends Record<string, unknown>>(
   Component: React.ComponentType<P>,
   requiredRole?: UserRole
 ) {

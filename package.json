@@ -9,7 +9,14 @@
     "start": "next start",
     "lint": "next lint",
     "check": "next lint && tsc --noEmit",
-    "setup-demo": "node scripts/setup-demo-accounts.js"
+    "setup-demo": "node scripts/setup-demo-accounts.js",
+    "notifications:generate": "node scripts/generate-notifications.js",
+    "notifications:bills": "node scripts/generate-notifications.js bills",
+    "notifications:transactions": "node scripts/generate-notifications.js transactions",
+    "notifications:offerings": "node scripts/generate-notifications.js offerings",
+    "notifications:advances": "node scripts/generate-notifications.js advances",
+    "notifications:cleanup": "node scripts/generate-notifications.js cleanup",
+    "notifications:test": "node scripts/generate-notifications.js all"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.1",
@@ -25,6 +32,7 @@
     "@radix-ui/react-slot": "^1.2.3",
     "@radix-ui/react-toast": "^1.2.14",
     "@radix-ui/react-tooltip": "^1.2.7",
+    "@supabase/ssr": "^0.6.1",
     "@supabase/supabase-js": "^2.53.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

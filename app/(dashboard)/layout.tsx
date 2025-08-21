@@ -1,11 +1,11 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import Link from 'next/link'
+
 import { usePathname, useRouter } from 'next/navigation'
 import { useAuth, withAuth, type UserRole } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
-import { Sheet, SheetContent, SheetTrigger, SheetTitle } from '@/components/ui/sheet'
+import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import {
   DropdownMenu,
@@ -31,7 +31,7 @@ import {
   TrendingUp,
   Banknote,
   Settings,
-  Bell,
+
   Search
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -43,61 +43,61 @@ const navigation = [
     name: 'Dashboard',
     href: '/dashboard',
     icon: LayoutDashboard,
-    roles: ['Viewer', 'Treasurer', 'Admin']
+    roles: ['viewer', 'treasurer', 'admin']
   },
   {
     name: 'Income & Expenses',
     href: '/transactions',
     icon: ArrowUpDown,
-    roles: ['Viewer', 'Treasurer', 'Admin']
+    roles: ['viewer', 'treasurer', 'admin']
   },
   {
     name: 'Offerings & Tithes',
     href: '/offerings',
     icon: Gift,
-    roles: ['Viewer', 'Treasurer', 'Admin']
+    roles: ['viewer', 'treasurer', 'admin']
   },
   {
     name: 'Members',
     href: '/members',
     icon: Users,
-    roles: ['Treasurer', 'Admin']
+    roles: ['treasurer', 'admin']
   },
   {
     name: 'Member Contributions',
     href: '/member-contributions',
     icon: TrendingUp,
-    roles: ['Viewer', 'Treasurer', 'Admin']
+    roles: ['viewer', 'treasurer', 'admin']
   },
   {
     name: 'Fund Management',
     href: '/funds',
     icon: Wallet,
-    roles: ['Treasurer', 'Admin']
+    roles: ['treasurer', 'admin']
   },
   {
     name: 'Cash Breakdown',
     href: '/cash-breakdown',
     icon: Banknote,
-    roles: ['Treasurer', 'Admin']
+    roles: ['treasurer', 'admin']
   },
   {
     name: 'Bills & Petty Cash',
     href: '/bills',
     icon: Receipt,
-    roles: ['Viewer', 'Treasurer', 'Admin']
+    roles: ['viewer', 'treasurer', 'admin']
   },
   {
     name: 'Advances',
     href: '/advances',
     icon: CreditCard,
-    roles: ['Treasurer', 'Admin']
+    roles: ['treasurer', 'admin']
   },
   {
     name: 'Reports',
     href: '/reports',
     icon: FileText,
-    roles: ['Viewer', 'Treasurer', 'Admin']
+    roles: ['viewer', 'treasurer', 'admin']
   }
 ]
 
@@ -111,7 +111,7 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
   
   // Touch gesture handling for mobile sidebar
   const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(null)
-  const [touchEnd, setTouchEnd] = useState<number | null>(null)
+
 
   useEffect(() => {
     setMounted(true)

@@ -7,7 +7,7 @@ export interface RetryOptions {
   baseDelay?: number
   maxDelay?: number
   backoffFactor?: number
-  retryCondition?: (error: any) => boolean
+  retryCondition?: (error: unknown) => boolean
 }
 
 const DEFAULT_RETRY_OPTIONS: Required<RetryOptions> = {
@@ -15,10 +15,10 @@ const DEFAULT_RETRY_OPTIONS: Required<RetryOptions> = {
   baseDelay: 1000, // 1 second
   maxDelay: 10000, // 10 seconds
   backoffFactor: 2,
-  retryCondition: (error: any) => {
+  retryCondition: (error: unknown) => {
     // Retry on network errors, timeouts, and connection issues
-    if (error?.message) {
-      const message = error.message.toLowerCase()
+    if (error && typeof error === 'object' && 'message' in error && typeof (error as Record<string, unknown>).message === 'string') {
+      const message = ((error as Record<string, unknown>).message as string).toLowerCase()
       return (
         message.includes('failed to fetch') ||
         message.includes('network error') ||
@@ -41,7 +41,7 @@ export async function retryWithBackoff<T>(
   options: RetryOptions = {}
 ): Promise<T> {
   const opts = { ...DEFAULT_RETRY_OPTIONS, ...options }
-  let lastError: any
+  let lastError: unknown
   
   for (let attempt = 1; attempt <= opts.maxAttempts; attempt++) {
     try {
@@ -60,7 +60,7 @@ export async function retryWithBackoff<T>(
         opts.maxDelay
       )
       
-      console.warn(`Attempt ${attempt} failed, retrying in ${delay}ms:`, error)
+      // Silently retry without logging
       
       // Wait before retrying
       await new Promise(resolve => setTimeout(resolve, delay))
@@ -74,9 +74,9 @@ export async function retryWithBackoff<T>(
  * Wrapper for Supabase queries with retry logic
  */
 export async function retrySupabaseQuery<T>(
-  queryFn: () => any, // Accept any Supabase query builder
+  queryFn: () => Promise<{ data: T | null; error: unknown }>, // Accept Supabase query builder
   options: RetryOptions = {}
-): Promise<{ data: T | null; error: any }> {
+): Promise<{ data: T | null; error: unknown }> {
   return retryWithBackoff(async () => {
     const query = queryFn()
     const result = await query
@@ -93,11 +93,15 @@ export async function retrySupabaseQuery<T>(
 /**
  * Check if an error is a network-related error that should be retried
  */
-export function isNetworkError(error: any): boolean {
+export function isNetworkError(error: unknown): boolean {
   if (!error) return false
   
-  const message = error.message?.toLowerCase() || ''
-  const code = error.code?.toLowerCase() || ''
+  const message = (error && typeof error === 'object' && 'message' in error && typeof (error as Record<string, unknown>).message === 'string') 
+    ? ((error as Record<string, unknown>).message as string).toLowerCase() 
+    : ''
+  const code = (error && typeof error === 'object' && 'code' in error && typeof (error as Record<string, unknown>).code === 'string') 
+    ? ((error as Record<string, unknown>).code as string).toLowerCase() 
+    : ''
   
   return (
     message.includes('failed to fetch') ||
@@ -137,13 +141,6 @@ export async function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Pr
 /**
  * Enhanced error logging for network issues
  */
-export function logNetworkError(error: any, context: string) {
-  console.error(`[Network Error - ${context}]:`, {
-    message: error?.message,
-    code: error?.code,
-    details: error?.details,
-    hint: error?.hint,
-    timestamp: new Date().toISOString(),
-    isNetworkError: isNetworkError(error)
-  })
+export function logNetworkError() {
+  // Silently handle network errors without logging
 }

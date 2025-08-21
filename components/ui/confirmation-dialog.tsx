@@ -89,7 +89,9 @@ export function ConfirmationDialog({
 // Hook for easier usage
 export function useConfirmationDialog() {
   const [isOpen, setIsOpen] = React.useState(false)
-  const [config, setConfig] = React.useState<Omit<ConfirmationDialogProps, 'open' | 'onOpenChange'>>({} as any)
+  const [config, setConfig] = React.useState<Omit<ConfirmationDialogProps, 'open' | 'onOpenChange'>>({
+    onConfirm: () => {},
+  })
 
   const confirm = React.useCallback((options: Omit<ConfirmationDialogProps, 'open' | 'onOpenChange'>) => {
     return new Promise<boolean>((resolve) => {

@@ -28,19 +28,19 @@ const demoAccounts = [
   {
     email: 'admin@church.com',
     password: 'admin123',
-    role: 'Admin',
+    role: 'admin',
     full_name: 'Church Administrator'
   },
   {
     email: 'treasurer@church.com',
     password: 'treasurer123',
-    role: 'Treasurer',
+    role: 'treasurer',
     full_name: 'Church Treasurer'
   },
   {
     email: 'viewer@church.com',
     password: 'viewer123',
-    role: 'Viewer',
+    role: 'viewer',
     full_name: 'Church Viewer'
   }
 ]

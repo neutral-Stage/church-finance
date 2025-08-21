@@ -1,7 +1,8 @@
 import React from 'react';
-import { cn } from '@/lib/utils';
-import { cva, type VariantProps } from 'class-variance-authority';
+import Head from 'next/head';
 import { Slot } from '@radix-ui/react-slot';
+import { cva, type VariantProps } from 'class-variance-authority';
+import { cn } from '@/lib/utils';
 
 // Container Component
 const containerVariants = cva(
@@ -307,10 +308,10 @@ const Page = React.forwardRef<HTMLDivElement, PageProps>(
         {...props}
       >
         {title && (
-          <head>
+          <Head>
             <title>{title}</title>
             {description && <meta name="description" content={description} />}
-          </head>
+          </Head>
         )}
         {children}
       </Comp>

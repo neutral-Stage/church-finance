@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-empty-object-type */
+/* eslint-disable @typescript-eslint/ban-types */
 export type Json =
   | string
   | number
@@ -269,6 +269,44 @@ export interface Database {
           created_at?: string
         }
       }
+      users: {
+        Row: {
+          id: string
+          email: string
+          full_name: string | null
+          phone: string | null
+          address: string | null
+          bio: string | null
+          role: 'admin' | 'treasurer' | 'viewer'
+          avatar_url: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id: string
+          email: string
+          full_name?: string | null
+          phone?: string | null
+          address?: string | null
+          bio?: string | null
+          role?: 'admin' | 'treasurer' | 'viewer'
+          avatar_url?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          email?: string
+          full_name?: string | null
+          phone?: string | null
+          address?: string | null
+          bio?: string | null
+          role?: 'admin' | 'treasurer' | 'viewer'
+          avatar_url?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
       fund_summary: {
         Row: {
           id: string
@@ -294,8 +332,8 @@ export interface Database {
         }
       }
     }
-    Functions: {}
-    Enums: {}
+    Functions: Record<string, never>
+    Enums: Record<string, never>
   }
 }
 
@@ -308,6 +346,7 @@ export type Advance = Database['public']['Tables']['advances']['Row']
 export type PettyCash = Database['public']['Tables']['petty_cash']['Row']
 export type Member = Database['public']['Tables']['members']['Row']
 export type OfferingMember = Database['public']['Tables']['offering_member']['Row']
+export type User = Database['public']['Tables']['users']['Row']
 export type FundSummary = Database['public']['Views']['fund_summary']['Row']
 
 // Insert types
@@ -319,6 +358,7 @@ export type AdvanceInsert = Database['public']['Tables']['advances']['Insert']
 export type PettyCashInsert = Database['public']['Tables']['petty_cash']['Insert']
 export type MemberInsert = Database['public']['Tables']['members']['Insert']
 export type OfferingMemberInsert = Database['public']['Tables']['offering_member']['Insert']
+export type UserInsert = Database['public']['Tables']['users']['Insert']
 
 // Update types
 export type FundUpdate = Database['public']['Tables']['funds']['Update']
@@ -329,6 +369,7 @@ export type AdvanceUpdate = Database['public']['Tables']['advances']['Update']
 export type PettyCashUpdate = Database['public']['Tables']['petty_cash']['Update']
 export type MemberUpdate = Database['public']['Tables']['members']['Update']
 export type OfferingMemberUpdate = Database['public']['Tables']['offering_member']['Update']
+export type UserUpdate = Database['public']['Tables']['users']['Update']
 
 // Extended types with relationships
 export interface TransactionWithFund extends Transaction {
@@ -351,7 +392,7 @@ export interface FundAllocation {
 }
 
 // User roles
-export type UserRole = 'Admin' | 'Treasurer' | 'Viewer'
+export type UserRole = 'admin' | 'treasurer' | 'viewer'
 
 // Auth user with metadata
 export interface AuthUser {
@@ -362,6 +403,7 @@ export interface AuthUser {
   phone?: string
   address?: string
   bio?: string
+  avatar_url?: string
   created_at: string
 }
 

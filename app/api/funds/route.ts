@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@/lib/supabase'
+import { createServerClient, createAdminClient } from '@/lib/supabase'
 import type { Database } from '@/types/database'
 
 type FundInsert = Database['public']['Tables']['funds']['Insert']
@@ -7,7 +7,7 @@ type FundInsert = Database['public']['Tables']['funds']['Insert']
 // GET /api/funds - Get all funds
 export async function GET() {
   try {
-    const supabase = createServerClient()
+    const supabase = await createServerClient()
     
     const { data: funds, error } = await supabase
       .from('funds')
@@ -15,7 +15,6 @@ export async function GET() {
       .order('name')
     
     if (error) {
-      console.error('Error fetching funds:', error)
       return NextResponse.json(
         { error: 'Failed to fetch funds' },
         { status: 500 }
@@ -23,8 +22,7 @@ export async function GET() {
     }
     
     return NextResponse.json({ funds })
-  } catch (error) {
-    console.error('Unexpected error:', error)
+  } catch {
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -35,7 +33,18 @@ export async function GET() {
 // POST /api/funds - Create a new fund
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createServerClient()
+    const supabase = await createServerClient()
+    const adminSupabase = createAdminClient()
+    
+    // Check authentication
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      )
+    }
+    
     const body = await request.json()
     
     const { name, current_balance = 0 }: FundInsert = body
@@ -47,17 +56,17 @@ export async function POST(request: NextRequest) {
       )
     }
     
-    const { data, error } = await supabase
+    const { data, error } = await adminSupabase
       .from('funds')
       .insert({
         name,
-        current_balance
+        current_balance,
+        created_by: user.id
       })
       .select()
       .single()
     
     if (error) {
-      console.error('Error creating fund:', error)
       return NextResponse.json(
         { error: 'Failed to create fund' },
         { status: 500 }
@@ -65,8 +74,7 @@ export async function POST(request: NextRequest) {
     }
     
     return NextResponse.json({ fund: data }, { status: 201 })
-  } catch (error) {
-    console.error('Unexpected error:', error)
+  } catch {
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -75,9 +83,20 @@ export async function POST(request: NextRequest) {
 }
 
 // PATCH /api/funds - Update fund balance (for transfers)
-export async function PATCH(request: NextRequest) {
+export async function PATCH(request: Request) {
   try {
-    const supabase = createServerClient()
+    const supabase = await createServerClient()
+    const adminSupabase = createAdminClient()
+    
+    // Check authentication
+    const { data: { user: patchUser }, error: patchAuthError } = await supabase.auth.getUser()
+    if (patchAuthError || !patchUser) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      )
+    }
+    
     const body = await request.json()
     
     const { fromFundId, toFundId, amount, description } = body
@@ -88,11 +107,20 @@ export async function PATCH(request: NextRequest) {
         { status: 400 }
       )
     }
+
+    // Get authenticated user
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) {
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      )
+    }
     
-    // Start a transaction by getting current balances
+    // Start a transaction by getting current balances and fund names
     const { data: fromFund, error: fromError } = await supabase
       .from('funds')
-      .select('current_balance')
+      .select('current_balance, name')
       .eq('id', fromFundId)
       .single()
     
@@ -105,7 +133,7 @@ export async function PATCH(request: NextRequest) {
     
     const { data: toFund, error: toError } = await supabase
       .from('funds')
-      .select('current_balance')
+      .select('current_balance, name')
       .eq('id', toFundId)
       .single()
     
@@ -125,13 +153,12 @@ export async function PATCH(request: NextRequest) {
     }
     
     // Update source fund (subtract amount)
-    const { error: updateFromError } = await supabase
+    const { error: updateFromError } = await adminSupabase
       .from('funds')
       .update({ current_balance: fromFund.current_balance - amount })
       .eq('id', fromFundId)
     
     if (updateFromError) {
-      console.error('Error updating source fund:', updateFromError)
       return NextResponse.json(
         { error: 'Failed to update source fund' },
         { status: 500 }
@@ -139,15 +166,14 @@ export async function PATCH(request: NextRequest) {
     }
     
     // Update destination fund (add amount)
-    const { error: updateToError } = await supabase
+    const { error: updateToError } = await adminSupabase
       .from('funds')
       .update({ current_balance: toFund.current_balance + amount })
       .eq('id', toFundId)
     
     if (updateToError) {
-      console.error('Error updating destination fund:', updateToError)
       // Rollback source fund update
-      await supabase
+      await adminSupabase
         .from('funds')
         .update({ current_balance: fromFund.current_balance })
         .eq('id', fromFundId)
@@ -158,21 +184,76 @@ export async function PATCH(request: NextRequest) {
       )
     }
     
-    // Create transaction record for the transfer
-    const { error: transactionError } = await supabase
+    // Create expense transaction for source fund
+    const expenseDescription = description 
+      ? `Transfer to ${toFund.name}: ${description}` 
+      : `Transfer to ${toFund.name}`
+    
+    const { error: expenseError } = await adminSupabase
       .from('transactions')
       .insert({
-        type: 'transfer',
+        type: 'expense',
         amount: amount,
-        description: description || `Transfer from fund ${fromFundId} to fund ${toFundId}`,
-        fund_id: toFundId,
-        reference_id: fromFundId.toString()
+        description: expenseDescription,
+        category: 'Fund Transfer',
+        payment_method: 'bank',
+        transaction_date: new Date().toISOString().split('T')[0],
+        fund_id: fromFundId,
+        reference_id: toFundId.toString(),
+        created_by: patchUser.id
       })
     
-    if (transactionError) {
-      console.error('Error creating transaction record:', transactionError)
-      // Note: We don't rollback the fund updates here as the transfer was successful
-      // The transaction record is for audit purposes
+    if (expenseError) {
+      // Rollback fund updates if transaction creation fails
+      await adminSupabase
+        .from('funds')
+        .update({ current_balance: fromFund.current_balance })
+        .eq('id', fromFundId)
+      await adminSupabase
+        .from('funds')
+        .update({ current_balance: toFund.current_balance })
+        .eq('id', toFundId)
+      
+      return NextResponse.json(
+        { error: 'Failed to create expense transaction record' },
+        { status: 500 }
+      )
+    }
+    
+    // Create income transaction for destination fund
+    const incomeDescription = description 
+      ? `Transfer from ${fromFund.name}: ${description}` 
+      : `Transfer from ${fromFund.name}`
+    
+    const { error: incomeError } = await adminSupabase
+      .from('transactions')
+      .insert({
+        type: 'income',
+        amount: amount,
+        description: incomeDescription,
+        category: 'Fund Transfer',
+        payment_method: 'bank',
+        transaction_date: new Date().toISOString().split('T')[0],
+        fund_id: toFundId,
+        reference_id: fromFundId.toString(),
+        created_by: patchUser.id
+      })
+    
+    if (incomeError) {
+      // Rollback fund updates if transaction creation fails
+      await adminSupabase
+        .from('funds')
+        .update({ current_balance: fromFund.current_balance })
+        .eq('id', fromFundId)
+      await adminSupabase
+        .from('funds')
+        .update({ current_balance: toFund.current_balance })
+        .eq('id', toFundId)
+      
+      return NextResponse.json(
+        { error: 'Failed to create income transaction record' },
+        { status: 500 }
+      )
     }
     
     return NextResponse.json({ 
@@ -180,8 +261,7 @@ export async function PATCH(request: NextRequest) {
       fromFundBalance: fromFund.current_balance - amount,
       toFundBalance: toFund.current_balance + amount
     })
-  } catch (error) {
-    console.error('Unexpected error:', error)
+  } catch {
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

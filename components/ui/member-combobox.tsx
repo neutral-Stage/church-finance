@@ -49,8 +49,7 @@ export function MemberCombobox({
 
       if (error) throw error
       setMembers(data || [])
-    } catch (error) {
-      console.error('Error fetching members:', error)
+    } catch {
       setMembers([])
     } finally {
       setLoading(false)

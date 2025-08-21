@@ -24,7 +24,7 @@ import {
 import { supabase } from '@/lib/supabase'
 
 export default function ProfileSettings() {
-  const { user } = useAuth()
+  const { user, session } = useAuth()
   const [loading, setLoading] = useState(false)
   const [formData, setFormData] = useState({
     full_name: '',
@@ -33,6 +33,8 @@ export default function ProfileSettings() {
     address: '',
     bio: ''
   })
+
+
 
   useEffect(() => {
     if (user) {
@@ -57,10 +59,23 @@ export default function ProfileSettings() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!user) return
-
+    
     setLoading(true)
+
     try {
-      const { error } = await supabase.auth.updateUser({
+      // Check if we have a valid session from AuthContext
+      if (!session) {
+        throw new Error('Authentication session not found. Please sign in again.')
+      }
+      
+      // Explicitly set the session on the Supabase client
+      await supabase.auth.setSession({
+        access_token: session.access_token,
+        refresh_token: session.refresh_token
+      })
+
+      // Update auth metadata
+      const { error: authError } = await supabase.auth.updateUser({
         data: {
           full_name: formData.full_name,
           phone: formData.phone,
@@ -69,11 +84,30 @@ export default function ProfileSettings() {
         }
       })
 
-      if (error) throw error
+      if (authError) {
+        throw authError
+      }
 
+      // Update users table with explicit session
+      const { error: dbError } = await supabase
+        .from('users')
+        .upsert({
+          id: user.id,
+          email: user.email,
+          full_name: formData.full_name,
+          phone: formData.phone,
+          address: formData.address,
+          bio: formData.bio,
+          updated_at: new Date().toISOString()
+        }, {
+          onConflict: 'id'
+        })
+
+      if (dbError) {
+        throw dbError
+      }
       toast.success('Profile updated successfully!')
-    } catch (error) {
-      console.error('Error updating profile:', error)
+    } catch {
       toast.error('Failed to update profile. Please try again.')
     } finally {
       setLoading(false)

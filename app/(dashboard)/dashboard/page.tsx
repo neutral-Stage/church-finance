@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/lib/supabase'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -28,8 +28,6 @@ import {
 } from '@/components/ui'
 import {
   AlertTriangle,
-  Plus,
-  Gift,
   Activity,
 } from 'lucide-react'
 import { FundSummary, TransactionWithFund, BillWithFund, AdvanceWithFund } from '@/types/database'
@@ -54,31 +52,7 @@ export default function DashboardPage(): JSX.Element {
   const [error, setError] = useState('')
   const { user, canEdit } = useAuth()
 
-  useEffect(() => {
-    fetchDashboardData()
-
-    // Set up real-time subscriptions
-    const fundsSubscription = supabase
-      .channel('funds_changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'funds' }, () => {
-        fetchDashboardData()
-      })
-      .subscribe()
-
-    const transactionsSubscription = supabase
-      .channel('transactions_changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'transactions' }, () => {
-        fetchDashboardData()
-      })
-      .subscribe()
-
-    return () => {
-      fundsSubscription.unsubscribe()
-      transactionsSubscription.unsubscribe()
-    }
-  }, [])
-
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = useCallback(async () => {
     try {
       setLoading(true)
 
@@ -168,7 +142,31 @@ export default function DashboardPage(): JSX.Element {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    fetchDashboardData()
+
+    // Set up real-time subscriptions
+    const fundsSubscription = supabase
+      .channel('funds_changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'funds' }, () => {
+        fetchDashboardData()
+      })
+      .subscribe()
+
+    const transactionsSubscription = supabase
+      .channel('transactions_changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'transactions' }, () => {
+        fetchDashboardData()
+      })
+      .subscribe()
+
+    return () => {
+      fundsSubscription.unsubscribe()
+      transactionsSubscription.unsubscribe()
+    }
+  }, [fetchDashboardData])
 
   const getTotalBalance = () => {
     return data?.funds.reduce((sum, fund) => sum + Number(fund.current_balance), 0) || 0
@@ -210,16 +208,16 @@ export default function DashboardPage(): JSX.Element {
             </div>
             {canEdit() && (
               <div className="flex gap-4">
-                <GlassButton variant="default">
-                  <Link href="/transactions">
+                <Link href="/transactions">
+                  <GlassButton variant="default">
                     Add Transaction
-                  </Link>
-                </GlassButton>
-                <GlassButton variant="default">
-                  <Link href="/offerings">
+                  </GlassButton>
+                </Link>
+                <Link href="/offerings">
+                  <GlassButton variant="default">
                     Record Offering
-                  </Link>
-                </GlassButton>
+                  </GlassButton>
+                </Link>
               </div>
             )}
           </div>
@@ -326,9 +324,11 @@ export default function DashboardPage(): JSX.Element {
           >
             <GlassCardHeader className="flex flex-row items-center justify-between">
               <GlassCardTitle>Recent Transactions</GlassCardTitle>
-              <GlassButton variant="ghost" size="sm">
-                <Link href="/transactions">View All</Link>
-              </GlassButton>
+              <Link href="/transactions">
+                <GlassButton variant="ghost" size="sm">
+                  View All
+                </GlassButton>
+              </Link>
             </GlassCardHeader>
             <GlassCardContent>
               <GlassTable>
@@ -373,9 +373,11 @@ export default function DashboardPage(): JSX.Element {
             >
               <GlassCardHeader className="flex flex-row items-center justify-between">
                 <GlassCardTitle>Upcoming Bills</GlassCardTitle>
-                <GlassButton variant="ghost" size="sm">
-                  <Link href="/bills">View All</Link>
-                </GlassButton>
+                <Link href="/bills">
+                  <GlassButton variant="ghost" size="sm">
+                    View All
+                  </GlassButton>
+                </Link>
               </GlassCardHeader>
               <GlassCardContent>
                 <div className="space-y-3">
@@ -426,9 +428,11 @@ export default function DashboardPage(): JSX.Element {
             >
               <GlassCardHeader className="flex flex-row items-center justify-between">
                 <GlassCardTitle>Outstanding Advances</GlassCardTitle>
-                <GlassButton asChild variant="ghost" size="sm">
-                  <Link href="/advances">View All</Link>
-                </GlassButton>
+                <Link href="/advances">
+                  <GlassButton variant="ghost" size="sm">
+                    View All
+                  </GlassButton>
+                </Link>
               </GlassCardHeader>
               <GlassCardContent>
                 <div className="space-y-3">

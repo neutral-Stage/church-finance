@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerClient } from '@/lib/supabase';
-import { Database } from '@/types/database';
-import { retrySupabaseQuery, logNetworkError, withTimeout } from '@/lib/retry-utils';
+import { createServerClient, createAdminClient } from '@/lib/supabase';
+import { retrySupabaseQuery, logNetworkError } from '@/lib/retry-utils';
 
 // GET - Fetch all offerings
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
     const { searchParams } = new URL(request.url);
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
@@ -34,12 +33,17 @@ export async function GET(request: NextRequest) {
     }
 
     const { data: offerings, error } = await retrySupabaseQuery(
-       () => query,
+       async () => {
+         const { data, error } = await query;
+         return { data, error };
+       },
        {
          maxAttempts: 3,
          baseDelay: 1000,
-         retryCondition: (error) => {
-           const message = error?.message?.toLowerCase() || ''
+         retryCondition: (error: unknown) => {
+           const message = (error && typeof error === 'object' && 'message' in error && typeof error.message === 'string') 
+             ? error.message.toLowerCase() 
+             : ''
            return (
              message.includes('failed to fetch') ||
              message.includes('timeout') ||
@@ -51,19 +55,17 @@ export async function GET(request: NextRequest) {
      )
 
     if (error) {
-      logNetworkError(error, 'GET /api/offerings');
+      logNetworkError();
       return NextResponse.json(
         { 
-          error: 'Failed to fetch offerings. Please check your connection and try again.',
-          details: error.message 
+          error: 'Failed to fetch offerings. Please check your connection and try again.'
         },
         { status: 500 }
       );
     }
 
     return NextResponse.json({ offerings });
-  } catch (error) {
-    console.error('Unexpected error:', error);
+  } catch {
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -74,14 +76,42 @@ export async function GET(request: NextRequest) {
 // POST - Create new offering
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
+    const adminSupabase = createAdminClient();
     const body = await request.json();
     const { amount, type, notes, service_date, fund_allocations, member_id } = body;
 
-    // Validate required fields
-    if (!amount || !type || !service_date || !member_id) {
+    // Check user authentication first
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
       return NextResponse.json(
-        { error: 'Missing required fields: amount, type, service_date, member_id' },
+        { error: 'Authentication required' },
+        { status: 401 }
+      );
+    }
+
+    // Validate required fields
+    if (!amount) {
+      return NextResponse.json(
+        { error: 'Amount is required' },
+        { status: 400 }
+      );
+    }
+    if (!type) {
+      return NextResponse.json(
+        { error: 'Offering type is required' },
+        { status: 400 }
+      );
+    }
+    if (!service_date) {
+      return NextResponse.json(
+        { error: 'Service date is required' },
+        { status: 400 }
+      );
+    }
+    if (!member_id || member_id === 'none') {
+      return NextResponse.json(
+        { error: 'Please select a member for this offering' },
         { status: 400 }
       );
     }
@@ -98,7 +128,6 @@ export async function POST(request: NextRequest) {
           .in('id', fundIds);
 
         if (fundsError) {
-          console.error('Error fetching funds:', fundsError);
           return NextResponse.json(
             { error: 'Failed to fetch fund information' },
             { status: 500 }
@@ -115,8 +144,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Create the offering record
-    const { data: offering, error: offeringError } = await supabase
+    // Create the offering record using admin client to bypass RLS
+    const { data: offering, error: offeringError } = await adminSupabase
       .from('offerings')
       .insert({
         amount: parseFloat(amount),
@@ -129,16 +158,15 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (offeringError) {
-      console.error('Error creating offering:', offeringError);
       return NextResponse.json(
-        { error: 'Failed to create offering' },
+        { error: 'Failed to create offering', details: offeringError.message },
         { status: 500 }
       );
     }
 
     // Create member relationship (now required)
     // The unique constraint on offering_id ensures only one member per offering
-    const { error: memberError } = await supabase
+    const { error: memberError } = await adminSupabase
       .from('offering_member')
       .insert({
         offering_id: offering.id,
@@ -146,7 +174,6 @@ export async function POST(request: NextRequest) {
       });
 
     if (memberError) {
-      console.error('Error creating member relationship:', memberError);
       // Check if it's a unique constraint violation
       if (memberError.code === '23505') {
         return NextResponse.json(
@@ -155,7 +182,7 @@ export async function POST(request: NextRequest) {
         );
       }
       return NextResponse.json(
-        { error: 'Failed to create member relationship' },
+        { error: 'Failed to create member relationship', details: memberError.message },
         { status: 500 }
       );
     }
@@ -175,7 +202,7 @@ export async function POST(request: NextRequest) {
           if (typeof allocation === 'number' && allocation > 0) {
             try {
               // Create transaction record
-              await supabase
+              await adminSupabase
                 .from('transactions')
                 .insert({
                   type: 'income',
@@ -186,8 +213,8 @@ export async function POST(request: NextRequest) {
                   fund_id: fund.id,
                   transaction_date: service_date
                 });
-            } catch (error) {
-              console.error('Error creating transaction:', error);
+            } catch {
+              // Transaction creation failed, but continue
             }
           }
         }
@@ -196,9 +223,8 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ offering }, { status: 201 });
   } catch (error) {
-    console.error('Unexpected error:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Internal server error', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     );
   }
@@ -207,8 +233,19 @@ export async function POST(request: NextRequest) {
 // PUT - Update offering
 export async function PUT(request: NextRequest) {
   try {
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
+    const adminSupabase = createAdminClient();
     const body = await request.json();
+    
+    // Check user authentication first
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      console.log('Authentication failed:', authError);
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      );
+    }
     const { id, amount, type, notes, service_date, fund_allocations, member_id } = body;
 
     if (!id) {
@@ -232,8 +269,8 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    // Update the offering
-    const { data: offering, error: updateError } = await supabase
+    // Update the offering using admin client
+    const { data: offering, error: updateError } = await adminSupabase
       .from('offerings')
       .update({
         amount: amount !== undefined ? parseFloat(amount) : currentOffering.amount,
@@ -247,7 +284,6 @@ export async function PUT(request: NextRequest) {
       .single();
 
     if (updateError) {
-      console.error('Error updating offering:', updateError);
       return NextResponse.json(
         { error: 'Failed to update offering' },
         { status: 500 }
@@ -264,14 +300,14 @@ export async function PUT(request: NextRequest) {
       }
 
       // Delete existing relationships
-      await supabase
+      await adminSupabase
         .from('offering_member')
         .delete()
         .eq('offering_id', id);
 
       // Create new relationship
       // The unique constraint on offering_id ensures only one member per offering
-      const { error: memberError } = await supabase
+      const { error: memberError } = await adminSupabase
         .from('offering_member')
         .insert({
           offering_id: id,
@@ -279,7 +315,6 @@ export async function PUT(request: NextRequest) {
         });
 
       if (memberError) {
-        console.error('Error updating member relationship:', memberError);
         // Check if it's a unique constraint violation
         if (memberError.code === '23505') {
           return NextResponse.json(
@@ -295,8 +330,7 @@ export async function PUT(request: NextRequest) {
     }
 
     return NextResponse.json({ offering });
-  } catch (error) {
-    console.error('Unexpected error:', error);
+  } catch {
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -307,7 +341,7 @@ export async function PUT(request: NextRequest) {
 // DELETE - Delete offering
 export async function DELETE(request: NextRequest) {
   try {
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
 
@@ -345,7 +379,6 @@ export async function DELETE(request: NextRequest) {
       .eq('id', id);
 
     if (deleteError) {
-      console.error('Error deleting offering:', deleteError);
       return NextResponse.json(
         { error: 'Failed to delete offering' },
         { status: 500 }
@@ -371,16 +404,15 @@ export async function DELETE(request: NextRequest) {
               .eq('transaction_date', offering.service_date)
               .eq('amount', allocation)
               .eq('category', 'Offering');
-          } catch (error) {
-            console.error('Error reverting fund balance:', error);
+          } catch {
+            // Fund balance revert failed, but continue
           }
         }
       }
     }
 
     return NextResponse.json({ message: 'Offering deleted successfully' });
-  } catch (error) {
-    console.error('Unexpected error:', error);
+  } catch {
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

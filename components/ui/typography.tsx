@@ -109,13 +109,13 @@ const textVariants = cva(
 );
 
 export interface TextProps
-  extends React.HTMLAttributes<HTMLParagraphElement>,
+  extends React.HTMLAttributes<HTMLElement>,
     VariantProps<typeof textVariants> {
   as?: 'p' | 'span' | 'div' | 'label';
   asChild?: boolean;
 }
 
-const Text = React.forwardRef<HTMLParagraphElement, TextProps>(
+const Text = React.forwardRef<React.ElementRef<'p'>, TextProps>(
   ({ className, size, variant, weight, align, as = 'p', asChild = false, ...props }, ref) => {
     if (asChild) {
       return (
@@ -126,12 +126,15 @@ const Text = React.forwardRef<HTMLParagraphElement, TextProps>(
       );
     }
     
+    const Comp = as;
+    
     return (
-      <p
-        className={cn(textVariants({ size, variant, weight, align }), className)}
-        ref={ref}
-        {...props}
-      />
+      <Comp
+          className={cn(textVariants({ size, variant, weight, align }), className)}
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          ref={ref as any}
+          {...props}
+        />
     );
   }
 );
@@ -259,23 +262,24 @@ export interface ListProps extends React.HTMLAttributes<HTMLElement> {
   asChild?: boolean;
 }
 
-const List = React.forwardRef<any, ListProps>(
+const List = React.forwardRef<React.ElementRef<'ul'>, ListProps>(
   ({ className, as = 'ul', variant = 'unordered', asChild = false, ...props }, ref) => {
     const Comp = asChild ? Slot : as;
     
     return (
       <Comp
-        className={cn(
-          'my-6 ml-6 list-outside text-white/80',
-          {
-            'list-disc': variant === 'unordered' || as === 'ul',
-            'list-decimal': variant === 'ordered' || as === 'ol',
-          },
-          className
-        )}
-        ref={ref}
-        {...props}
-      />
+          className={cn(
+            'my-6 ml-6 list-outside text-white/80',
+            {
+              'list-disc': variant === 'unordered' || as === 'ul',
+              'list-decimal': variant === 'ordered' || as === 'ol',
+            },
+            className
+          )}
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          ref={ref as any}
+          {...props}
+        />
     );
   }
 );

@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerClient } from '@/lib/supabase';
+import { createServerClient, createAdminClient } from '@/lib/supabase';
 
 // GET - Fetch all petty cash transactions
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
     const { searchParams } = new URL(request.url);
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
@@ -33,7 +33,6 @@ export async function GET(request: NextRequest) {
     const { data: pettyCash, error } = await query;
 
     if (error) {
-      console.error('Error fetching petty cash:', error);
       return NextResponse.json(
         { error: 'Failed to fetch petty cash transactions' },
         { status: 500 }
@@ -41,8 +40,7 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json({ pettyCash });
-  } catch (error) {
-    console.error('Unexpected error:', error);
+  } catch {
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -53,7 +51,18 @@ export async function GET(request: NextRequest) {
 // POST - Create new petty cash transaction
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
+    const adminSupabase = createAdminClient();
+    
+    // Check authentication
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      )
+    }
+    
     const body = await request.json();
     const { 
       type, 
@@ -82,7 +91,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create the petty cash transaction
-    const { data: pettyCashTransaction, error: pettyCashError } = await supabase
+    const { data: pettyCashTransaction, error: pettyCashError } = await adminSupabase
       .from('petty_cash')
       .insert({
         type,
@@ -97,7 +106,6 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (pettyCashError) {
-      console.error('Error creating petty cash transaction:', pettyCashError);
       return NextResponse.json(
         { error: 'Failed to create petty cash transaction' },
         { status: 500 }
@@ -108,15 +116,14 @@ export async function POST(request: NextRequest) {
     if (fund_id) {
       const amountChange = type === 'expense' ? -parseFloat(amount) : parseFloat(amount);
       
-      const { error: fundError } = await supabase.rpc('update_fund_balance', {
+      const { error: fundError } = await adminSupabase.rpc('update_fund_balance', {
         fund_id: fund_id,
         amount_change: amountChange
       });
 
       if (fundError) {
-        console.error('Error updating fund balance:', fundError);
         // Rollback the petty cash transaction creation
-        await supabase.from('petty_cash').delete().eq('id', pettyCashTransaction.id);
+        await adminSupabase.from('petty_cash').delete().eq('id', pettyCashTransaction.id);
         return NextResponse.json(
           { error: 'Failed to update fund balance' },
           { status: 500 }
@@ -129,7 +136,7 @@ export async function POST(request: NextRequest) {
         ? `Petty cash expense: ${description}${recipient ? ' - ' + recipient : ''}`
         : `Petty cash replenishment: ${description}`;
 
-      const { error: transactionError } = await supabase
+      const { error: transactionError } = await adminSupabase
         .from('transactions')
         .insert({
           type: transactionType,
@@ -142,14 +149,12 @@ export async function POST(request: NextRequest) {
         });
 
       if (transactionError) {
-        console.error('Error creating transaction:', transactionError);
         // Note: We don't rollback here as the petty cash and fund update are valid
       }
     }
 
     return NextResponse.json({ pettyCash: pettyCashTransaction }, { status: 201 });
-  } catch (error) {
-    console.error('Unexpected error:', error);
+  } catch {
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -160,7 +165,18 @@ export async function POST(request: NextRequest) {
 // PUT - Update petty cash transaction
 export async function PUT(request: NextRequest) {
   try {
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
+    const adminSupabase = createAdminClient();
+    
+    // Check authentication
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      )
+    }
+    
     const body = await request.json();
     const { 
       id, 
@@ -203,7 +219,7 @@ export async function PUT(request: NextRequest) {
     }
 
     // Update the petty cash transaction
-    const { data: pettyCashTransaction, error: updateError } = await supabase
+    const { data: pettyCashTransaction, error: updateError } = await adminSupabase
       .from('petty_cash')
       .update({
         type: type || currentTransaction.type,
@@ -219,7 +235,6 @@ export async function PUT(request: NextRequest) {
       .single();
 
     if (updateError) {
-      console.error('Error updating petty cash transaction:', updateError);
       return NextResponse.json(
         { error: 'Failed to update petty cash transaction' },
         { status: 500 }
@@ -238,7 +253,7 @@ export async function PUT(request: NextRequest) {
       // Revert old fund balance if there was a fund
       if (oldFundId) {
         const oldAmountChange = oldType === 'expense' ? oldAmount : -oldAmount;
-        await supabase.rpc('update_fund_balance', {
+        await adminSupabase.rpc('update_fund_balance', {
           fund_id: oldFundId,
           amount_change: oldAmountChange
         });
@@ -247,7 +262,7 @@ export async function PUT(request: NextRequest) {
       // Apply new fund balance if there is a fund
       if (newFundId) {
         const newAmountChange = newType === 'expense' ? -newAmount : newAmount;
-        await supabase.rpc('update_fund_balance', {
+        await adminSupabase.rpc('update_fund_balance', {
           fund_id: newFundId,
           amount_change: newAmountChange
         });
@@ -259,7 +274,7 @@ export async function PUT(request: NextRequest) {
         ? `Petty cash expense: ${pettyCashTransaction.description}${pettyCashTransaction.recipient ? ' - ' + pettyCashTransaction.recipient : ''}`
         : `Petty cash replenishment: ${pettyCashTransaction.description}`;
 
-      await supabase
+      await adminSupabase
         .from('transactions')
         .update({
           type: transactionType,
@@ -273,8 +288,7 @@ export async function PUT(request: NextRequest) {
     }
 
     return NextResponse.json({ pettyCash: pettyCashTransaction });
-  } catch (error) {
-    console.error('Unexpected error:', error);
+  } catch {
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -285,7 +299,18 @@ export async function PUT(request: NextRequest) {
 // DELETE - Delete petty cash transaction
 export async function DELETE(request: NextRequest) {
   try {
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
+    const adminSupabase = createAdminClient();
+    
+    // Check authentication
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      )
+    }
+    
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
 
@@ -311,13 +336,12 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Delete the petty cash transaction
-    const { error: deleteError } = await supabase
+    const { error: deleteError } = await adminSupabase
       .from('petty_cash')
       .delete()
       .eq('id', id);
 
     if (deleteError) {
-      console.error('Error deleting petty cash transaction:', deleteError);
       return NextResponse.json(
         { error: 'Failed to delete petty cash transaction' },
         { status: 500 }
@@ -330,13 +354,13 @@ export async function DELETE(request: NextRequest) {
         ? pettyCashTransaction.amount 
         : -pettyCashTransaction.amount;
       
-      await supabase.rpc('update_fund_balance', {
+      await adminSupabase.rpc('update_fund_balance', {
         fund_id: pettyCashTransaction.fund_id,
         amount_change: amountChange
       });
 
       // Delete related transaction
-      await supabase
+      await adminSupabase
         .from('transactions')
         .delete()
         .eq('reference_type', 'petty_cash')
@@ -344,8 +368,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     return NextResponse.json({ message: 'Petty cash transaction deleted successfully' });
-  } catch (error) {
-    console.error('Unexpected error:', error);
+  } catch {
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

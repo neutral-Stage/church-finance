@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
@@ -18,7 +18,7 @@ import { FullScreenLoader } from '@/components/ui/loader'
 import { useConfirmationDialog } from '@/components/ui/confirmation-dialog'
 
 import { formatCurrency, formatDate, formatDateForInput } from '@/lib/utils'
-import { Plus, MoreHorizontal, Edit, Trash2, Calendar, Users, DollarSign, TrendingUp, AlertCircle, RefreshCw } from 'lucide-react'
+import { Plus, MoreHorizontal, Edit, Trash2, Calendar, Users, DollarSign, TrendingUp } from 'lucide-react'
 import { toast } from 'sonner'
 import { retrySupabaseQuery, logNetworkError, isNetworkError } from '@/lib/retry-utils'
 import type { Database } from '@/types/database'
@@ -72,10 +72,6 @@ export default function OfferingsPage() {
     notes: ''
   })
 
-  useEffect(() => {
-    fetchData()
-  }, [])
-
   // Function to automatically determine fund allocation based on offering type
   const getFundAllocationForOfferingType = (offeringType: string, amount: number): Record<string, number> => {
     const managementFund = funds.find(f => f.name.toLowerCase().includes('management'))
@@ -93,40 +89,56 @@ export default function OfferingsPage() {
     }
   }
 
-  const fetchData = async (retryCount = 0) => {
+  const fetchData = useCallback(async (retryCount = 0) => {
     try {
       setLoading(true)
 
-      // Fetch offerings using API route (which has service role access)
-      const response = await fetch('/api/offerings')
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
+      // Fetch offerings with member relationships using direct Supabase client
+      const { data: offeringsData, error: offeringsError } = await retrySupabaseQuery<OfferingWithFund[]>(
+        async () => {
+          const result = await supabase
+            .from('offerings')
+            .select(`
+              *,
+              offering_member:offering_member(
+                member:members(*)
+              )
+            `)
+            .order('service_date', { ascending: false })
+          return { data: result.data, error: result.error }
+        },
+        {
+          maxAttempts: 3,
+          baseDelay: 1000,
+          retryCondition: (error) => isNetworkError(error)
+        }
+      )
+
+      if (offeringsError) {
+        logNetworkError()
+        throw offeringsError
       }
-      const responseData = await response.json()
-      const offeringsData = responseData.offerings
 
       if (!offeringsData) {
         toast.error('Failed to fetch offerings data')
         return
       }
 
-
-
-      // Process offerings data - offering_member is already an object, not an array
-      const processedOfferings = offeringsData?.map((offering: any) => {
-        const processed = {
-          ...offering,
-          offering_member: offering.offering_member || null
-        }
-        return processed
-      }) || []
+      // Process offerings data - offering_member is a single object from the join
+      const processedOfferings = offeringsData?.map((offering: Offering & { offering_member?: { member: Member } }) => ({
+        ...offering,
+        member: offering.offering_member?.member || null
+      })) || []
 
       // Fetch funds
-      const { data: fundsData, error: fundsError } = await retrySupabaseQuery<any[]>(
-        () => supabase
-          .from('funds')
-          .select('*')
-          .order('name'),
+      const { data: fundsData, error: fundsError } = await retrySupabaseQuery<Fund[]>(
+        async () => {
+          const result = await supabase
+            .from('funds')
+            .select('*')
+            .order('name')
+          return { data: result.data, error: result.error }
+        },
         {
           maxAttempts: 3,
           baseDelay: 1000,
@@ -135,12 +147,12 @@ export default function OfferingsPage() {
       )
 
       if (fundsError) {
-        logNetworkError(fundsError, 'fetchData - funds')
+        logNetworkError()
         throw fundsError
       }
 
-      setOfferings(processedOfferings)
-      setFunds(fundsData as any[] || [])
+      setOfferings(processedOfferings as Array<Offering & { member: Member | null }>)
+      setFunds(fundsData || [])
     } catch (error) {
       // Error handled by toast notification
       if (isNetworkError(error)) {
@@ -156,13 +168,35 @@ export default function OfferingsPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    fetchData()
+  }, [fetchData])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!form.service_date || !form.type || !form.amount) {
-      toast.error('Please fill in all required fields')
+    // Validate required fields with specific messages
+    if (!form.service_date) {
+      toast.error('Service date is required')
+      return
+    }
+
+    if (!form.type) {
+      toast.error('Offering type is required')
+      return
+    }
+
+    if (!form.amount) {
+      toast.error('Amount is required')
+      return
+    }
+
+    // Validate amount is a valid positive number
+    const amount = parseFloat(form.amount)
+    if (isNaN(amount) || amount <= 0) {
+      toast.error('Please enter a valid positive amount')
       return
     }
 
@@ -172,7 +206,6 @@ export default function OfferingsPage() {
     }
 
     try {
-      const amount = parseFloat(form.amount)
       const fundAllocations = getFundAllocationForOfferingType(form.type, amount)
 
       const requestData = {
@@ -185,45 +218,147 @@ export default function OfferingsPage() {
       }
 
       if (editingOffering) {
-        const response = await fetch('/api/offerings', {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            id: editingOffering.id,
-            ...requestData
-          }),
-        })
+        // Get the current offering to calculate fund balance changes
+        const oldFundAllocations = editingOffering.fund_allocations as Record<string, number> || {}
+        const newFundAllocations = requestData.fund_allocations
 
-        if (!response.ok) {
-          const error = await response.json()
-          // Handle specific error cases
-          if (response.status === 409) {
-            toast.error('This offering already has a member assigned. Each offering can only have one member.')
-            return
+        // Update the offering using direct Supabase client
+        const { error: offeringError } = await supabase
+          .from('offerings')
+          .update({
+            service_date: requestData.service_date,
+            type: requestData.type,
+            amount: requestData.amount,
+            fund_allocations: requestData.fund_allocations,
+            notes: requestData.notes
+          })
+          .eq('id', editingOffering.id)
+
+        if (offeringError) {
+          throw new Error(offeringError.message || 'Failed to update offering')
+        }
+
+        // Handle member association changes
+        const currentMemberId = (editingOffering as OfferingWithFund).offering_member?.member?.id
+        const newMemberId = requestData.member_id
+
+        if (currentMemberId !== newMemberId) {
+          // Remove old member association if exists
+          if (currentMemberId) {
+            await supabase
+              .from('offering_member')
+              .delete()
+              .eq('offering_id', editingOffering.id)
           }
-          throw new Error(error.error || 'Failed to update offering')
+
+          // Add new member association if provided
+          if (newMemberId) {
+            const { error: memberError } = await supabase
+              .from('offering_member')
+              .insert({
+                offering_id: editingOffering.id,
+                member_id: newMemberId
+              })
+
+            if (memberError) {
+              throw new Error('Failed to associate member with offering')
+            }
+          }
+        }
+
+        // Update fund balances - revert old allocations and apply new ones
+        const allFundIds = new Set([...Object.keys(oldFundAllocations), ...Object.keys(newFundAllocations)])
+        
+        for (const fundId of allFundIds) {
+          const oldAmount = oldFundAllocations[fundId] || 0
+          const newAmount = newFundAllocations[fundId] || 0
+          const difference = newAmount - oldAmount
+
+          if (difference !== 0) {
+            // Get current balance and update it
+            const { data: fundData, error: fetchError } = await supabase
+              .from('funds')
+              .select('current_balance')
+              .eq('id', fundId)
+              .single()
+
+            if (fetchError) {
+              throw new Error('Failed to fetch fund balance')
+            }
+
+            const newBalance = (fundData.current_balance || 0) + difference
+            const { error: fundError } = await supabase
+              .from('funds')
+              .update({ current_balance: newBalance })
+              .eq('id', fundId)
+
+            if (fundError) {
+              throw new Error('Failed to update fund balance')
+            }
+          }
         }
 
         toast.success('Offering updated successfully')
       } else {
-        const response = await fetch('/api/offerings', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(requestData),
-        })
+        // Create new offering using direct Supabase client
+        const { data: newOffering, error: offeringError } = await supabase
+          .from('offerings')
+          .insert({
+            service_date: requestData.service_date,
+            type: requestData.type,
+            amount: requestData.amount,
+            fund_allocations: requestData.fund_allocations,
+            notes: requestData.notes
+          })
+          .select()
+          .single()
 
-        if (!response.ok) {
-          const error = await response.json()
-          // Handle specific error cases
-          if (response.status === 409) {
-            toast.error('This offering already has a member assigned. Each offering can only have one member.')
-            return
+        if (offeringError) {
+          throw new Error(offeringError.message || 'Failed to create offering')
+        }
+
+        // Create member association if member is selected
+        if (requestData.member_id) {
+          const { error: memberError } = await supabase
+            .from('offering_member')
+            .insert({
+              offering_id: newOffering.id,
+              member_id: requestData.member_id
+            })
+
+          if (memberError) {
+            // If member association fails, we should clean up the offering
+            await supabase.from('offerings').delete().eq('id', newOffering.id)
+            throw new Error('Failed to associate member with offering')
           }
-          throw new Error(error.error || 'Failed to create offering')
+        }
+
+        // Update fund balances
+        for (const [fundId, allocationAmount] of Object.entries(requestData.fund_allocations)) {
+          if (typeof allocationAmount === 'number' && allocationAmount > 0) {
+            // Get current balance and update it
+            const { data: fundData, error: fetchError } = await supabase
+              .from('funds')
+              .select('current_balance')
+              .eq('id', fundId)
+              .single()
+
+            if (fetchError) {
+              throw new Error('Failed to fetch fund balance')
+            }
+
+            const newBalance = (fundData.current_balance || 0) + allocationAmount
+            const { error: fundError } = await supabase
+              .from('funds')
+              .update({ current_balance: newBalance })
+              .eq('id', fundId)
+
+            if (fundError) {
+              // If fund update fails, we should clean up
+              await supabase.from('offerings').delete().eq('id', newOffering.id)
+              throw new Error('Failed to update fund balance')
+            }
+          }
         }
 
         toast.success('Offering recorded successfully')
@@ -271,13 +406,58 @@ export default function OfferingsPage() {
         return
       }
 
-      const response = await fetch(`/api/offerings?id=${id}`, {
-        method: 'DELETE',
-      })
+      // Get the offering details first to revert fund balances
+      const { data: offering, error: fetchError } = await supabase
+        .from('offerings')
+        .select('*')
+        .eq('id', id)
+        .single()
 
-      if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.error || 'Failed to delete offering')
+      if (fetchError || !offering) {
+        throw new Error('Failed to fetch offering details')
+      }
+
+      // Revert fund balances
+      const fundAllocations = offering.fund_allocations as Record<string, number> || {}
+      for (const [fundId, amount] of Object.entries(fundAllocations)) {
+        if (typeof amount === 'number' && amount > 0) {
+          // Get current balance and update it
+          const { data: fundData, error: fetchError } = await supabase
+            .from('funds')
+            .select('current_balance')
+            .eq('id', fundId)
+            .single()
+
+          if (fetchError) {
+            throw new Error('Failed to fetch fund balance')
+          }
+
+          const newBalance = (fundData.current_balance || 0) - amount
+          const { error: fundError } = await supabase
+            .from('funds')
+            .update({ current_balance: newBalance })
+            .eq('id', fundId)
+
+          if (fundError) {
+            throw new Error('Failed to revert fund balance')
+          }
+        }
+      }
+
+      // Delete member associations first (due to foreign key constraints)
+      await supabase
+        .from('offering_member')
+        .delete()
+        .eq('offering_id', id)
+
+      // Delete the offering
+      const { error: deleteError } = await supabase
+        .from('offerings')
+        .delete()
+        .eq('id', id)
+
+      if (deleteError) {
+        throw new Error(deleteError.message || 'Failed to delete offering')
       }
 
       toast.success('Offering deleted successfully')
@@ -371,7 +551,7 @@ export default function OfferingsPage() {
             </h1>
             <p className="text-white/70">Track and manage church offerings and tithes</p>
           </div>
-          {hasRole('Admin') && (
+          {hasRole('admin') && (
             <Dialog open={dialogOpen} onOpenChange={handleDialogChange}>
               <DialogTrigger asChild>
                 <Button onClick={() => { setEditingOffering(null); resetForm(); }} className="glass-button hover:scale-105 transition-all duration-300">
@@ -639,7 +819,7 @@ export default function OfferingsPage() {
                     <th className="h-12 px-4 text-left align-middle font-medium text-white/90">Fund</th>
                     <th className="h-12 px-4 text-left align-middle font-medium text-white/90">Member</th>
                     <th className="h-12 px-4 text-left align-middle font-medium text-white/90">Notes</th>
-                    {hasRole('Admin') && (
+                    {hasRole('admin') && (
                       <th className="h-12 px-4 text-left align-middle font-medium text-white/90">Actions</th>
                     )}
                   </tr>
@@ -687,7 +867,7 @@ export default function OfferingsPage() {
                         })()}
                       </td>
                       <td className="p-4 max-w-xs truncate text-white/80">{offering.notes || '-'}</td>
-                      {hasRole('Admin') && (
+                      {hasRole('admin') && (
                         <td className="p-4">
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>

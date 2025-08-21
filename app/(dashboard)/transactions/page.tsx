@@ -4,7 +4,6 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/lib/supabase'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
 import { GlassButton } from '@/components/ui/glass-button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -325,7 +324,6 @@ export default function TransactionsPage() {
       if (isVisible) {
         const duration = 2000
         const steps = 60
-        const stepValue = value / steps
         const stepDuration = duration / steps
 
         let currentStep = 0

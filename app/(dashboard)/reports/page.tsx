@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useCallback, useRef } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
-import { formatCurrency, formatDate, getMonthStart, getMonthEnd } from '@/lib/utils'
+import { formatDate, getMonthStart, getMonthEnd } from '@/lib/utils'
 import { Download, FileText, TrendingUp, TrendingDown, Banknote, Calendar } from 'lucide-react'
 import { toast } from 'sonner'
 import * as XLSX from 'xlsx'
@@ -149,8 +149,7 @@ export default function ReportsPage() {
         advances: advancesData || [],
         funds: fundsData || []
       })
-    } catch (error) {
-      console.error('Error fetching report data:', error)
+    } catch {
       toast.error('Failed to load report data')
     } finally {
       setLoading(false)
@@ -327,8 +326,7 @@ export default function ReportsPage() {
       XLSX.writeFile(workbook, filename)
 
       toast.success('Report exported successfully')
-    } catch (error) {
-      console.error('Error exporting report:', error)
+    } catch {
       toast.error('Failed to export report')
     } finally {
       setExporting(false)

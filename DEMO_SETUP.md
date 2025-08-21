@@ -44,7 +44,7 @@ If you need to create accounts manually:
 5. In the "User Metadata" section, add:
    ```json
    {
-     "role": "Admin", // or "Treasurer" or "Viewer"
+     "role": "admin", // or "treasurer" or "viewer"
      "full_name": "Church Administrator" // or appropriate name
    }
    ```

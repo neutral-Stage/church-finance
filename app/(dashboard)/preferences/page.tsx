@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
@@ -70,19 +70,26 @@ const defaultPreferences: UserPreferences = {
 }
 
 export default function Preferences() {
-  const { user } = useAuth()
+  const { user, session } = useAuth()
   const [loading, setLoading] = useState(false)
   const [preferences, setPreferences] = useState<UserPreferences>(defaultPreferences)
 
-  useEffect(() => {
-    loadPreferences()
-  }, [user])
-
-  const loadPreferences = async () => {
+  const loadPreferences = useCallback(async () => {
     if (!user) return
 
     try {
-      const { data, error } = await supabase
+      // Check if we have a valid session from AuthContext
+      if (!session) {
+        return
+      }
+
+      // Explicitly set the session on the Supabase client
+      await supabase.auth.setSession({
+        access_token: session.access_token,
+        refresh_token: session.refresh_token
+      })
+
+      const { data } = await supabase
         .from('user_preferences')
         .select('preferences')
         .eq('user_id', user.id)
@@ -91,42 +98,62 @@ export default function Preferences() {
       if (data && data.preferences) {
         setPreferences({ ...defaultPreferences, ...data.preferences })
       }
-    } catch (error) {
-      console.log('No existing preferences found, using defaults')
+    } catch {
+      // Silently handle error - user will see default preferences
     }
-  }
+  }, [user, session])
+
+  useEffect(() => {
+    loadPreferences()
+  }, [loadPreferences])
 
   const savePreferences = async () => {
     if (!user) return
 
+
+
     setLoading(true)
     try {
+      // Check if we have a valid session from AuthContext
+      if (!session) {
+        throw new Error('Authentication session not found. Please sign in again.')
+      }
+      
+      // Explicitly set the session on the Supabase client
+      await supabase.auth.setSession({
+        access_token: session.access_token,
+        refresh_token: session.refresh_token
+      })
+
       const { error } = await supabase
         .from('user_preferences')
         .upsert({
           user_id: user.id,
           preferences: preferences
+        }, {
+          onConflict: 'user_id'
         })
 
-      if (error) throw error
+      if (error) {
+        throw error
+      }
 
       toast.success('Preferences saved successfully!')
-    } catch (error) {
-      console.error('Error saving preferences:', error)
+    } catch {
       toast.error('Failed to save preferences. Please try again.')
     } finally {
       setLoading(false)
     }
   }
 
-  const updatePreference = (path: string, value: any) => {
+  const updatePreference = (path: string, value: unknown) => {
     setPreferences(prev => {
       const newPrefs = { ...prev }
       const keys = path.split('.')
-      let current: any = newPrefs
+      let current: Record<string, unknown> = newPrefs as Record<string, unknown>
       
       for (let i = 0; i < keys.length - 1; i++) {
-        current = current[keys[i]]
+        current = current[keys[i]] as Record<string, unknown>
       }
       
       current[keys[keys.length - 1]] = value

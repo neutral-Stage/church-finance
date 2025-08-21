@@ -75,7 +75,7 @@ function AnimatedCounter({ value, duration = 2000, formatter = (v) => v.toString
     }
 
     return () => observer.disconnect()
-  }, [])
+  }, [isVisible])
 
   useEffect(() => {
     if (!isVisible) return
@@ -228,8 +228,7 @@ export default function MemberContributionsPage() {
       )] as string[]
       setFellowships(uniqueFellowships.sort())
 
-    } catch (error) {
-      console.error('Error fetching member contributions:', error)
+    } catch {
       toast.error('Failed to load member contributions')
     } finally {
       setLoading(false)

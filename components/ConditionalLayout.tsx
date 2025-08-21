@@ -26,7 +26,7 @@ export default function ConditionalLayout({ children }: ConditionalLayoutProps) 
   ]
   
   // Check if current path is a dashboard route
-  const isDashboardRoute = dashboardRoutes.some(route => pathname.startsWith(route))
+  const isDashboardRoute = pathname ? dashboardRoutes.some(route => pathname.startsWith(route)) : false
   
   return (
     <>

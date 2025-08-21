@@ -16,6 +16,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { formatCurrency, formatDateForInput } from '@/lib/utils'
 import { Plus, MoreHorizontal, DollarSign, Users, TrendingUp, AlertCircle, TrendingDown, CreditCard } from 'lucide-react'
 import { toast } from 'sonner'
+import { FullScreenLoader } from '@/components/ui/loader'
 import type { Database } from '@/types/database'
 
 type Advance = Database['public']['Tables']['advances']['Row']
@@ -83,6 +84,7 @@ function AnimatedCounter({ value, duration = 2000, formatter = (v) => v.toString
 interface RepaymentForm {
   amount: string
   notes: string
+  payment_method: 'cash' | 'bank'
 }
 
 export default function AdvancesPage() {
@@ -113,7 +115,8 @@ export default function AdvancesPage() {
   })
   const [repaymentForm, setRepaymentForm] = useState<RepaymentForm>({
     amount: '',
-    notes: ''
+    notes: '',
+    payment_method: 'cash'
   })
 
   const fetchData = useCallback(async () => {
@@ -138,9 +141,9 @@ export default function AdvancesPage() {
 
       setAdvances(advancesData || [])
       setFunds(fundsData || [])
-    } catch (error) {
-      console.error('Error fetching data:', error)
-      toast.error('Failed to load advances data')
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to load advances data'
+      toast.error(errorMessage)
     } finally {
       setLoading(false)
     }
@@ -206,9 +209,9 @@ export default function AdvancesPage() {
       setAdvanceDialogOpen(false)
       resetAdvanceForm()
       fetchData()
-    } catch (error) {
-      console.error('Error saving advance:', error)
-      toast.error('Failed to save advance')
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to save advance'
+      toast.error(errorMessage)
     }
   }
 
@@ -258,6 +261,7 @@ export default function AdvancesPage() {
           category: 'Advance Repayment',
           amount: repaymentAmount,
           description: `Advance repayment from ${selectedAdvanceForRepayment.recipient_name}: ${repaymentForm.notes || 'Partial repayment'}`,
+          payment_method: repaymentForm.payment_method,
           fund_id: selectedAdvanceForRepayment.fund_id,
           transaction_date: new Date().toISOString().split('T')[0],
           created_by: user?.id
@@ -270,9 +274,9 @@ export default function AdvancesPage() {
       resetRepaymentForm()
       setSelectedAdvanceForRepayment(null)
       fetchData()
-    } catch (error) {
-      console.error('Error processing repayment:', error)
-      toast.error('Failed to process repayment')
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to process repayment'
+      toast.error(errorMessage)
     }
   }
 
@@ -291,9 +295,9 @@ export default function AdvancesPage() {
 
       toast.success('Advance deleted successfully')
       fetchData()
-    } catch (error) {
-      console.error('Error deleting advance:', error)
-      toast.error('Failed to delete advance')
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to delete advance'
+      toast.error(errorMessage)
     }
   }
 
@@ -313,7 +317,8 @@ export default function AdvancesPage() {
   const resetRepaymentForm = () => {
     setRepaymentForm({
       amount: '',
-      notes: ''
+      notes: '',
+      payment_method: 'cash'
     })
   }
 
@@ -353,15 +358,7 @@ export default function AdvancesPage() {
   })
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="relative">
-          <div className="w-12 h-12 border-4 border-white/20 border-t-white rounded-full animate-spin"></div>
-          <div className="w-8 h-8 border-4 border-white/40 border-t-transparent rounded-full animate-spin absolute top-2 left-2" style={{ animationDirection: 'reverse' }}></div>
-        </div>
-        <div className="text-lg text-white/80 ml-4">Loading advances...</div>
-      </div>
-    )
+    return <FullScreenLoader message="Loading advances data..." />
   }
 
   return (
@@ -382,7 +379,7 @@ export default function AdvancesPage() {
             </h1>
             <p className="text-white/60">Track advance payments and repayments</p>
           </div>
-          {hasRole('Admin') && (
+          {hasRole('admin') && (
             <Dialog open={advanceDialogOpen} onOpenChange={setAdvanceDialogOpen}>
               <DialogTrigger asChild>
                 <Button onClick={() => openAdvanceDialog()}>
@@ -651,7 +648,7 @@ export default function AdvancesPage() {
                             </Badge>
                           </td>
                           <td className="p-4">
-                            {(hasRole('Admin') || hasRole('Treasurer')) && (
+                            {(hasRole('admin') || hasRole('treasurer')) && (
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
                                   <GlassButton variant="ghost" size="sm" className="h-8 w-8 p-0">
@@ -734,6 +731,21 @@ export default function AdvancesPage() {
                       className="bg-white/10 border-white/20 text-white placeholder:text-white/50 focus:border-white/40"
                       required
                     />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="payment_method" className="text-white/90">Payment Method *</Label>
+                    <Select
+                      value={repaymentForm.payment_method}
+                      onValueChange={(value: 'cash' | 'bank') => setRepaymentForm({ ...repaymentForm, payment_method: value })}
+                    >
+                      <SelectTrigger className="bg-white/10 border-white/20 text-white focus:border-white/40">
+                        <SelectValue placeholder="Select payment method" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-white/10 backdrop-blur-xl border-white/20">
+                        <SelectItem value="cash" className="text-white/90 hover:bg-white/10">Cash</SelectItem>
+                        <SelectItem value="bank" className="text-white/90 hover:bg-white/10">Bank Transfer</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="repayment_notes" className="text-white/90">Notes</Label>

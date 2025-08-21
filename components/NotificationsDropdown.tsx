@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -9,9 +9,7 @@ import {
   DollarSign,
   Users,
   Calendar,
-  AlertTriangle,
   CheckCircle,
-  Clock,
   TrendingUp,
   FileText,
   Settings,
@@ -21,8 +19,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/lib/supabase'
 import { formatDistanceToNow } from 'date-fns'
-
-import { cn } from '@/lib/utils'
+import NotificationService from '@/lib/notificationService'
 
 interface Notification {
   id: string
@@ -48,12 +45,7 @@ const notificationIcons = {
   report: FileText
 }
 
-const notificationColors = {
-  info: 'text-blue-400',
-  success: 'text-green-400',
-  warning: 'text-yellow-400',
-  error: 'text-red-400'
-}
+
 
 const categoryColors = {
   transaction: 'bg-green-500',
@@ -69,6 +61,48 @@ export default function NotificationsDropdown({ className }: NotificationsDropdo
   const [loading, setLoading] = useState(false)
   const [unreadCount, setUnreadCount] = useState(0)
   const { user } = useAuth()
+
+  const generateRealNotifications = useCallback(async () => {
+    if (!user) return
+
+    try {
+      // Generate all types of notifications using the service
+      await NotificationService.generateAllNotifications()
+    } catch {
+      // Silently handle error
+    }
+  }, [user])
+
+  const loadNotifications = useCallback(async () => {
+    if (!user) return
+
+    setLoading(true)
+    try {
+      // Generate real notifications based on database events
+      await generateRealNotifications()
+
+      // Load notifications from database
+      const { data: dbNotifications } = await supabase
+        .from('notifications')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(20)
+
+      if (dbNotifications) {
+        setNotifications(dbNotifications)
+        setUnreadCount(dbNotifications.filter(n => !n.read).length)
+      } else {
+        setNotifications([])
+        setUnreadCount(0)
+      }
+    } catch {
+      setNotifications([])
+      setUnreadCount(0)
+    } finally {
+      setLoading(false)
+    }
+  }, [user, generateRealNotifications])
 
   useEffect(() => {
     const fetchNotifications = async () => {
@@ -93,120 +127,23 @@ export default function NotificationsDropdown({ className }: NotificationsDropdo
       }
     }
     fetchNotifications()
-  }, [user])
-
-  const loadNotifications = async () => {
-    if (!user) return
-
-    setLoading(true)
-    try {
-      // Try to load from database first
-      const { data: dbNotifications } = await supabase
-        .from('notifications')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(20)
-
-      if (dbNotifications && dbNotifications.length > 0) {
-        setNotifications(dbNotifications)
-        setUnreadCount(dbNotifications.filter(n => !n.read).length)
-      } else {
-        // Generate sample notifications if none exist
-        const sampleNotifications = await generateSampleNotifications()
-        setNotifications(sampleNotifications)
-        setUnreadCount(sampleNotifications.filter(n => !n.read).length)
-      }
-    } catch (error) {
-      console.error('Error loading notifications:', error)
-      // Fallback to sample notifications
-      const sampleNotifications = await generateSampleNotifications()
-      setNotifications(sampleNotifications)
-      setUnreadCount(sampleNotifications.filter(n => !n.read).length)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const generateSampleNotifications = async (): Promise<Notification[]> => {
-    const now = new Date()
-    const sampleNotifications: Notification[] = [
-      {
-        id: '1',
-        title: 'New Offering Received',
-        message: 'Sunday offering of $2,450 has been recorded',
-        type: 'success',
-        category: 'offering',
-        read: false,
-        created_at: new Date(now.getTime() - 30 * 60 * 1000).toISOString(),
-        action_url: '/offerings'
-      },
-      {
-        id: '2',
-        title: 'Bill Due Soon',
-        message: 'Electricity bill ($340) is due in 3 days',
-        type: 'warning',
-        category: 'bill',
-        read: false,
-        created_at: new Date(now.getTime() - 2 * 60 * 60 * 1000).toISOString(),
-        action_url: '/bills'
-      },
-      {
-        id: '3',
-        title: 'New Member Added',
-        message: 'John Smith has been added to the member directory',
-        type: 'info',
-        category: 'member',
-        read: true,
-        created_at: new Date(now.getTime() - 4 * 60 * 60 * 1000).toISOString(),
-        action_url: '/members'
-      },
-      {
-        id: '4',
-        title: 'Monthly Report Ready',
-        message: 'Financial report for December is now available',
-        type: 'info',
-        category: 'report',
-        read: true,
-        created_at: new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString(),
-        action_url: '/reports'
-      },
-      {
-        id: '5',
-        title: 'Large Transaction Alert',
-        message: 'Transaction of $5,000 requires approval',
-        type: 'warning',
-        category: 'transaction',
-        read: false,
-        created_at: new Date(now.getTime() - 6 * 60 * 60 * 1000).toISOString(),
-        action_url: '/transactions'
-      }
-    ]
-
-    return sampleNotifications
-  }
+  }, [user, loadNotifications])
 
   const markAsRead = async (notificationId: string) => {
     try {
-      // Update in database if it exists
-      await supabase
-        .from('notifications')
-        .update({ read: true })
-        .eq('id', notificationId)
-        .eq('user_id', user?.id)
+      await NotificationService.markAsRead(notificationId)
 
       // Update local state
-      setNotifications(prev => 
-        prev.map(n => 
+      setNotifications(prev =>
+        prev.map(n =>
           n.id === notificationId ? { ...n, read: true } : n
         )
       )
       setUnreadCount(prev => Math.max(0, prev - 1))
-    } catch (error) {
-      console.error('Error marking notification as read:', error)
+    } catch {
       // Still update local state even if database update fails
-      setNotifications(prev => 
-        prev.map(n => 
+      setNotifications(prev =>
+        prev.map(n =>
           n.id === notificationId ? { ...n, read: true } : n
         )
       )
@@ -215,17 +152,14 @@ export default function NotificationsDropdown({ className }: NotificationsDropdo
   }
 
   const markAllAsRead = async () => {
+    if (!user) return
+
     try {
-      await supabase
-        .from('notifications')
-        .update({ read: true })
-        .eq('user_id', user?.id)
-        .eq('read', false)
+      await NotificationService.markAllAsRead(user.id)
 
       setNotifications(prev => prev.map(n => ({ ...n, read: true })))
       setUnreadCount(0)
-    } catch (error) {
-      console.error('Error marking all notifications as read:', error)
+    } catch {
       // Still update local state
       setNotifications(prev => prev.map(n => ({ ...n, read: true })))
       setUnreadCount(0)
@@ -234,19 +168,14 @@ export default function NotificationsDropdown({ className }: NotificationsDropdo
 
   const deleteNotification = async (notificationId: string) => {
     try {
-      await supabase
-        .from('notifications')
-        .delete()
-        .eq('id', notificationId)
-        .eq('user_id', user?.id)
+      await NotificationService.deleteNotification(notificationId)
 
       const notification = notifications.find(n => n.id === notificationId)
       setNotifications(prev => prev.filter(n => n.id !== notificationId))
       if (notification && !notification.read) {
         setUnreadCount(prev => Math.max(0, prev - 1))
       }
-    } catch (error) {
-      console.error('Error deleting notification:', error)
+    } catch {
       // Still update local state
       const notification = notifications.find(n => n.id === notificationId)
       setNotifications(prev => prev.filter(n => n.id !== notificationId))
@@ -265,8 +194,8 @@ export default function NotificationsDropdown({ className }: NotificationsDropdo
             {unreadCount > 0 && (
               <div className="absolute -top-1 -right-1">
                 <div className="absolute inset-0 bg-red-400/30 rounded-full blur-sm animate-pulse" />
-                <Badge 
-                  variant="destructive" 
+                <Badge
+                  variant="destructive"
                   className="relative h-5 w-5 p-0 flex items-center justify-center text-xs bg-gradient-to-br from-red-500 to-red-600 font-semibold border border-red-400/30 backdrop-blur-sm"
                 >
                   {unreadCount > 9 ? '9+' : unreadCount}
@@ -276,9 +205,9 @@ export default function NotificationsDropdown({ className }: NotificationsDropdo
           </div>
         </Button>
       </DropdownMenuTrigger>
-      
-      <DropdownMenuContent 
-        align="end" 
+
+      <DropdownMenuContent
+        align="end"
         className="w-80 glass-card-dark border-white/10 p-0 max-h-96 backdrop-blur-xl shadow-2xl"
         sideOffset={8}
       >
@@ -329,21 +258,22 @@ export default function NotificationsDropdown({ className }: NotificationsDropdo
           ) : (
             <div className="divide-y divide-white/5">
               {notifications.map((notification) => {
-                const Icon = notificationIcons[notification.category]
-                const colorClass = notificationColors[notification.type]
-                const categoryColor = categoryColors[notification.category]
-                
+                const Icon = notificationIcons[notification.category] || Bell
+                const categoryColor = categoryColors[notification.category] || 'bg-gray-500'
+
                 return (
                   <div
                     key={notification.id}
-                    className={`group p-4 hover:bg-white/10 transition-all duration-300 cursor-pointer relative overflow-hidden ${
-                      !notification.read ? 'bg-blue-500/10 border-l-2 border-blue-400/50' : 'hover:scale-[1.01]'
-                    }`}
+                    className={`group p-4 hover:bg-white/10 transition-all duration-300 cursor-pointer relative overflow-hidden ${!notification.read ? 'bg-blue-500/10 border-l-2 border-blue-400/50' : 'hover:scale-[1.01]'
+                      }`}
                     onClick={() => {
                       if (!notification.read) {
                         markAsRead(notification.id)
                       }
-                      // Handle navigation if needed
+                      // Handle navigation to action URL
+                      if (notification.action_url) {
+                        window.location.href = notification.action_url
+                      }
                     }}
                   >
                     {!notification.read && (
@@ -351,12 +281,12 @@ export default function NotificationsDropdown({ className }: NotificationsDropdo
                     )}
                     <div className="flex items-start space-x-3">
                       <div className={`relative p-2 rounded-full ${categoryColor} flex-shrink-0 backdrop-blur-sm border border-white/20 transition-all duration-300`}>
-                        <div className={`absolute inset-0 rounded-full blur-md ${categoryColor.replace('bg-', 'bg-').replace('-500', '-400/20')}`} />
+                        <div className={`absolute inset-0 rounded-full blur-md ${categoryColor?.replace?.('bg-', 'bg-')?.replace?.('-500', '-400/20') || 'bg-gray-400/20'}`} />
                         <div className="relative">
                           <Icon className="h-4 w-4 text-white" />
                         </div>
                       </div>
-                      
+
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
@@ -379,7 +309,7 @@ export default function NotificationsDropdown({ className }: NotificationsDropdo
                               </div>
                             )}
                           </div>
-                          
+
                           <div className="flex items-center space-x-1 ml-2">
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>

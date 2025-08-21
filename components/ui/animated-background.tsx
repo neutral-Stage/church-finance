@@ -3,6 +3,12 @@
 import React, { useMemo } from 'react';
 import { cn } from '@/lib/utils';
 
+const speedMultiplier = {
+  slow: 1.5,
+  normal: 1,
+  fast: 0.7
+};
+
 export interface AnimatedBackgroundProps extends React.HTMLAttributes<HTMLDivElement> {
   variant?: 'default' | 'subtle' | 'vibrant' | 'minimal';
   orbCount?: number;
@@ -48,12 +54,6 @@ const AnimatedBackground = React.forwardRef<HTMLDivElement, AnimatedBackgroundPr
       md: { min: 150, max: 300 },
       lg: { min: 200, max: 400 },
       xl: { min: 300, max: 500 }
-    };
-
-    const speedMultiplier = {
-      slow: 1.5,
-      normal: 1,
-      fast: 0.7
     };
 
     const orbColors = colors || defaultColors[variant];

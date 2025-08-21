@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -89,7 +89,7 @@ function AnimatedCounter({ value, duration = 2000, formatter = (v) => formatCurr
 }
 
 export default function FundsPage(): JSX.Element {
-  const { user, hasRole } = useAuth()
+  const { hasRole } = useAuth()
   const [funds, setFunds] = useState<Fund[]>([])
   const [recentTransactions, setRecentTransactions] = useState<TransactionWithFund[]>([])
   const [loading, setLoading] = useState(true)
@@ -101,11 +101,7 @@ export default function FundsPage(): JSX.Element {
     description: ''
   })
 
-  useEffect(() => {
-    fetchData()
-  }, [])
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       setLoading(true)
 
@@ -128,13 +124,17 @@ export default function FundsPage(): JSX.Element {
 
       setFunds(fundsData || [])
       setRecentTransactions(transactionsData || [])
-    } catch (error) {
-      console.error('Error fetching data:', error)
-      toast.error('Failed to load funds data')
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to load funds data'
+      toast.error(errorMessage)
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    fetchData()
+  }, [fetchData])
 
   const handleTransfer = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -163,44 +163,103 @@ export default function FundsPage(): JSX.Element {
     }
 
     try {
-      // Create two transactions: one outgoing from source fund, one incoming to destination fund
       const fromFundName = funds.find(f => f.id === transferForm.from_fund_id)?.name
       const toFundName = funds.find(f => f.id === transferForm.to_fund_id)?.name
 
-      const transactions = [
-        {
-          type: 'expense' as const,
-          category: 'Fund Transfer',
-          amount: amount,
-          description: 'Transfer to ' + toFundName + ': ' + transferForm.description,
-          fund_id: transferForm.from_fund_id,
-          transaction_date: new Date().toISOString().split('T')[0],
-          created_by: user?.id
-        },
-        {
-          type: 'income' as const,
-          category: 'Fund Transfer',
-          amount: amount,
-          description: 'Transfer from ' + fromFundName + ': ' + transferForm.description,
-          fund_id: transferForm.to_fund_id,
-          transaction_date: new Date().toISOString().split('T')[0],
-          created_by: user?.id
-        }
-      ]
+      // Get current fund balances for validation
+      const { data: currentFunds, error: fundsError } = await supabase
+        .from('funds')
+        .select('id, current_balance')
+        .in('id', [transferForm.from_fund_id, transferForm.to_fund_id])
 
-      const { error } = await supabase
+      if (fundsError) {
+        throw new Error('Failed to retrieve current fund balances')
+      }
+
+      const currentFromFund = currentFunds?.find(f => f.id === transferForm.from_fund_id)
+      const currentToFund = currentFunds?.find(f => f.id === transferForm.to_fund_id)
+
+      if (!currentFromFund || !currentToFund) {
+        throw new Error('One or both funds not found')
+      }
+
+      // Double-check balance with current data
+      if (currentFromFund.current_balance < amount) {
+        throw new Error('Insufficient balance in source fund')
+      }
+
+      // Update source fund balance (subtract amount)
+      const { error: fromFundError } = await supabase
+        .from('funds')
+        .update({ current_balance: currentFromFund.current_balance - amount })
+        .eq('id', transferForm.from_fund_id)
+
+      if (fromFundError) {
+        throw new Error('Failed to update source fund balance')
+      }
+
+      // Update destination fund balance (add amount)
+      const { error: toFundError } = await supabase
+        .from('funds')
+        .update({ current_balance: currentToFund.current_balance + amount })
+        .eq('id', transferForm.to_fund_id)
+
+      if (toFundError) {
+        // Rollback source fund update
+        await supabase
+          .from('funds')
+          .update({ current_balance: currentFromFund.current_balance })
+          .eq('id', transferForm.from_fund_id)
+        throw new Error('Failed to update destination fund balance')
+      }
+
+      // Create expense transaction for source fund
+      const { error: expenseError } = await supabase
         .from('transactions')
-        .insert(transactions)
+        .insert({
+          fund_id: transferForm.from_fund_id,
+          type: 'expense',
+          amount: amount,
+          description: `Transfer to ${toFundName}: ${transferForm.description}`,
+          category: 'Transfer'
+        })
 
-      if (error) throw error
+      if (expenseError) {
+        // Rollback fund balance updates
+        await Promise.all([
+          supabase.from('funds').update({ current_balance: currentFromFund.current_balance }).eq('id', transferForm.from_fund_id),
+          supabase.from('funds').update({ current_balance: currentToFund.current_balance }).eq('id', transferForm.to_fund_id)
+        ])
+        throw new Error('Failed to create expense transaction')
+      }
+
+      // Create income transaction for destination fund
+      const { error: incomeError } = await supabase
+        .from('transactions')
+        .insert({
+          fund_id: transferForm.to_fund_id,
+          type: 'income',
+          amount: amount,
+          description: `Transfer from ${fromFundName}: ${transferForm.description}`,
+          category: 'Transfer'
+        })
+
+      if (incomeError) {
+        // Rollback fund balance updates and delete expense transaction
+        await Promise.all([
+          supabase.from('funds').update({ current_balance: currentFromFund.current_balance }).eq('id', transferForm.from_fund_id),
+          supabase.from('funds').update({ current_balance: currentToFund.current_balance }).eq('id', transferForm.to_fund_id),
+          supabase.from('transactions').delete().eq('fund_id', transferForm.from_fund_id).eq('type', 'expense').eq('amount', amount).eq('description', `Transfer to ${toFundName}: ${transferForm.description}`)
+        ])
+        throw new Error('Failed to create income transaction')
+      }
 
       toast.success('Successfully transferred ' + formatCurrency(amount) + ' from ' + fromFundName + ' to ' + toFundName)
       setTransferDialogOpen(false)
       resetTransferForm()
       fetchData()
     } catch (error) {
-      console.error('Error processing transfer:', error)
-      toast.error('Failed to process fund transfer')
+      toast.error(error instanceof Error ? error.message : 'Failed to process fund transfer')
     }
   }
 
@@ -258,7 +317,7 @@ export default function FundsPage(): JSX.Element {
               </h1>
               <p className="text-white/70 text-lg font-medium">Monitor and manage church funds</p>
             </div>
-            {hasRole('Admin') && (
+            {hasRole('admin') && (
               <div className="flex-shrink-0">
                 <Dialog open={transferDialogOpen} onOpenChange={setTransferDialogOpen}>
                   <DialogTrigger asChild>

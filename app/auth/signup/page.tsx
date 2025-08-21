@@ -79,7 +79,7 @@ export default function SignupPage(): JSX.Element {
           router.push('/auth/login')
         }, 3000)
       }
-    } catch (error) {
+    } catch {
       setError('An unexpected error occurred')
     } finally {
       setLoading(false)

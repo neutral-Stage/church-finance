@@ -1,36 +1,69 @@
 'use client'
 
+import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
+import { useAuth } from '@/contexts/AuthContext'
 import {
-  DollarSign,
-  TrendingUp,
-  Users,
-  FileText,
-  PiggyBank,
-  CreditCard,
-  BarChart3,
   ArrowRight,
-  CheckCircle,
+  BarChart3,
+  Users,
+  DollarSign,
   Shield,
-  Zap,
+  Clock,
+  TrendingUp,
+  FileText,
+  CheckCircle,
   Star,
-  Clock
+  Zap,
+  PiggyBank,
+  CreditCard
 } from 'lucide-react'
-import { useEffect, useState } from 'react'
 
 export default function HomePage(): JSX.Element {
-  const [isVisible, setIsVisible] = useState(false)
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 })
+  const [isVisible, setIsVisible] = useState(false)
+  const { user, loading } = useAuth()
+  const router = useRouter()
 
   useEffect(() => {
     setIsVisible(true)
+  }, [])
+
+  useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       setMousePosition({ x: e.clientX, y: e.clientY })
     }
+
     window.addEventListener('mousemove', handleMouseMove)
     return () => window.removeEventListener('mousemove', handleMouseMove)
   }, [])
+
+  // Redirect authenticated users to dashboard
+  useEffect(() => {
+    if (!loading && user) {
+      router.push('/dashboard')
+    }
+  }, [user, loading, router])
+
+  // Show loading state while checking authentication
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+        <div className="text-white text-xl">Loading...</div>
+      </div>
+    )
+  }
+
+  // Don't render the landing page if user is authenticated (will redirect)
+  if (user) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+        <div className="text-white text-xl">Redirecting...</div>
+      </div>
+    )
+  }
 
   const features = [
     {

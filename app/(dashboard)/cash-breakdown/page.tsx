@@ -52,7 +52,7 @@ function AnimatedCounter({ value, duration = 2000 }: { value: number; duration?:
     }
 
     return () => observer.disconnect()
-  }, [])
+  }, [isVisible])
 
   useEffect(() => {
     if (!isVisible) return
@@ -128,8 +128,7 @@ export default function CashBreakdownPage() {
 
         setFundData(newFundData)
       }
-    } catch (error) {
-      console.error('Error fetching cash breakdown data:', error)
+    } catch {
       toast.error('Failed to load cash breakdown data')
     } finally {
       setLoading(false)
@@ -165,8 +164,7 @@ export default function CashBreakdownPage() {
       if (error) throw error
 
       toast.success('Cash breakdown data saved successfully!')
-    } catch (error) {
-      console.error('Error saving cash breakdown data:', error)
+    } catch {
       toast.error('Failed to save cash breakdown data')
     } finally {
       setSaving(false)

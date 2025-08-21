@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@/lib/supabase'
+import { createServerClient, createAdminClient } from '@/lib/supabase'
 import type { Database } from '@/types/database'
 
 type TransactionInsert = Database['public']['Tables']['transactions']['Insert']
@@ -8,7 +8,7 @@ type TransactionUpdate = Database['public']['Tables']['transactions']['Update']
 // GET /api/transactions - Get all transactions with optional filters
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createServerClient()
+    const supabase = await createServerClient()
     const { searchParams } = new URL(request.url)
     
     const fundId = searchParams.get('fund_id')
@@ -49,7 +49,6 @@ export async function GET(request: NextRequest) {
     const { data: transactions, error } = await query
     
     if (error) {
-      console.error('Error fetching transactions:', error)
       return NextResponse.json(
         { error: 'Failed to fetch transactions' },
         { status: 500 }
@@ -57,8 +56,7 @@ export async function GET(request: NextRequest) {
     }
     
     return NextResponse.json({ transactions })
-  } catch (error) {
-    console.error('Unexpected error:', error)
+  } catch {
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -69,7 +67,18 @@ export async function GET(request: NextRequest) {
 // POST /api/transactions - Create a new transaction
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createServerClient()
+    const supabase = await createServerClient()
+    const adminSupabase = createAdminClient()
+    
+    // Check authentication
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      )
+    }
+    
     const body = await request.json()
     
     const { 
@@ -117,7 +126,7 @@ export async function POST(request: NextRequest) {
     }
     
     // Create transaction
-    const { data: transaction, error: transactionError } = await supabase
+    const { data: transaction, error: transactionError } = await adminSupabase
       .from('transactions')
       .insert({
         type,
@@ -130,7 +139,6 @@ export async function POST(request: NextRequest) {
       .single()
     
     if (transactionError) {
-      console.error('Error creating transaction:', transactionError)
       return NextResponse.json(
         { error: 'Failed to create transaction' },
         { status: 500 }
@@ -141,15 +149,14 @@ export async function POST(request: NextRequest) {
     const balanceChange = type === 'income' ? amount : -amount
     const newBalance = fund.current_balance + balanceChange
 
-    const { error: updateError } = await supabase
+    const { error: updateError } = await adminSupabase
       .from('funds')
       .update({ current_balance: newBalance })
       .eq('id', fund_id)
     
     if (updateError) {
-      console.error('Error updating fund balance:', updateError)
       // Rollback transaction creation
-      await supabase
+      await adminSupabase
         .from('transactions')
         .delete()
         .eq('id', transaction.id)
@@ -161,8 +168,7 @@ export async function POST(request: NextRequest) {
     }
     
     return NextResponse.json({ transaction }, { status: 201 })
-  } catch (error) {
-    console.error('Unexpected error:', error)
+  } catch {
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -171,9 +177,20 @@ export async function POST(request: NextRequest) {
 }
 
 // PUT /api/transactions - Update a transaction
-export async function PUT(request: NextRequest) {
+export async function PATCH(request: NextRequest) {
   try {
-    const supabase = createServerClient()
+    const supabase = await createServerClient()
+    const adminSupabase = createAdminClient()
+    
+    // Check authentication
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      )
+    }
+    
     const body = await request.json()
     
     const { id, ...updates }: TransactionUpdate & { id: string } = body
@@ -200,7 +217,7 @@ export async function PUT(request: NextRequest) {
     }
     
     // Update transaction
-    const { data: transaction, error: updateError } = await supabase
+    const { data: transaction, error: updateError } = await adminSupabase
       .from('transactions')
       .update(updates)
       .eq('id', id)
@@ -208,7 +225,6 @@ export async function PUT(request: NextRequest) {
       .single()
     
     if (updateError) {
-      console.error('Error updating transaction:', updateError)
       return NextResponse.json(
         { error: 'Failed to update transaction' },
         { status: 500 }
@@ -242,13 +258,12 @@ export async function PUT(request: NextRequest) {
       
       const finalBalance = fund.current_balance + oldBalanceChange + newBalanceChange
 
-      const { error: balanceUpdateError } = await supabase
+      const { error: balanceUpdateError } = await adminSupabase
         .from('funds')
         .update({ current_balance: finalBalance })
         .eq('id', currentTransaction.fund_id)
       
       if (balanceUpdateError) {
-        console.error('Error updating fund balance:', balanceUpdateError)
         return NextResponse.json(
           { error: 'Failed to update fund balance' },
           { status: 500 }
@@ -257,8 +272,7 @@ export async function PUT(request: NextRequest) {
     }
     
     return NextResponse.json({ transaction })
-  } catch (error) {
-    console.error('Unexpected error:', error)
+  } catch {
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -269,7 +283,18 @@ export async function PUT(request: NextRequest) {
 // DELETE /api/transactions - Delete a transaction
 export async function DELETE(request: NextRequest) {
   try {
-    const supabase = createServerClient()
+    const supabase = await createServerClient()
+    const adminSupabase = createAdminClient()
+    
+    // Check authentication
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      )
+    }
+    
     const { searchParams } = new URL(request.url)
     const id = searchParams.get('id')
     
@@ -295,13 +320,12 @@ export async function DELETE(request: NextRequest) {
     }
     
     // Delete transaction
-    const { error: deleteError } = await supabase
+    const { error: deleteError } = await adminSupabase
       .from('transactions')
       .delete()
       .eq('id', id)
     
     if (deleteError) {
-      console.error('Error deleting transaction:', deleteError)
       return NextResponse.json(
         { error: 'Failed to delete transaction' },
         { status: 500 }
@@ -316,7 +340,6 @@ export async function DELETE(request: NextRequest) {
       .single()
     
     if (fundError || !fund) {
-      console.error('Error fetching fund for balance update:', fundError)
       return NextResponse.json(
         { error: 'Failed to update fund balance' },
         { status: 500 }
@@ -327,13 +350,12 @@ export async function DELETE(request: NextRequest) {
       ? -transaction.amount 
       : transaction.amount
     
-    const { error: balanceUpdateError } = await supabase
+    const { error: balanceUpdateError } = await adminSupabase
       .from('funds')
       .update({ current_balance: fund.current_balance + balanceChange })
       .eq('id', transaction.fund_id)
     
     if (balanceUpdateError) {
-      console.error('Error updating fund balance:', balanceUpdateError)
       return NextResponse.json(
         { error: 'Failed to update fund balance' },
         { status: 500 }
@@ -341,8 +363,7 @@ export async function DELETE(request: NextRequest) {
     }
     
     return NextResponse.json({ message: 'Transaction deleted successfully' })
-  } catch (error) {
-    console.error('Unexpected error:', error)
+  } catch {
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

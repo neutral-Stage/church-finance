@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -69,11 +69,7 @@ export default function BillsPage(): JSX.Element {
     receipt_available: false
   })
 
-  useEffect(() => {
-    fetchData()
-  }, [])
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       setLoading(true)
 
@@ -104,15 +100,19 @@ export default function BillsPage(): JSX.Element {
       setBills(billsData || [])
       setPettyCash(pettyCashData || [])
       setFunds(fundsData || [])
-    } catch (error) {
-      console.error('Error fetching data:', error)
-      toast.error('Failed to load bills and petty cash data')
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to load bills and petty cash data'
+      toast.error(errorMessage)
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
 
-  const handleBillSubmit = async (e: React.FormEvent) => {
+  useEffect(() => {
+    fetchData()
+  }, [fetchData])
+
+  const handleSaveBill = async (e: React.FormEvent) => {
     e.preventDefault()
 
     if (!billForm.vendor_name || !billForm.amount || !billForm.due_date || !billForm.fund_id) {
@@ -157,9 +157,9 @@ export default function BillsPage(): JSX.Element {
       setBillDialogOpen(false)
       resetBillForm()
       fetchData()
-    } catch (error) {
-      console.error('Error saving bill:', error)
-      toast.error('Failed to save bill')
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to save bill'
+      toast.error(errorMessage)
     }
   }
 
@@ -206,9 +206,9 @@ export default function BillsPage(): JSX.Element {
       setPettyCashDialogOpen(false)
       resetPettyCashForm()
       fetchData()
-    } catch (error) {
-      console.error('Error saving petty cash:', error)
-      toast.error('Failed to save petty cash request')
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to save petty cash request'
+      toast.error(errorMessage)
     }
   }
 
@@ -223,9 +223,9 @@ export default function BillsPage(): JSX.Element {
 
       toast.success(`Bill marked as ${status}`)
       fetchData()
-    } catch (error) {
-      console.error('Error updating bill status:', error)
-      toast.error('Failed to update bill status')
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to update bill status'
+      toast.error(errorMessage)
     }
   }
 
@@ -244,9 +244,9 @@ export default function BillsPage(): JSX.Element {
 
       toast.success('Bill deleted successfully')
       fetchData()
-    } catch (error) {
-      console.error('Error deleting bill:', error)
-      toast.error('Failed to delete bill')
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to delete bill'
+      toast.error(errorMessage)
     }
   }
 
@@ -263,9 +263,9 @@ export default function BillsPage(): JSX.Element {
 
       toast.success('Petty cash request deleted successfully')
       fetchData()
-    } catch (error) {
-      console.error('Error deleting petty cash:', error)
-      toast.error('Failed to delete petty cash request')
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to delete petty cash request'
+      toast.error(errorMessage)
     }
   }
 
@@ -361,7 +361,7 @@ export default function BillsPage(): JSX.Element {
       }
 
       return () => observer.disconnect()
-    }, [])
+    }, [isVisible])
 
     useEffect(() => {
       if (!isVisible) return
@@ -416,7 +416,7 @@ export default function BillsPage(): JSX.Element {
             </div>
             <div className="flex-shrink-0">
               <div className="flex gap-4">
-                {hasRole('Admin') && (
+                {hasRole('admin') && (
                   <>
                     <Dialog open={billDialogOpen} onOpenChange={setBillDialogOpen}>
                       <DialogTrigger asChild>
@@ -432,7 +432,7 @@ export default function BillsPage(): JSX.Element {
                         {editingBill ? 'Update bill information' : 'Create a new bill or recurring payment'}
                       </DialogDescription>
                     </DialogHeader>
-                    <form onSubmit={handleBillSubmit} className="space-y-4">
+                    <form onSubmit={handleSaveBill} className="space-y-4">
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                           <Label htmlFor="vendor_name" className="text-white">Vendor *</Label>
@@ -778,7 +778,7 @@ export default function BillsPage(): JSX.Element {
                               )}
                             </td>
                             <td className="p-4">
-                              {hasRole('Admin') && (
+                              {hasRole('admin') && (
                                 <DropdownMenu>
                                   <DropdownMenuTrigger asChild>
                                     <GlassButton variant="ghost" size="sm" className="h-8 w-8 p-0">
@@ -867,7 +867,7 @@ export default function BillsPage(): JSX.Element {
                             </Badge>
                           </td>
                           <td className="p-6">
-                            {hasRole('Admin') && (
+                            {hasRole('admin') && (
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
                                   <GlassButton variant="ghost" size="sm" className="h-8 w-8 p-0">

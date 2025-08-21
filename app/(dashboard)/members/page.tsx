@@ -6,12 +6,12 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { Plus, Edit, Trash2, Phone, MapPin, Briefcase, Users, Loader2 } from 'lucide-react';
+import { Plus, Edit, Trash2, Phone, MapPin, Briefcase, Users } from 'lucide-react';
 import { FullScreenLoader } from '@/components/ui/loader';
 import { AnimatedCounter } from '@/components/ui/animated-counter';
 
@@ -35,7 +35,7 @@ interface MemberFormData {
 }
 
 export default function MembersPage() {
-  const { user, session } = useAuth();
+  const {} = useAuth();
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -54,12 +54,9 @@ export default function MembersPage() {
       setLoading(true)
       
       // Check authentication state before making request
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
-      console.log('Current session:', session)
-      console.log('Session error:', sessionError)
+      const { data: { session } } = await supabase.auth.getSession()
       
       if (!session) {
-        console.warn('No active session found')
         toast.error('Please log in to access members data')
         return
       }
@@ -71,8 +68,7 @@ export default function MembersPage() {
       
       if (error) throw error
       setMembers(data || [])
-    } catch (error) {
-      console.error('Error fetching members:', error)
+    } catch {
       toast.error('Failed to load members')
     } finally {
       setLoading(false)
@@ -86,86 +82,44 @@ export default function MembersPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Debug logging - Authentication status
-    console.log('=== MEMBER SAVE DEBUG START ===');
-    console.log('User authenticated:', !!user);
-    console.log('User details:', user);
-    console.log('Session exists:', !!session);
-    console.log('Session details:', session);
-    
     // Check current session before proceeding
-    const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession()
-    console.log('Current session check:', currentSession)
-    console.log('Session check error:', sessionError)
-    
+    const { data: { session: currentSession } } = await supabase.auth.getSession()
+
     if (!currentSession) {
-      console.error('No active session found during save operation')
       toast.error('Please log in to save member data')
       return
-    }
-    
-    // Debug logging - Form data
-    console.log('Form data being submitted:', formData);
-    console.log('Is editing mode:', !!editingMember);
-    if (editingMember) {
-      console.log('Editing member:', editingMember);
     }
     
     try {
       if (editingMember) {
         // Update existing member
-        console.log('Attempting to update member with ID:', editingMember.id);
         const updateData = {
           ...formData,
           updated_at: new Date().toISOString()
         };
-        console.log('Update data:', updateData);
         
-        const { data, error } = await supabase
+        const { error } = await supabase
           .from('members')
           .update(updateData)
           .eq('id', editingMember.id)
           .select();
-
-        console.log('Update response data:', data);
-        console.log('Update response error:', error);
         
         if (error) {
-          console.error('Supabase update error details:', {
-            message: error.message,
-            details: error.details,
-            hint: error.hint,
-            code: error.code
-          });
           throw error;
         }
         
-        console.log('Member updated successfully');
         toast.success('Member updated successfully');
       } else {
         // Create new member
-        console.log('Attempting to create new member');
-        console.log('Insert data:', formData);
-        
-        const { data, error } = await supabase
+        const { error } = await supabase
           .from('members')
           .insert([formData])
           .select();
-
-        console.log('Insert response data:', data);
-        console.log('Insert response error:', error);
         
         if (error) {
-          console.error('Supabase insert error details:', {
-            message: error.message,
-            details: error.details,
-            hint: error.hint,
-            code: error.code
-          });
           throw error;
         }
         
-        console.log('Member added successfully');
         toast.success('Member added successfully');
       }
 
@@ -179,14 +133,7 @@ export default function MembersPage() {
         location: ''
       });
       fetchMembers();
-      console.log('=== MEMBER SAVE DEBUG END (SUCCESS) ===');
-    } catch (error) {
-      console.error('=== MEMBER SAVE ERROR ===');
-      console.error('Error type:', typeof error);
-      console.error('Error object:', error);
-      console.error('Error message:', error instanceof Error ? error.message : 'Unknown error');
-      console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
-      console.error('=== MEMBER SAVE DEBUG END (ERROR) ===');
+    } catch {
       toast.error('Failed to save member');
     }
   };
@@ -206,58 +153,28 @@ export default function MembersPage() {
   const handleDelete = async (id: string) => {
     if (!confirm('Are you sure you want to delete this member?')) return;
 
-    // Debug logging - Authentication status
-    console.log('=== MEMBER DELETE DEBUG START ===');
-    console.log('User authenticated:', !!user);
-    console.log('User details:', user);
-    console.log('Session exists:', !!session);
-    console.log('Session details:', session);
-    console.log('Member ID to delete:', id);
-    
     // Check current session before proceeding
-    const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession()
-    console.log('Current session check:', currentSession)
-    console.log('Session check error:', sessionError)
-    
+    const { data: { session: currentSession } } = await supabase.auth.getSession()
+
     if (!currentSession) {
-      console.error('No active session found during delete operation')
       toast.error('Please log in to delete member data')
       return
     }
 
     try {
-      console.log('Attempting to delete member with ID:', id);
-      
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('members')
         .delete()
         .eq('id', id)
         .select();
-
-      console.log('Delete response data:', data);
-      console.log('Delete response error:', error);
       
       if (error) {
-        console.error('Supabase delete error details:', {
-          message: error.message,
-          details: error.details,
-          hint: error.hint,
-          code: error.code
-        });
         throw error;
       }
       
-      console.log('Member deleted successfully');
       toast.success('Member deleted successfully');
       fetchMembers();
-      console.log('=== MEMBER DELETE DEBUG END (SUCCESS) ===');
-    } catch (error) {
-      console.error('=== MEMBER DELETE ERROR ===');
-      console.error('Error type:', typeof error);
-      console.error('Error object:', error);
-      console.error('Error message:', error instanceof Error ? error.message : 'Unknown error');
-      console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
-      console.error('=== MEMBER DELETE DEBUG END (ERROR) ===');
+    } catch {
       toast.error('Failed to delete member');
     }
   };

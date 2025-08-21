@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerClient } from '@/lib/supabase';
+import { createServerClient, createAdminClient } from '@/lib/supabase';
 
 // GET - Fetch all advances
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
     const { searchParams } = new URL(request.url);
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
@@ -33,7 +33,6 @@ export async function GET(request: NextRequest) {
     const { data: advances, error } = await query;
 
     if (error) {
-      console.error('Error fetching advances:', error);
       return NextResponse.json(
         { error: 'Failed to fetch advances' },
         { status: 500 }
@@ -41,8 +40,7 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json({ advances });
-  } catch (error) {
-    console.error('Unexpected error:', error);
+  } catch {
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -53,7 +51,18 @@ export async function GET(request: NextRequest) {
 // POST - Create new advance or process repayment
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
+    const adminSupabase = createAdminClient();
+    
+    // Check authentication
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      )
+    }
+    
     const body = await request.json();
     const { 
       recipient_name, 
@@ -78,13 +87,13 @@ export async function POST(request: NextRequest) {
       }
 
       // Get the advance to update
-      const { data: advance, error: fetchError } = await supabase
+      const { data: advance, error: _fetchError } = await supabase
         .from('advances')
         .select('*')
         .eq('id', advance_id)
         .single();
 
-      if (fetchError || !advance) {
+      if (_fetchError || !advance) {
         return NextResponse.json(
           { error: 'Advance not found' },
           { status: 404 }
@@ -95,7 +104,7 @@ export async function POST(request: NextRequest) {
       const newStatus = newRepaidAmount >= advance.amount ? 'repaid' : 'partial';
 
       // Update the advance
-      const { data: updatedAdvance, error: updateError } = await supabase
+      const { data: updatedAdvance, error: _updateError } = await adminSupabase
         .from('advances')
         .update({
           repaid_amount: newRepaidAmount,
@@ -106,8 +115,7 @@ export async function POST(request: NextRequest) {
         .select()
         .single();
 
-      if (updateError) {
-        console.error('Error updating advance:', updateError);
+      if (_updateError) {
         return NextResponse.json(
           { error: 'Failed to update advance' },
           { status: 500 }
@@ -116,13 +124,13 @@ export async function POST(request: NextRequest) {
 
       // Update fund balance (add money back)
       if (advance.fund_id) {
-        await supabase.rpc('update_fund_balance', {
+        await adminSupabase.rpc('update_fund_balance', {
           fund_id: advance.fund_id,
           amount_change: parseFloat(repayment_amount)
         });
 
         // Create a transaction record for repayment
-        await supabase
+        await adminSupabase
           .from('transactions')
           .insert({
             type: 'income',
@@ -147,7 +155,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create the advance
-    const { data: advance, error: advanceError } = await supabase
+    const { data: advance, error: _advanceError } = await adminSupabase
       .from('advances')
       .insert({
         recipient_name,
@@ -164,8 +172,7 @@ export async function POST(request: NextRequest) {
       .select()
       .single();
 
-    if (advanceError) {
-      console.error('Error creating advance:', advanceError);
+    if (_advanceError) {
       return NextResponse.json(
         { error: 'Failed to create advance' },
         { status: 500 }
@@ -174,13 +181,12 @@ export async function POST(request: NextRequest) {
 
     // For outstanding advances, update fund balance and create transaction
     if (status === 'outstanding' && fund_id) {
-      const { error: fundError } = await supabase.rpc('update_fund_balance', {
+      const { error: _fundError } = await adminSupabase.rpc('update_fund_balance', {
         fund_id: fund_id,
         amount_change: -parseFloat(amount)
       });
 
-      if (fundError) {
-        console.error('Error updating fund balance:', fundError);
+      if (_fundError) {
         // Rollback the advance creation
         await supabase.from('advances').delete().eq('id', advance.id);
         return NextResponse.json(
@@ -190,7 +196,7 @@ export async function POST(request: NextRequest) {
       }
 
       // Create a transaction record
-      const { error: transactionError } = await supabase
+      const { error: _transactionError } = await adminSupabase
         .from('transactions')
         .insert({
           type: 'expense',
@@ -204,15 +210,13 @@ export async function POST(request: NextRequest) {
           approved_by: 'system'
         });
 
-      if (transactionError) {
-        console.error('Error creating transaction:', transactionError);
+      if (_transactionError) {
         // Note: We don't rollback here as the advance and fund update are valid
       }
     }
 
     return NextResponse.json({ advance }, { status: 201 });
-  } catch (error) {
-    console.error('Unexpected error:', error);
+  } catch {
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -223,7 +227,18 @@ export async function POST(request: NextRequest) {
 // PUT - Update advance
 export async function PUT(request: NextRequest) {
   try {
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
+    const adminSupabase = createAdminClient();
+    
+    // Check authentication
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      )
+    }
+    
     const body = await request.json();
     const { 
       id, 
@@ -244,13 +259,13 @@ export async function PUT(request: NextRequest) {
     }
 
     // Get the current advance to handle status and fund changes
-    const { data: currentAdvance, error: fetchError } = await supabase
+    const { data: currentAdvance, error: _fetchError } = await supabase
       .from('advances')
       .select('*')
       .eq('id', id)
       .single();
 
-    if (fetchError || !currentAdvance) {
+    if (_fetchError || !currentAdvance) {
       return NextResponse.json(
         { error: 'Advance not found' },
         { status: 404 }
@@ -258,7 +273,7 @@ export async function PUT(request: NextRequest) {
     }
 
     // Update the advance
-    const { data: advance, error: updateError } = await supabase
+    const { data: advance, error: _updateError } = await adminSupabase
       .from('advances')
       .update({
         recipient_name: recipient_name || currentAdvance.recipient_name,
@@ -273,8 +288,7 @@ export async function PUT(request: NextRequest) {
       .select()
       .single();
 
-    if (updateError) {
-      console.error('Error updating advance:', updateError);
+    if (_updateError) {
       return NextResponse.json(
         { error: 'Failed to update advance' },
         { status: 500 }
@@ -292,7 +306,7 @@ export async function PUT(request: NextRequest) {
     if (newStatus === 'outstanding' && (amount !== undefined || fund_id !== undefined)) {
       // Revert old fund balance
       if (oldFundId) {
-        await supabase.rpc('update_fund_balance', {
+        await adminSupabase.rpc('update_fund_balance', {
           fund_id: oldFundId,
           amount_change: oldAmount
         });
@@ -300,14 +314,14 @@ export async function PUT(request: NextRequest) {
 
       // Apply new fund balance
       if (newFundId) {
-        await supabase.rpc('update_fund_balance', {
+        await adminSupabase.rpc('update_fund_balance', {
           fund_id: newFundId,
           amount_change: -newAmount
         });
       }
 
       // Update the transaction
-      await supabase
+      await adminSupabase
         .from('transactions')
         .update({
           amount: newAmount,
@@ -319,8 +333,7 @@ export async function PUT(request: NextRequest) {
     }
 
     return NextResponse.json({ advance });
-  } catch (error) {
-    console.error('Unexpected error:', error);
+  } catch {
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -331,7 +344,18 @@ export async function PUT(request: NextRequest) {
 // DELETE - Delete advance
 export async function DELETE(request: NextRequest) {
   try {
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
+    const adminSupabase = createAdminClient();
+    
+    // Check authentication
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      )
+    }
+    
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
 
@@ -343,13 +367,13 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Get the advance to revert fund balance if it was approved
-    const { data: advance, error: fetchError } = await supabase
+    const { data: advance, error: _fetchError } = await supabase
       .from('advances')
       .select('*')
       .eq('id', id)
       .single();
 
-    if (fetchError || !advance) {
+    if (_fetchError || !advance) {
       return NextResponse.json(
         { error: 'Advance not found' },
         { status: 404 }
@@ -357,13 +381,12 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Delete the advance
-    const { error: deleteError } = await supabase
+    const { error: _deleteError } = await adminSupabase
       .from('advances')
       .delete()
       .eq('id', id);
 
-    if (deleteError) {
-      console.error('Error deleting advance:', deleteError);
+    if (_deleteError) {
       return NextResponse.json(
         { error: 'Failed to delete advance' },
         { status: 500 }
@@ -375,20 +398,20 @@ export async function DELETE(request: NextRequest) {
       // Add back the advance amount minus any repayments
       const netAmount = advance.amount - (advance.amount_returned || 0);
       if (netAmount > 0) {
-        await supabase.rpc('update_fund_balance', {
+        await adminSupabase.rpc('update_fund_balance', {
           fund_id: advance.fund_id,
           amount_change: netAmount
         });
       }
 
       // Delete related transactions
-      await supabase
+      await adminSupabase
         .from('transactions')
         .delete()
         .eq('reference_type', 'advance')
         .eq('reference_id', id);
 
-      await supabase
+      await adminSupabase
         .from('transactions')
         .delete()
         .eq('reference_type', 'advance_repayment')
@@ -396,8 +419,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     return NextResponse.json({ message: 'Advance deleted successfully' });
-  } catch (error) {
-    console.error('Unexpected error:', error);
+  } catch {
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
