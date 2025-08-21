@@ -2,13 +2,14 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Badge } from '@/components/ui/badge'
-import { Calendar, User, DollarSign, TrendingUp, Download, Users, Gift } from 'lucide-react'
+
+import { Calendar, User, DollarSign, TrendingUp, Download, Users, Gift, ChevronUp, ChevronDown, Info } from 'lucide-react'
 import { toast } from 'sonner'
+import { FullScreenLoader } from '@/components/ui/loader'
 
 interface Member {
   id: string
@@ -34,6 +35,11 @@ interface MemberContribution {
   total_amount: number
   contribution_count: number
   last_contribution_date: string
+  missing_months: number
+  missing_months_list: string[]
+  average_monthly_amount: number
+  average_annual_amount: number
+  months_with_contributions: number
 }
 
 const formatCurrency = (amount: number) => {
@@ -46,6 +52,33 @@ const formatDate = (dateString: string) => {
     month: '2-digit',
     year: 'numeric'
   })
+}
+
+// Tooltip Component
+interface TooltipProps {
+  children: React.ReactNode
+  content: string
+  className?: string
+}
+
+function Tooltip({ children, content, className = '' }: TooltipProps) {
+  const [isVisible, setIsVisible] = useState(false)
+  
+  return (
+    <div 
+      className={`relative inline-block ${className}`}
+      onMouseEnter={() => setIsVisible(true)}
+      onMouseLeave={() => setIsVisible(false)}
+    >
+      {children}
+      {isVisible && (
+        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg whitespace-nowrap z-50 border border-gray-700">
+          <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
+          {content}
+        </div>
+      )}
+    </div>
+  )
 }
 
 // Animated Counter Component
@@ -111,11 +144,55 @@ export default function MemberContributionsPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedFellowship, setSelectedFellowship] = useState('all')
   const [sortBy, setSortBy] = useState('total_amount')
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc')
   const [fellowships, setFellowships] = useState<string[]>([])
+
+  // Helper function to calculate missing months and averages
+  const calculateMemberAnalytics = (contributions: ContributionRecord[]) => {
+    const now = new Date()
+    const twelveMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 11, 1)
+    
+    // Get all months in the past 12 months
+    const allMonths: string[] = []
+    for (let i = 0; i < 12; i++) {
+      const date = new Date(now.getFullYear(), now.getMonth() - i, 1)
+      allMonths.push(`${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`)
+    }
+    
+    // Get months with contributions
+    const contributionMonths = new Set(
+      contributions
+        .filter(c => new Date(c.service_date) >= twelveMonthsAgo)
+        .map(c => {
+          const date = new Date(c.service_date)
+          return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+        })
+    )
+    
+    const missingMonths = allMonths.filter(month => !contributionMonths.has(month))
+    const monthsWithContributions = contributionMonths.size
+    
+    // Calculate total amount in the past 12 months
+    const recentContributions = contributions.filter(c => new Date(c.service_date) >= twelveMonthsAgo)
+    const totalRecentAmount = recentContributions.reduce((sum, c) => sum + c.amount, 0)
+    
+    // Calculate averages
+    const averageMonthly = monthsWithContributions > 0 ? totalRecentAmount / monthsWithContributions : 0
+    const averageAnnual = totalRecentAmount // This is already the annual amount for the past 12 months
+    
+    return {
+      missing_months: missingMonths.length,
+      missing_months_list: missingMonths.sort().reverse(), // Most recent missing months first
+      average_monthly_amount: averageMonthly,
+      average_annual_amount: averageAnnual,
+      months_with_contributions: monthsWithContributions
+    }
+  }
 
   const fetchMemberContributions = useCallback(async () => {
     try {
       setLoading(true)
+
 
       // Fetch all offerings with their member and fund information
       const { data: offeringsData, error: offeringsError } = await supabase
@@ -128,6 +205,8 @@ export default function MemberContributionsPage() {
           notes,
           fund_allocations,
           offering_member!inner(
+            id,
+            member_id,
             member:members(
               id,
               name,
@@ -140,14 +219,14 @@ export default function MemberContributionsPage() {
         `)
         .order('service_date', { ascending: false })
 
+
+
       if (offeringsError) throw offeringsError
 
-      // Process offerings data to convert offering_member array to single object
+      // Since offering_member is a single object (not array) due to unique constraint
       const processedOfferings = offeringsData?.map(offering => ({
         ...offering,
-        offering_member: offering.offering_member && offering.offering_member.length > 0
-          ? offering.offering_member[0]
-          : null
+        offering_member: offering.offering_member || null
       })) || []
 
       // Fetch funds for fund name lookup
@@ -162,13 +241,20 @@ export default function MemberContributionsPage() {
       // Group contributions by member
       const memberMap = new Map<string, MemberContribution>()
 
-      processedOfferings.forEach((offering) => {
-        // Since we use inner join, each offering should have exactly one member
-        const memberRecord = offering.offering_member?.member
-        if (!memberRecord) return
 
-        const member = Array.isArray(memberRecord) ? memberRecord[0] : memberRecord
-        if (!member) return
+      processedOfferings.forEach((offering) => {
+        // Since offering_member is now a single object (not array)
+        const offeringMember = offering.offering_member
+        if (!offeringMember) {
+          return
+        }
+
+        const member = (offeringMember as unknown as { member: Member }).member
+        if (!member) {
+          return
+        }
+
+
 
         if (!memberMap.has(member.id)) {
           memberMap.set(member.id, {
@@ -176,7 +262,12 @@ export default function MemberContributionsPage() {
             contributions: [],
             total_amount: 0,
             contribution_count: 0,
-            last_contribution_date: ''
+            last_contribution_date: '',
+            missing_months: 0,
+            missing_months_list: [],
+            average_monthly_amount: 0,
+            average_annual_amount: 0,
+            months_with_contributions: 0
           })
         }
 
@@ -210,14 +301,23 @@ export default function MemberContributionsPage() {
         }
       })
 
-      // Sort contributions within each member by date (newest first)
+      // Sort contributions within each member by date (newest first) and calculate analytics
       memberMap.forEach((memberContrib) => {
         memberContrib.contributions.sort((a, b) =>
           new Date(b.service_date).getTime() - new Date(a.service_date).getTime()
         )
+        
+        // Calculate missing months and averages
+        const analytics = calculateMemberAnalytics(memberContrib.contributions)
+        memberContrib.missing_months = analytics.missing_months
+        memberContrib.missing_months_list = analytics.missing_months_list
+        memberContrib.average_monthly_amount = analytics.average_monthly_amount
+        memberContrib.average_annual_amount = analytics.average_annual_amount
+        memberContrib.months_with_contributions = analytics.months_with_contributions
       })
 
       const contributions = Array.from(memberMap.values())
+
       setMemberContributions(contributions)
 
       // Extract unique fellowships for filtering
@@ -226,6 +326,7 @@ export default function MemberContributionsPage() {
           .map(mc => mc.member.fellowship_name)
           .filter(Boolean)
       )] as string[]
+
       setFellowships(uniqueFellowships.sort())
 
     } catch {
@@ -248,22 +349,40 @@ export default function MemberContributionsPage() {
 
     // Sort the filtered results
     filtered.sort((a, b) => {
+      let result = 0
       switch (sortBy) {
         case 'total_amount':
-          return b.total_amount - a.total_amount
+          result = b.total_amount - a.total_amount
+          break
         case 'contribution_count':
-          return b.contribution_count - a.contribution_count
+          result = b.contribution_count - a.contribution_count
+          break
         case 'last_contribution':
-          return new Date(b.last_contribution_date).getTime() - new Date(a.last_contribution_date).getTime()
+          result = new Date(b.last_contribution_date).getTime() - new Date(a.last_contribution_date).getTime()
+          break
+        case 'missing_months':
+          result = b.missing_months - a.missing_months
+          break
+        case 'average_monthly_amount':
+          result = b.average_monthly_amount - a.average_monthly_amount
+          break
+        case 'average_annual_amount':
+          result = b.average_annual_amount - a.average_annual_amount
+          break
         case 'name':
-          return a.member.name.localeCompare(b.member.name)
+          result = a.member.name.localeCompare(b.member.name)
+          break
+        case 'fellowship':
+          result = (a.member.fellowship_name || '').localeCompare(b.member.fellowship_name || '')
+          break
         default:
           return 0
       }
+      return sortDirection === 'desc' ? result : -result
     })
 
     setFilteredContributions(filtered)
-  }, [memberContributions, searchTerm, selectedFellowship, sortBy])
+  }, [memberContributions, searchTerm, selectedFellowship, sortBy, sortDirection])
 
   useEffect(() => {
     fetchMemberContributions()
@@ -273,19 +392,35 @@ export default function MemberContributionsPage() {
     filterAndSortContributions()
   }, [filterAndSortContributions])
 
+  const handleColumnSort = (column: string) => {
+    if (sortBy === column) {
+      setSortDirection(sortDirection === 'desc' ? 'asc' : 'desc')
+    } else {
+      setSortBy(column)
+      setSortDirection('desc')
+    }
+  }
+
+  const getSortIcon = (column: string) => {
+    if (sortBy !== column) {
+      return <ChevronUp className="h-4 w-4 text-white/30" />
+    }
+    return sortDirection === 'desc' ? 
+      <ChevronDown className="h-4 w-4 text-white/80" /> : 
+      <ChevronUp className="h-4 w-4 text-white/80" />
+  }
+
   const exportToCSV = () => {
-    const csvData = filteredContributions.flatMap(mc =>
-      mc.contributions.map(contrib => ({
-        'Member Name': mc.member.name,
-        'Fellowship': mc.member.fellowship_name || '',
-        'Phone': mc.member.phone || '',
-        'Service Date': formatDate(contrib.service_date),
-        'Type': contrib.type,
-        'Amount': contrib.amount,
-        'Fund': contrib.fund_name,
-        'Notes': contrib.notes || ''
-      }))
-    )
+    const csvData = filteredContributions.map(mc => ({
+      'Member Name': mc.member.name,
+      'Fellowship': mc.member.fellowship_name || '',
+      'Total Amount': formatCurrency(mc.total_amount),
+      'Contributions Count': mc.contribution_count,
+      'Missing Months': mc.missing_months,
+      'Average Monthly': formatCurrency(mc.average_monthly_amount),
+      'Average Annual': formatCurrency(mc.average_annual_amount),
+      'Last Contribution Date': formatDate(mc.last_contribution_date)
+    }))
 
     const csvContent = [
       Object.keys(csvData[0] || {}).join(','),
@@ -296,11 +431,11 @@ export default function MemberContributionsPage() {
     const url = window.URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `member-contributions-${new Date().toISOString().split('T')[0]}.csv`
+    a.download = `member-contributions-summary-${new Date().toISOString().split('T')[0]}.csv`
     a.click()
     window.URL.revokeObjectURL(url)
 
-    toast.success('Contributions exported successfully')
+    toast.success('Member contributions summary exported successfully')
   }
 
   const totalContributions = filteredContributions.reduce((sum, mc) => sum + mc.total_amount, 0)
@@ -308,19 +443,7 @@ export default function MemberContributionsPage() {
   const averageContribution = totalMembers > 0 ? totalContributions / totalMembers : 0
 
   if (loading) {
-    return (
-      <div className="container mx-auto p-6">
-        <div className="flex items-center justify-center h-64">
-          <div className="text-center">
-            <div className="relative">
-              <div className="animate-spin rounded-full h-12 w-12 border-4 border-white/20 border-t-white/80 mx-auto mb-4"></div>
-              <div className="animate-spin rounded-full h-8 w-8 border-4 border-white/10 border-t-white/60 mx-auto absolute top-2 left-1/2 transform -translate-x-1/2" style={{ animationDirection: 'reverse', animationDuration: '1.5s' }}></div>
-            </div>
-            <p className="text-white/80 font-medium">Loading member contributions...</p>
-          </div>
-        </div>
-      </div>
-    )
+    return <FullScreenLoader message="Loading member contributions..." />
   }
 
   return (
@@ -456,7 +579,11 @@ export default function MemberContributionsPage() {
                   <SelectItem value="total_amount" className="text-white hover:bg-white/10">Total Amount</SelectItem>
                   <SelectItem value="contribution_count" className="text-white hover:bg-white/10">Number of Contributions</SelectItem>
                   <SelectItem value="last_contribution" className="text-white hover:bg-white/10">Last Contribution</SelectItem>
+                  <SelectItem value="missing_months" className="text-white hover:bg-white/10">Missing Months</SelectItem>
+                  <SelectItem value="average_monthly_amount" className="text-white hover:bg-white/10">Avg Monthly Amount</SelectItem>
+                  <SelectItem value="average_annual_amount" className="text-white hover:bg-white/10">Avg Annual Amount</SelectItem>
                   <SelectItem value="name" className="text-white hover:bg-white/10">Name (A-Z)</SelectItem>
+                  <SelectItem value="fellowship" className="text-white hover:bg-white/10">Fellowship</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -464,8 +591,108 @@ export default function MemberContributionsPage() {
         </CardContent>
       </Card>
 
-      {/* Member Contributions List */}
-      <div className="space-y-4">
+      {/* Comprehensive Member List Table Headers */}
+      {filteredContributions.length > 0 && (
+        <Card className="bg-white/10 backdrop-blur-xl border-white/20 animate-fade-in animate-slide-in-from-bottom-4" style={{ animationDelay: '550ms' }}>
+          <CardContent className="p-4">
+            <div className="grid grid-cols-12 gap-3 items-center text-sm font-medium">
+              <div className="col-span-2">
+                <button
+                  onClick={() => handleColumnSort('name')}
+                  className={`flex items-center gap-1 transition-colors hover:text-white ${
+                    sortBy === 'name' ? 'text-white' : 'text-white/70'
+                  }`}
+                >
+                  Member Name
+                  {getSortIcon('name')}
+                </button>
+              </div>
+              <div className="col-span-1">
+                <button
+                  onClick={() => handleColumnSort('fellowship')}
+                  className={`flex items-center gap-1 transition-colors hover:text-white ${
+                    sortBy === 'fellowship' ? 'text-white' : 'text-white/70'
+                  }`}
+                >
+                  Fellowship
+                  {getSortIcon('fellowship')}
+                </button>
+              </div>
+              <div className="col-span-1">
+                <button
+                  onClick={() => handleColumnSort('total_amount')}
+                  className={`flex items-center gap-1 transition-colors hover:text-white ${
+                    sortBy === 'total_amount' ? 'text-white' : 'text-white/70'
+                  }`}
+                >
+                  Total Amount
+                  {getSortIcon('total_amount')}
+                </button>
+              </div>
+              <div className="col-span-1">
+                <button
+                  onClick={() => handleColumnSort('contribution_count')}
+                  className={`flex items-center gap-1 transition-colors hover:text-white ${
+                    sortBy === 'contribution_count' ? 'text-white' : 'text-white/70'
+                  }`}
+                >
+                  Count
+                  {getSortIcon('contribution_count')}
+                </button>
+              </div>
+              <div className="col-span-2">
+                <button
+                  onClick={() => handleColumnSort('missing_months')}
+                  className={`flex items-center gap-1 transition-colors hover:text-white ${
+                    sortBy === 'missing_months' ? 'text-white' : 'text-white/70'
+                  }`}
+                >
+                  Missing Months
+                  {getSortIcon('missing_months')}
+                </button>
+              </div>
+              <div className="col-span-2">
+                <button
+                  onClick={() => handleColumnSort('average_monthly_amount')}
+                  className={`flex items-center gap-1 transition-colors hover:text-white ${
+                    sortBy === 'average_monthly_amount' ? 'text-white' : 'text-white/70'
+                  }`}
+                >
+                  Avg Monthly
+                  {getSortIcon('average_monthly_amount')}
+                </button>
+              </div>
+              <div className="col-span-2">
+                <button
+                  onClick={() => handleColumnSort('average_annual_amount')}
+                  className={`flex items-center gap-1 transition-colors hover:text-white ${
+                    sortBy === 'average_annual_amount' ? 'text-white' : 'text-white/70'
+                  }`}
+                >
+                  Avg Annual
+                  {getSortIcon('average_annual_amount')}
+                </button>
+              </div>
+              <div className="col-span-1">
+                <button
+                  onClick={() => handleColumnSort('last_contribution')}
+                  className={`flex items-center gap-1 transition-colors hover:text-white ${
+                    sortBy === 'last_contribution' ? 'text-white' : 'text-white/70'
+                  }`}
+                >
+                  Last Date
+                  {getSortIcon('last_contribution')}
+                </button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+
+
+      {/* Comprehensive Member List Table */}
+      <div className="space-y-2">
         {filteredContributions.length === 0 ? (
           <Card className="bg-white/10 backdrop-blur-xl border-white/20 animate-fade-in animate-slide-in-from-bottom-4" style={{ animationDelay: '600ms' }}>
             <CardContent className="text-center py-8">
@@ -477,65 +704,87 @@ export default function MemberContributionsPage() {
             <Card
               key={memberContrib.member.id}
               className="bg-white/10 backdrop-blur-xl border-white/20 hover:bg-white/15 transition-all duration-300 animate-fade-in animate-slide-in-from-bottom-4"
-              style={{ animationDelay: `${600 + (index * 50)}ms` }}
+              style={{ animationDelay: `${600 + (index * 30)}ms` }}
             >
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="text-lg text-white">{memberContrib.member.name}</CardTitle>
-                    <CardDescription className="flex items-center gap-4 mt-1 text-white/60">
-                      {memberContrib.member.fellowship_name && (
-                        <span>Fellowship: {memberContrib.member.fellowship_name}</span>
-                      )}
-                      {memberContrib.member.phone && (
-                        <span>Phone: {memberContrib.member.phone}</span>
-                      )}
-                    </CardDescription>
+              <CardContent className="p-4">
+                <div className="grid grid-cols-12 gap-3 items-center text-sm">
+                  {/* Member Name */}
+                  <div className="col-span-2">
+                    <div className="font-medium text-white">{memberContrib.member.name}</div>
+                    {memberContrib.member.phone && (
+                      <div className="text-white/50 text-xs mt-1">
+                        {memberContrib.member.phone}
+                      </div>
+                    )}
                   </div>
-                  <div className="text-right">
-                    <div className="text-2xl font-bold text-green-300">
+                  
+                  {/* Fellowship */}
+                  <div className="col-span-1">
+                    <div className="text-white/80 text-xs">
+                      {memberContrib.member.fellowship_name || 'N/A'}
+                    </div>
+                  </div>
+                  
+                  {/* Total Amount */}
+                  <div className="col-span-1">
+                    <div className="font-semibold text-green-300">
                       {formatCurrency(memberContrib.total_amount)}
                     </div>
-                    <div className="text-sm text-white/70">
-                      {memberContrib.contribution_count} contribution{memberContrib.contribution_count !== 1 ? 's' : ''}
-                    </div>
-                    <div className="text-xs text-white/50">
-                      Last: {formatDate(memberContrib.last_contribution_date)}
+                  </div>
+                  
+                  {/* Contribution Count */}
+                  <div className="col-span-1">
+                    <div className="text-white/80 text-center">
+                      {memberContrib.contribution_count}
                     </div>
                   </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  <h4 className="font-medium text-sm mb-3 text-white/90">Recent Contributions:</h4>
-                  {memberContrib.contributions.slice(0, 5).map((contrib) => (
-                    <div key={contrib.id} className="flex items-center justify-between py-2 px-3 bg-white/5 rounded-lg border border-white/10 hover:bg-white/10 transition-colors">
-                      <div className="flex items-center gap-3">
-                        <div className="text-sm">
-                          <div className="font-medium text-white/90">{formatDate(contrib.service_date)}</div>
-                          <div className="text-white/60 text-xs">{contrib.fund_name}</div>
-                        </div>
-                        <Badge variant="outline" className="text-xs bg-white/10 border-white/20 text-white/80">
-                          {contrib.type}
-                        </Badge>
-                      </div>
-                      <div className="text-right">
-                        <div className="font-medium text-white">{formatCurrency(contrib.amount)}</div>
-                        {contrib.notes && (
-                          <div className="text-xs text-white/50 truncate max-w-32">
-                            {contrib.notes}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                  {memberContrib.contributions.length > 5 && (
-                    <div className="text-center py-2">
-                      <span className="text-sm text-white/60">
-                        +{memberContrib.contributions.length - 5} more contributions
+                  
+                  {/* Missing Months */}
+                  <div className="col-span-2">
+                    <div className="flex items-center gap-2">
+                      <span className={`font-medium ${
+                        memberContrib.missing_months === 0 
+                          ? 'text-green-400' 
+                          : memberContrib.missing_months <= 2 
+                          ? 'text-yellow-400' 
+                          : 'text-red-400'
+                      }`}>
+                        {memberContrib.missing_months}
                       </span>
+                      {memberContrib.missing_months > 0 && (
+                        <Tooltip 
+                          content={`Missing months: ${memberContrib.missing_months_list.join(', ')}`}
+                          className="cursor-help"
+                        >
+                          <Info className="w-4 h-4 text-white/50 hover:text-white/80 transition-colors" />
+                        </Tooltip>
+                      )}
                     </div>
-                  )}
+                  </div>
+                  
+                  {/* Average Monthly Amount */}
+                  <div className="col-span-2">
+                    <div className="text-white/80">
+                      {formatCurrency(memberContrib.average_monthly_amount)}
+                    </div>
+                    <div className="text-xs text-white/50">
+                      ({memberContrib.months_with_contributions}/12 months)
+                    </div>
+                  </div>
+                  
+                  {/* Average Annual Amount */}
+                  <div className="col-span-2">
+                    <div className="text-white/80 font-medium">
+                      {formatCurrency(memberContrib.average_annual_amount)}
+                    </div>
+                  </div>
+                  
+                  {/* Last Contribution Date */}
+                  <div className="col-span-1">
+                    <div className="text-white/70 text-xs">
+                      {formatDate(memberContrib.last_contribution_date)}
+                    </div>
+                  </div>
                 </div>
               </CardContent>
             </Card>
