@@ -14,6 +14,7 @@ import { Download, FileText, TrendingUp, TrendingDown, Banknote, Calendar } from
 import { toast } from 'sonner'
 import * as XLSX from 'xlsx'
 import { AnimatedCounter } from '@/components/ui/animated-counter'
+import { FullScreenLoader } from '@/components/ui/loader'
 import type { Database } from '@/types/database'
 
 type Transaction = Database['public']['Tables']['transactions']['Row']
@@ -336,14 +337,7 @@ export default function ReportsPage() {
   const summary = calculateFinancialSummary()
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="relative">
-          <div className="animate-spin rounded-full h-12 w-12 border-4 border-white/20 border-t-white/80"></div>
-          <div className="animate-spin rounded-full h-8 w-8 border-4 border-white/40 border-t-white/60 absolute top-2 left-2" style={{ animationDirection: 'reverse', animationDuration: '1.5s' }}></div>
-        </div>
-      </div>
-    )
+    return <FullScreenLoader message="Loading reports..." />
   }
 
   return (

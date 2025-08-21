@@ -100,6 +100,7 @@ export default function FundsPage(): JSX.Element {
     amount: '',
     description: ''
   })
+  const [isTransferring, setIsTransferring] = useState(false)
 
   const fetchData = useCallback(async () => {
     try {
@@ -138,41 +139,73 @@ export default function FundsPage(): JSX.Element {
 
   const handleTransfer = async (e: React.FormEvent) => {
     e.preventDefault()
+    console.log('Form submitted, starting transfer process')
+
+    if (isTransferring) {
+      console.log('Transfer already in progress, ignoring submission')
+      return
+    }
+
+    setIsTransferring(true)
+    console.log('Transfer form data:', transferForm)
+
+    // Check authentication
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+    if (sessionError || !session) {
+      console.error('Authentication error:', sessionError)
+      toast.error('You must be logged in to perform transfers')
+      setIsTransferring(false)
+      return
+    }
+    console.log('User authenticated:', session.user.email)
 
     if (!transferForm.from_fund_id || !transferForm.to_fund_id || !transferForm.amount || !transferForm.description) {
+      console.log('Validation failed: missing required fields')
       toast.error('Please fill in all required fields')
+      setIsTransferring(false)
       return
     }
 
     if (transferForm.from_fund_id === transferForm.to_fund_id) {
+      console.log('Validation failed: same fund selected')
       toast.error('Cannot transfer to the same fund')
+      setIsTransferring(false)
       return
     }
 
     const amount = parseFloat(transferForm.amount)
     if (amount <= 0) {
+      console.log('Validation failed: invalid amount')
       toast.error('Transfer amount must be greater than zero')
+      setIsTransferring(false)
       return
     }
 
     // Check if source fund has sufficient balance
     const fromFund = funds.find(f => f.id === transferForm.from_fund_id)
     if (!fromFund || fromFund.current_balance < amount) {
+      console.log('Validation failed: insufficient funds')
       toast.error('Insufficient balance in source fund')
+      setIsTransferring(false)
       return
     }
 
+    console.log('All validations passed, proceeding with transfer')
+
     try {
+      console.log('Starting Supabase operations')
       const fromFundName = funds.find(f => f.id === transferForm.from_fund_id)?.name
       const toFundName = funds.find(f => f.id === transferForm.to_fund_id)?.name
 
       // Get current fund balances for validation
+      console.log('Getting current fund balances')
       const { data: currentFunds, error: fundsError } = await supabase
         .from('funds')
         .select('id, current_balance')
         .in('id', [transferForm.from_fund_id, transferForm.to_fund_id])
 
       if (fundsError) {
+        console.error('Error retrieving fund balances:', fundsError)
         throw new Error('Failed to retrieve current fund balances')
       }
 
@@ -180,31 +213,38 @@ export default function FundsPage(): JSX.Element {
       const currentToFund = currentFunds?.find(f => f.id === transferForm.to_fund_id)
 
       if (!currentFromFund || !currentToFund) {
+        console.error('One or both funds not found')
         throw new Error('One or both funds not found')
       }
 
       // Double-check balance with current data
       if (currentFromFund.current_balance < amount) {
+        console.error('Insufficient balance in source fund')
         throw new Error('Insufficient balance in source fund')
       }
 
       // Update source fund balance (subtract amount)
+      console.log('Updating source fund balance:', currentFromFund.current_balance - amount)
       const { error: fromFundError } = await supabase
         .from('funds')
         .update({ current_balance: currentFromFund.current_balance - amount })
         .eq('id', transferForm.from_fund_id)
 
       if (fromFundError) {
+        console.error('Error updating source fund:', fromFundError)
         throw new Error('Failed to update source fund balance')
       }
+      console.log('Source fund updated successfully')
 
       // Update destination fund balance (add amount)
+      console.log('Updating destination fund balance:', currentToFund.current_balance + amount)
       const { error: toFundError } = await supabase
         .from('funds')
         .update({ current_balance: currentToFund.current_balance + amount })
         .eq('id', transferForm.to_fund_id)
 
       if (toFundError) {
+        console.error('Error updating destination fund:', toFundError)
         // Rollback source fund update
         await supabase
           .from('funds')
@@ -212,8 +252,10 @@ export default function FundsPage(): JSX.Element {
           .eq('id', transferForm.from_fund_id)
         throw new Error('Failed to update destination fund balance')
       }
+      console.log('Destination fund updated successfully')
 
       // Create expense transaction for source fund
+      console.log('Creating expense transaction')
       const { error: expenseError } = await supabase
         .from('transactions')
         .insert({
@@ -221,10 +263,13 @@ export default function FundsPage(): JSX.Element {
           type: 'expense',
           amount: amount,
           description: `Transfer to ${toFundName}: ${transferForm.description}`,
-          category: 'Transfer'
+          category: 'Transfer',
+          payment_method: 'cash',
+          transaction_date: new Date().toISOString().split('T')[0]
         })
 
       if (expenseError) {
+        console.error('Error creating expense transaction:', expenseError)
         // Rollback fund balance updates
         await Promise.all([
           supabase.from('funds').update({ current_balance: currentFromFund.current_balance }).eq('id', transferForm.from_fund_id),
@@ -232,8 +277,10 @@ export default function FundsPage(): JSX.Element {
         ])
         throw new Error('Failed to create expense transaction')
       }
+      console.log('Expense transaction created successfully')
 
       // Create income transaction for destination fund
+      console.log('Creating income transaction')
       const { error: incomeError } = await supabase
         .from('transactions')
         .insert({
@@ -241,10 +288,13 @@ export default function FundsPage(): JSX.Element {
           type: 'income',
           amount: amount,
           description: `Transfer from ${fromFundName}: ${transferForm.description}`,
-          category: 'Transfer'
+          category: 'Transfer',
+          payment_method: 'cash',
+          transaction_date: new Date().toISOString().split('T')[0]
         })
 
       if (incomeError) {
+        console.error('Error creating income transaction:', incomeError)
         // Rollback fund balance updates and delete expense transaction
         await Promise.all([
           supabase.from('funds').update({ current_balance: currentFromFund.current_balance }).eq('id', transferForm.from_fund_id),
@@ -253,13 +303,19 @@ export default function FundsPage(): JSX.Element {
         ])
         throw new Error('Failed to create income transaction')
       }
+      console.log('Income transaction created successfully')
 
+      console.log('Transfer completed successfully')
       toast.success('Successfully transferred ' + formatCurrency(amount) + ' from ' + fromFundName + ' to ' + toFundName)
       setTransferDialogOpen(false)
       resetTransferForm()
       fetchData()
     } catch (error) {
+      console.error('Transfer error:', error)
       toast.error(error instanceof Error ? error.message : 'Failed to process fund transfer')
+    } finally {
+      setIsTransferring(false)
+      console.log('Transfer process completed')
     }
   }
 
@@ -399,8 +455,8 @@ export default function FundsPage(): JSX.Element {
                         <GlassButton type="button" variant="outline" onClick={() => setTransferDialogOpen(false)}>
                           Cancel
                         </GlassButton>
-                        <GlassButton type="submit">
-                          Transfer Funds
+                        <GlassButton type="submit" loading={isTransferring}>
+                          {isTransferring ? 'Processing...' : 'Transfer Funds'}
                         </GlassButton>
                       </DialogFooter>
                     </form>
