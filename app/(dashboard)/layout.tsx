@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 
 import { usePathname, useRouter } from 'next/navigation'
 import { useAuth, withAuth, type UserRole } from '@/contexts/AuthContext'
@@ -31,7 +31,7 @@ import {
   TrendingUp,
   Banknote,
   Settings,
-
+  ChevronLeft,
   Search
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -105,7 +105,9 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
   const [mounted, setMounted] = useState(false)
-  const [sidebarExpanded, setSidebarExpanded] = useState(false)
+  const [isCollapsed, setIsCollapsed] = useState(true)
+  const [isHovered, setIsHovered] = useState(false)
+  const [isTransitioning, setIsTransitioning] = useState(false)
   const { user, signOut, hasRole } = useAuth()
   const pathname = usePathname()
   const router = useRouter()
@@ -113,10 +115,39 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
   // Touch gesture handling for mobile sidebar
   const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(null)
 
+  // Add shimmer animation styles
+  useEffect(() => {
+    const style = document.createElement('style');
+    style.textContent = `
+      @keyframes shimmer {
+        0% { transform: translateX(-100%); }
+        100% { transform: translateX(100%); }
+      }
+      .animate-shimmer {
+        animation: shimmer 2s infinite;
+      }
+    `;
+    document.head.appendChild(style);
+    return () => {
+      document.head.removeChild(style);
+    };
+  }, []);
 
   useEffect(() => {
     setMounted(true)
   }, [])
+
+  // Premium toggle sidebar function with smooth transitions
+  const toggleSidebar = useCallback(() => {
+    setIsTransitioning(true)
+    setIsCollapsed(prev => !prev)
+    // Reset hover state when toggling
+    if (isHovered) {
+      setIsHovered(false)
+    }
+    // Reset transition state after animation completes
+    setTimeout(() => setIsTransitioning(false), 600)
+  }, [isHovered])
 
   const handleSignOut = async () => {
     await signOut()
@@ -159,6 +190,10 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
     setTouchStart(null)
   }
 
+  // Helper variables for sidebar state
+  const sidebarExpanded = !isCollapsed || isHovered
+  const sidebarHovered = isHovered
+
   // Auto-close sidebar on navigation for mobile
   const handleNavigation = (href: string) => {
     router.push(href)
@@ -171,111 +206,252 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
   const Sidebar = ({ mobile = false }: { mobile?: boolean }) => (
     <div 
       className={cn(
-        "flex flex-col h-full relative transition-all duration-300 ease-in-out group",
-        mobile ? "w-full" : cn(
-          "glass-card-dark border-r border-white/10 custom-scrollbar",
-          sidebarExpanded ? "w-64" : "w-16 hover:w-64"
-        )
+        "flex flex-col h-full relative group transform-gpu",
+        mobile ? "w-full transition-all duration-300 ease-out" : cn(
+          "glass-card-frosted border-r border-white/[0.08] custom-scrollbar sidebar-animate",
+          (!isCollapsed || isHovered) ? cn(
+            "sidebar-expanded",
+            isHovered && isCollapsed ? "sidebar-hover-expanded" : ""
+          ) : "sidebar-collapsed"
+        ),
+        // Add premium visual states
+        !mobile && isHovered && isCollapsed && "shadow-2xl shadow-black/20",
+        !mobile && isTransitioning && "transition-shadow duration-600"
       )}
-      onMouseEnter={() => !mobile && setSidebarExpanded(true)}
-      onMouseLeave={() => !mobile && setSidebarExpanded(false)}
+      onMouseEnter={() => {
+        if (!mobile && isCollapsed && !isTransitioning) {
+          setIsHovered(true)
+        }
+      }}
+      onMouseLeave={() => {
+        if (!mobile && isCollapsed && !isTransitioning) {
+          setIsHovered(false)
+        }
+      }}
+      style={{
+        transition: 'width 0.4s cubic-bezier(0.4, 0, 0.2, 1), transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.4s cubic-bezier(0.4, 0, 0.2, 1), background 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+        willChange: 'width, transform, box-shadow, background',
+        background: mobile ? undefined : isHovered && isCollapsed ? 
+          'linear-gradient(135deg, rgba(0, 0, 0, 0.4) 0%, rgba(0, 0, 0, 0.15) 100%)' :
+          'linear-gradient(135deg, rgba(0, 0, 0, 0.3) 0%, rgba(0, 0, 0, 0.1) 100%)'
+      }}
     >
-      {/* Gradient overlay */}
-      <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent pointer-events-none" />
-      
-      {/* Header */}
+      {/* Premium gradient overlay with dynamic opacity */}
       <div className={cn(
-        "relative flex items-center border-b border-white/10 transition-all duration-300",
-        mobile ? "h-20 px-6" : "h-16 px-4 justify-center"
+        "absolute inset-0 bg-gradient-to-b from-white/[0.08] via-white/[0.02] to-transparent pointer-events-none transition-opacity duration-400",
+        isHovered && !mobile && "from-white/[0.12] via-white/[0.04]"
+      )} />
+      
+      {/* Sophisticated edge highlight */}
+      <div className={cn(
+        "absolute inset-y-0 right-0 w-px bg-gradient-to-b from-transparent via-white/10 to-transparent transition-opacity duration-400",
+        !mobile && isHovered && "opacity-100",
+        !mobile && !isHovered && "opacity-60"
+      )} />
+      
+      {/* Premium Header */}
+      <div className={cn(
+        "relative flex items-center border-b border-white/[0.08] transition-all duration-400",
+        mobile ? "h-20 px-6" : "h-18 px-5", // Slightly taller for premium feel
+        mobile ? "justify-start" : (!isCollapsed || isHovered) ? "justify-between" : "justify-center",
+        // Add subtle inner glow
+        "after:absolute after:bottom-0 after:left-0 after:right-0 after:h-px after:bg-gradient-to-r after:from-transparent after:via-white/5 after:to-transparent"
       )}>
-        <div className="relative flex items-center">
-          <div className="absolute inset-0 bg-blue-400/20 rounded-full blur-lg" />
-          <div className="relative bg-blue-400/10 p-2 rounded-full backdrop-blur-sm border border-blue-400/20">
-            <Church className={cn("text-blue-400", mobile ? "h-6 w-6" : "h-5 w-5")} />
+        {/* Premium Logo with sophisticated glow */}
+        <div className="relative flex items-center group/logo">
+          <div className={cn(
+            "absolute inset-0 rounded-full blur-xl transition-all duration-600",
+            "bg-gradient-to-r from-blue-400/30 via-purple-400/20 to-blue-400/30",
+            "group-hover/logo:from-blue-400/40 group-hover/logo:via-purple-400/30 group-hover/logo:to-blue-400/40 group-hover/logo:scale-110"
+          )} />
+          <div className={cn(
+            "relative backdrop-blur-xl border transition-all duration-600 group-hover/logo:scale-105",
+            "bg-gradient-to-br from-blue-400/15 via-purple-400/10 to-blue-400/15",
+            "border-white/10 group-hover/logo:border-white/20",
+            "rounded-xl shadow-lg group-hover/logo:shadow-xl",
+            mobile ? "p-3" : "p-2.5"
+          )}>
+            <Church className={cn(
+              "transition-all duration-300 drop-shadow-lg",
+              "text-blue-300 group-hover/logo:text-blue-200 group-hover/logo:scale-110",
+              mobile ? "h-6 w-6" : "h-5 w-5"
+            )} />
           </div>
         </div>
-        {(mobile || sidebarExpanded) && (
-          <span className={cn(
-            "ml-3 font-bold text-white truncate transition-all duration-300",
-            mobile ? "text-xl" : "text-lg",
-            !mobile && "opacity-0 group-hover:opacity-100"
-          )}>Church Finance</span>
+        {(mobile || !isCollapsed || isHovered) && (
+          <div className={cn(
+            "ml-4 transition-all duration-500",
+            !mobile && !sidebarExpanded && "opacity-0 translate-x-2 group-hover:opacity-100 group-hover:translate-x-0"
+          )}>
+            <span className={cn(
+              "font-bold bg-gradient-to-r from-white to-white/90 bg-clip-text text-transparent",
+              "drop-shadow-sm transition-all duration-300",
+              mobile ? "text-xl" : "text-lg"
+            )}>Church Finance</span>
+            <div className={cn(
+              "h-0.5 bg-gradient-to-r from-blue-400/60 to-purple-400/60 rounded-full transition-all duration-500",
+              "mt-1 transform origin-left",
+              !mobile && isCollapsed && !isHovered ? "scale-x-0" : "scale-x-100"
+            )} />
+          </div>
+        )}
+        
+        {/* Premium Interactive Toggle Button - Desktop Only */}
+        {!mobile && (
+          <Button
+            onClick={(e) => {
+              e.preventDefault()
+              e.stopPropagation()
+              toggleSidebar()
+            }}
+            onMouseDown={(e) => e.preventDefault()}
+            variant="ghost"
+            size="sm"
+            className={cn(
+              "group/toggle p-2.5 h-9 w-9 rounded-xl text-white/70 hover:text-white transform-gpu",
+              "sidebar-toggle-button relative overflow-hidden",
+              "focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400/60 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent",
+              (!isCollapsed || isHovered) ? "opacity-100" : "opacity-0 group-hover:opacity-100",
+              isTransitioning && "pointer-events-none"
+            )}
+            style={{
+              background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.04) 100%)',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              backdropFilter: 'blur(12px)'
+            }}
+            aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            aria-expanded={!isCollapsed}
+            tabIndex={0}
+            type="button"
+            disabled={isTransitioning}
+          >
+            {/* Button background effects */}
+            <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover/toggle:opacity-100 transition-opacity duration-300 rounded-xl" />
+            <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/5 to-transparent opacity-0 group-active/toggle:opacity-100 transition-opacity duration-150 rounded-xl" />
+            
+            <ChevronLeft 
+              className={cn(
+                "sidebar-toggle-icon h-3 w-3 relative z-10 drop-shadow-sm",
+                "transition-all duration-500 cubic-bezier(0.23, 1, 0.32, 1)",
+                isCollapsed ? "rotate-180" : "rotate-0",
+                isTransitioning && "animate-pulse"
+              )}
+            />
+          </Button>
         )}
       </div>
       
-      {/* Navigation */}
+      {/* Premium Navigation */}
       <nav 
         className={cn(
-          "flex-1 py-4 relative overflow-y-auto custom-scrollbar",
-          mobile ? "px-6 space-y-2" : "px-2 space-y-1"
+          "flex-1 py-5 relative custom-scrollbar",
+          mobile ? "px-6 space-y-2.5 overflow-y-auto overflow-x-hidden" : "px-3 space-y-1.5 overflow-y-auto overflow-x-hidden",
+          // Add subtle inner shadow
+          "before:absolute before:top-0 before:left-0 before:right-0 before:h-4 before:bg-gradient-to-b before:from-black/10 before:to-transparent before:pointer-events-none"
         )}
         role="navigation"
         aria-label="Main navigation"
       >
-        {filteredNavigation.map((item) => {
+        {filteredNavigation.map((item, index) => {
           const isActive = pathname === item.href
           return (
-            <div key={item.name} className="relative group/nav">
+            <div key={item.name} className="nav-item relative group/nav" style={{ transitionDelay: `${index * 0.03}s` }}>
               <button
                 onClick={() => handleNavigation(item.href)}
                 aria-label={`Navigate to ${item.name}`}
                 aria-current={isActive ? 'page' : undefined}
-                title={!mobile && !sidebarExpanded ? item.name : undefined}
+                title={!mobile && isCollapsed && !isHovered ? item.name : undefined}
                 className={cn(
-                  "group flex items-center w-full text-sm font-medium rounded-xl transition-all duration-300 relative overflow-hidden touch-manipulation transform-gpu focus:outline-none focus:ring-2 focus:ring-blue-400/50 focus:ring-offset-2 focus:ring-offset-transparent",
-                  mobile ? "px-4 py-3 min-h-[48px]" : cn(
-                    "px-3 py-2.5 min-h-[44px]",
-                    sidebarExpanded ? "justify-start" : "justify-center hover:justify-start"
+                  "group/button flex items-center w-full text-sm font-medium rounded-2xl relative touch-manipulation transform-gpu",
+                  "focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400/60 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent",
+                  "sidebar-item-animate backdrop-blur-sm",
+                  mobile ? "px-5 py-3.5 min-h-[52px] justify-start overflow-visible" : cn(
+                    "py-3 min-h-[48px] transition-all duration-500",
+                    (!isCollapsed || isHovered) ? "sidebar-item-expanded pl-4 pr-4 justify-start overflow-hidden" : "sidebar-item-collapsed pl-0 pr-0 justify-center overflow-hidden"
                   ),
                   isActive
-                    ? "bg-white/20 text-white shadow-lg backdrop-blur-sm border border-white/20"
-                    : "text-white/80 hover:bg-white/10 hover:text-white hover:shadow-md"
+                    ? cn(
+                        "bg-gradient-to-r from-blue-500/25 via-purple-500/20 to-blue-500/25",
+                        "text-white shadow-xl border border-white/20 scale-[1.02]",
+                        "shadow-blue-500/10"
+                      )
+                    : cn(
+                        "text-white/85 hover:text-white",
+                        "hover:bg-gradient-to-r hover:from-white/12 hover:via-white/8 hover:to-white/12",
+                        "hover:shadow-lg hover:scale-[1.015] hover:border-white/10",
+                        "active:scale-[0.995] border border-transparent",
+                        "hover:shadow-black/5"
+                      )
                 )}
                 style={{
-                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+                  transition: 'all 0.35s cubic-bezier(0.23, 1, 0.32, 1)',
+                  willChange: 'transform, background, box-shadow, border-color'
                 }}
               >
                 {/* Active indicator */}
                 {isActive && (
-                  <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-blue-400 to-purple-400 rounded-r-full" />
+                  <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-gradient-to-b from-blue-400 via-purple-400 to-blue-400 rounded-r-full" />
                 )}
                 
-                {/* Icon with glow effect */}
+                {/* Clean Icon */}
                 <div className={cn(
-                  "relative transition-all duration-300 flex-shrink-0",
-                  mobile || sidebarExpanded ? "mr-3" : "mr-0",
-                  isActive ? "text-blue-300" : "text-white/70 group-hover:text-white"
+                  "relative flex-shrink-0 transform-gpu flex items-center justify-center sidebar-icon-animate sidebar-icon-container",
+                  "w-8 h-8 min-w-[2rem] min-h-[2rem] rounded-lg",
+                  mobile ? "mr-4" : "",
+                  isActive ? "text-blue-200" : "text-white/90 group-hover/button:text-blue-100"
                 )}>
-                  {isActive && (
-                    <div className="absolute inset-0 bg-blue-400/30 rounded-full blur-md" />
-                  )}
-                  <item.icon className="relative h-5 w-5" />
+                  <item.icon className={cn(
+                    "relative h-4 w-4 transition-all duration-300 transform-gpu z-10 flex-shrink-0",
+                    "filter drop-shadow-sm",
+                    isActive ? "scale-110 drop-shadow-lg" : "group-hover/button:scale-105 group-hover/button:drop-shadow-md"
+                  )} />
                 </div>
                 
-                {/* Text label with smooth transition */}
-                <span className={cn(
-                  "relative z-10 whitespace-nowrap transition-all duration-300",
-                  mobile ? "opacity-100" : cn(
-                    sidebarExpanded ? "opacity-100 translate-x-0" : "opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0"
-                  )
-                )}>
-                  {item.name}
-                </span>
+                {/* Premium text label with gradient and smooth transition */}
+                {(mobile || !isCollapsed || isHovered) && (
+                  <span className={cn(
+                    "relative z-10 whitespace-nowrap font-medium transform-gpu sidebar-text-animate",
+                    "tracking-wide ml-3 flex-1 min-w-0", // Slightly wider letter spacing for premium feel
+                    mobile ? "opacity-100 translate-x-0" : cn(
+                      (!isCollapsed || isHovered) 
+                        ? "sidebar-text-visible" 
+                        : "sidebar-text-hidden"
+                    ),
+                    isActive ? "text-white font-semibold bg-gradient-to-r from-white to-white/95 bg-clip-text" : "text-white/90 group-hover/button:text-white"
+                  )}>
+                    {item.name}
+                  </span>
+                )}
                 
-                {/* Hover effect */}
-                <div className="absolute inset-0 bg-gradient-to-r from-white/5 to-white/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl" />
               </button>
               
-              {/* Tooltip for collapsed state */}
-              {!mobile && !sidebarExpanded && (
+              {/* Premium tooltip for collapsed state with enhanced styling */}
+              {!mobile && isCollapsed && !isHovered && (
                 <div 
-                  className="absolute left-full ml-2 top-1/2 -translate-y-1/2 z-50 opacity-0 group-hover/nav:opacity-100 group-focus/nav:opacity-100 transition-all duration-200 pointer-events-none"
+                  className="absolute left-full ml-4 top-1/2 -translate-y-1/2 z-50 opacity-0 group-hover/nav:opacity-100 group-focus/nav:opacity-100 transition-all duration-400 pointer-events-none transform-gpu"
                   role="tooltip"
                   aria-hidden="true"
+                  style={{
+                    transform: 'translateX(-12px) translateY(-50%) scale(0.92)',
+                    transition: 'all 0.4s cubic-bezier(0.23, 1, 0.32, 1)'
+                  }}
                 >
-                  <div className="bg-gray-900/95 backdrop-blur-sm text-white text-sm px-3 py-2 rounded-lg shadow-lg border border-white/10 whitespace-nowrap">
-                    {item.name}
-                    <div className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1 w-2 h-2 bg-gray-900/95 rotate-45 border-l border-b border-white/10" />
+                  <div className={cn(
+                    "glass-card-frosted backdrop-blur-2xl text-white text-sm px-5 py-3 rounded-xl shadow-2xl border border-white/15",
+                    "whitespace-nowrap group-hover/nav:scale-100 group-hover/nav:translate-x-0",
+                    "bg-gradient-to-br from-black/40 to-black/20"
+                  )}>
+                    <span className="font-medium tracking-wide">{item.name}</span>
+                    
+                    {/* Premium tooltip arrow */}
+                    <div className={cn(
+                      "absolute left-0 top-1/2 -translate-y-1/2 -translate-x-2 w-4 h-4 rotate-45",
+                      "bg-gradient-to-br from-black/40 to-black/20 border-l border-b border-white/15",
+                      "backdrop-blur-2xl"
+                    )} />
+                    
+                    {/* Subtle inner highlight */}
+                    <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-white/8 to-transparent pointer-events-none" />
                   </div>
                 </div>
               )}
@@ -284,51 +460,94 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
         })}
       </nav>
       
-      {/* User Profile Section */}
+      {/* Premium User Profile Section */}
       <div className={cn(
-        "relative border-t border-white/10 transition-all duration-300",
-        mobile ? "p-6" : "p-3"
+        "relative border-t border-white/[0.08] transition-all duration-500",
+        "bg-gradient-to-t from-black/10 to-transparent", // Subtle background gradient
+        mobile ? "p-6" : "p-4",
+        // Add top highlight
+        "before:absolute before:top-0 before:left-4 before:right-4 before:h-px before:bg-gradient-to-r before:from-transparent before:via-white/10 before:to-transparent"
       )}>
         <div className={cn(
-          "glass-card-light rounded-xl transition-all duration-300",
-          mobile ? "p-4" : cn(
-            sidebarExpanded ? "p-3" : "p-2"
-          )
-        )}>
+          "glass-card-frosted rounded-2xl transition-all duration-600 transform-gpu group/profile",
+          "hover:scale-[1.02] hover:shadow-xl relative overflow-hidden",
+          mobile ? "p-5" : cn(
+            (sidebarExpanded || sidebarHovered) ? "p-4" : "p-3"
+          ),
+          "bg-gradient-to-br from-white/8 to-white/4 border-white/10"
+        )} style={{
+          transition: 'all 0.5s cubic-bezier(0.23, 1, 0.32, 1)',
+          willChange: 'transform, box-shadow',
+          backdropFilter: 'blur(20px) saturate(180%)'
+        }}>
+          {/* Premium background glow */}
+          <div className="absolute inset-0 bg-gradient-to-br from-blue-400/5 via-transparent to-purple-400/5 opacity-0 group-hover/profile:opacity-100 transition-opacity duration-500 rounded-2xl" />
           <div className={cn(
             "flex items-center transition-all duration-300",
             mobile ? "space-x-4" : cn(
-              sidebarExpanded ? "space-x-3" : "justify-center"
+              (sidebarExpanded || sidebarHovered) ? "space-x-3" : "justify-center"
             )
           )}>
-            <div className="relative flex-shrink-0">
-              <div className="absolute inset-0 bg-white/20 rounded-full blur-md" />
+            {/* Premium Avatar with sophisticated effects */}
+            <div className="relative flex-shrink-0 group/avatar">
+              {/* Multi-layer glow effect */}
+              <div className="absolute inset-0 bg-gradient-to-br from-blue-400/20 to-purple-400/15 rounded-full blur-lg group-hover/avatar:from-blue-400/30 group-hover/avatar:to-purple-400/25 group-hover/avatar:scale-125 transition-all duration-500" />
+              <div className="absolute inset-0 bg-white/10 rounded-full blur-md group-hover/avatar:bg-white/20 group-hover/avatar:scale-110 transition-all duration-400" />
+              
               <Avatar className={cn(
-                "relative border-2 border-white/20 hover:border-white/40 transition-all duration-300 group",
-                mobile ? "h-12 w-12" : "h-9 w-9"
-              )}>
-                <AvatarFallback className="bg-white/10 group-hover:bg-white/20 text-white font-semibold transition-all duration-300">
-                  <span className="transition-all duration-300 group-hover:scale-110 group-hover:text-white/90 text-xs">
+                "relative border-2 transition-all duration-500 group transform-gpu hover:scale-110 z-10",
+                "border-white/20 hover:border-white/40 shadow-lg hover:shadow-xl",
+                "bg-gradient-to-br from-white/10 to-white/5",
+                mobile ? "h-12 w-12" : "h-10 w-10" // Slightly larger for premium feel
+              )} style={{
+                transition: 'all 0.5s cubic-bezier(0.23, 1, 0.32, 1)',
+                willChange: 'transform, border-color, box-shadow'
+              }}>
+                <AvatarFallback className={cn(
+                  "bg-gradient-to-br from-white/15 to-white/8 text-white font-bold transition-all duration-400",
+                  "group-hover:from-white/25 group-hover:to-white/15 backdrop-blur-sm"
+                )}>
+                  <span className={cn(
+                    "transition-all duration-400 group-hover:scale-110 drop-shadow-sm",
+                    mobile ? "text-sm" : "text-xs"
+                  )}>
                     {user?.full_name?.split(' ').map(n => n[0]).join('') || user?.email?.[0]?.toUpperCase()}
                   </span>
                 </AvatarFallback>
               </Avatar>
             </div>
-            {(mobile || sidebarExpanded) && (
+            {/* Premium User Info with smooth transitions */}
+            {(mobile || sidebarExpanded || sidebarHovered) && (
               <div className={cn(
-                "flex-1 min-w-0 transition-all duration-300",
-                !mobile && "opacity-0 group-hover:opacity-100"
+                "flex-1 min-w-0 transition-all duration-500 relative z-10",
+                !mobile && !sidebarExpanded && "opacity-0 translate-x-2 group-hover:opacity-100 group-hover:translate-x-0"
               )}>
                 <p className={cn(
-                  "font-semibold text-white truncate",
+                  "font-bold text-white truncate transition-all duration-300",
+                  "bg-gradient-to-r from-white to-white/95 bg-clip-text",
                   mobile ? "text-base" : "text-sm"
                 )}>
                   {user?.full_name || user?.email}
                 </p>
-                <p className={cn(
-                  "text-white/70 capitalize",
-                  mobile ? "text-sm" : "text-xs"
-                )}>{user?.role}</p>
+                <div className={cn(
+                  "flex items-center mt-1 transition-all duration-300",
+                  mobile ? "space-x-2" : "space-x-1.5"
+                )}>
+                  <div className={cn(
+                    "px-2 py-0.5 rounded-md bg-gradient-to-r transition-all duration-300",
+                    user?.role === 'admin' ? "from-red-500/20 to-pink-500/20 border border-red-400/20" :
+                    user?.role === 'treasurer' ? "from-blue-500/20 to-indigo-500/20 border border-blue-400/20" :
+                    "from-green-500/20 to-emerald-500/20 border border-green-400/20"
+                  )}>
+                    <p className={cn(
+                      "capitalize font-medium tracking-wide",
+                      user?.role === 'admin' ? "text-red-200" :
+                      user?.role === 'treasurer' ? "text-blue-200" :
+                      "text-green-200",
+                      mobile ? "text-xs" : "text-[0.65rem]"
+                    )}>{user?.role}</p>
+                  </div>
+                </div>
               </div>
             )}
           </div>
@@ -338,7 +557,7 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
   )
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 relative overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 relative dashboard-container">
       {/* Enhanced Background Elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         {/* Primary animated orbs */}
@@ -356,15 +575,20 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
       <div className="flex h-screen relative z-10">
       
       {/* Desktop Sidebar */}
-      <div className="hidden lg:flex relative z-10">
+      <div className="hidden lg:flex relative z-20">
         <Sidebar />
       </div>
 
-      {/* Mobile Sidebar */}
+      {/* Premium Mobile Sidebar */}
       <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
         <SheetContent 
           side="left" 
-          className="p-0 w-80 sm:w-64 glass-card-dark backdrop-blur-xl bg-black/20 border-white/10"
+          className="p-0 w-80 sm:w-72 glass-card-frosted backdrop-blur-2xl border-white/10 shadow-2xl"
+          style={{
+            background: 'linear-gradient(135deg, rgba(0, 0, 0, 0.4) 0%, rgba(0, 0, 0, 0.2) 100%)',
+            backdropFilter: 'blur(40px) saturate(200%) brightness(110%)',
+            WebkitBackdropFilter: 'blur(40px) saturate(200%) brightness(110%)'
+          }}
           onInteractOutside={() => setSidebarOpen(false)}
           onEscapeKeyDown={() => setSidebarOpen(false)}
           onPointerDownOutside={() => setSidebarOpen(false)}
@@ -372,12 +596,12 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
           {/* Required for accessibility */}
           <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
           
-          {/* Swipe indicator */}
-          <div className="absolute top-4 right-4 z-50 opacity-40 pointer-events-none">
-            <div className="flex space-x-1 bg-white/10 backdrop-blur-sm rounded-full px-2 py-1">
-              <div className="w-1 h-4 bg-white/60 rounded-full animate-pulse" style={{animationDelay: '0ms'}} />
-              <div className="w-1 h-4 bg-white/40 rounded-full animate-pulse" style={{animationDelay: '200ms'}} />
-              <div className="w-1 h-4 bg-white/20 rounded-full animate-pulse" style={{animationDelay: '400ms'}} />
+          {/* Premium swipe indicator */}
+          <div className="absolute top-5 right-5 z-50 opacity-50 pointer-events-none">
+            <div className="flex space-x-1.5 bg-gradient-to-r from-white/15 to-white/8 backdrop-blur-xl rounded-full px-3 py-2 border border-white/10">
+              <div className="w-1 h-5 bg-gradient-to-t from-blue-400/80 to-blue-300/60 rounded-full animate-pulse shadow-sm" style={{animationDelay: '0ms'}} />
+              <div className="w-1 h-5 bg-gradient-to-t from-blue-400/60 to-blue-300/40 rounded-full animate-pulse shadow-sm" style={{animationDelay: '200ms'}} />
+              <div className="w-1 h-5 bg-gradient-to-t from-blue-400/40 to-blue-300/20 rounded-full animate-pulse shadow-sm" style={{animationDelay: '400ms'}} />
             </div>
           </div>
           
@@ -398,25 +622,34 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
       </Sheet>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden relative z-10">
+      <div 
+        className={cn(
+          "flex-1 flex flex-col relative z-10 main-content-container"
+        )}
+      >
         {/* Modern Header */}
         <header className="glass-card-light border-b border-white/10 mobile-container py-3 sm:py-4 backdrop-blur-xl">
           <div className="flex items-center justify-between">
             <div className="flex items-center mobile-space-x">
-              {/* Mobile menu button */}
+              {/* Premium Mobile menu button */}
               <Button
                 variant="ghost"
                 size="sm"
-                className="mobile-nav-visible text-white hover:bg-white/20 hover:scale-110 active:scale-95 transition-all duration-300 p-3 min-h-[48px] min-w-[48px] rounded-xl transform-gpu glass-card-light border border-white/10 shadow-lg"
+                className="mobile-nav-visible text-white group/menu-btn relative overflow-hidden transform-gpu min-h-[52px] min-w-[52px] rounded-2xl border border-white/10"
                 onClick={() => setSidebarOpen(true)}
                 style={{
-                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.15s cubic-bezier(0.4, 0, 0.2, 1)',
-                  background: 'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%)',
-                  backdropFilter: 'blur(10px)',
-                  WebkitBackdropFilter: 'blur(10px)'
+                  background: 'linear-gradient(135deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.06) 100%)',
+                  backdropFilter: 'blur(16px) saturate(180%)',
+                  WebkitBackdropFilter: 'blur(16px) saturate(180%)',
+                  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.1)',
+                  transition: 'all 0.35s cubic-bezier(0.23, 1, 0.32, 1)'
                 }}
               >
-                <Menu className="h-6 w-6 transition-all duration-300 group-hover:rotate-180 drop-shadow-sm" />
+                {/* Premium button effects */}
+                <div className="absolute inset-0 bg-gradient-to-br from-white/8 to-transparent opacity-0 group-hover/menu-btn:opacity-100 transition-opacity duration-300 rounded-2xl" />
+                <div className="absolute inset-0 bg-gradient-to-t from-blue-400/10 to-purple-400/10 opacity-0 group-active/menu-btn:opacity-100 transition-opacity duration-150 rounded-2xl" />
+                
+                <Menu className="h-6 w-6 transition-all duration-400 group-hover/menu-btn:scale-110 group-hover/menu-btn:rotate-90 drop-shadow-sm relative z-10" />
               </Button>
               
               {/* Page title with gradient */}
