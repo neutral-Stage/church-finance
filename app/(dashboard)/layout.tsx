@@ -105,6 +105,7 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
   const [mounted, setMounted] = useState(false)
+  const [sidebarExpanded, setSidebarExpanded] = useState(false)
   const { user, signOut, hasRole } = useAuth()
   const pathname = usePathname()
   const router = useRouter()
@@ -168,115 +169,168 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
   }
 
   const Sidebar = ({ mobile = false }: { mobile?: boolean }) => (
-    <div className={cn(
-      "flex flex-col h-full relative",
-      mobile ? "w-full" : "w-64 glass-card-dark border-r border-white/10"
-    )}>
+    <div 
+      className={cn(
+        "flex flex-col h-full relative transition-all duration-300 ease-in-out group",
+        mobile ? "w-full" : cn(
+          "glass-card-dark border-r border-white/10 custom-scrollbar",
+          sidebarExpanded ? "w-64" : "w-16 hover:w-64"
+        )
+      )}
+      onMouseEnter={() => !mobile && setSidebarExpanded(true)}
+      onMouseLeave={() => !mobile && setSidebarExpanded(false)}
+    >
       {/* Gradient overlay */}
       <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent pointer-events-none" />
       
       {/* Header */}
       <div className={cn(
-        "relative flex items-center border-b border-white/10",
-        mobile ? "h-20 px-6" : "h-16 mobile-container"
+        "relative flex items-center border-b border-white/10 transition-all duration-300",
+        mobile ? "h-20 px-6" : "h-16 px-4 justify-center"
       )}>
-        <div className="relative">
+        <div className="relative flex items-center">
           <div className="absolute inset-0 bg-blue-400/20 rounded-full blur-lg" />
           <div className="relative bg-blue-400/10 p-2 rounded-full backdrop-blur-sm border border-blue-400/20">
-            <Church className={cn("text-blue-400", mobile ? "h-6 w-6" : "h-5 w-5 sm:h-6 sm:w-6")} />
+            <Church className={cn("text-blue-400", mobile ? "h-6 w-6" : "h-5 w-5")} />
           </div>
         </div>
-        <span className={cn(
-          "ml-3 font-bold text-white truncate",
-          mobile ? "text-xl" : "text-lg sm:text-xl"
-        )}>Church Finance</span>
+        {(mobile || sidebarExpanded) && (
+          <span className={cn(
+            "ml-3 font-bold text-white truncate transition-all duration-300",
+            mobile ? "text-xl" : "text-lg",
+            !mobile && "opacity-0 group-hover:opacity-100"
+          )}>Church Finance</span>
+        )}
       </div>
       
       {/* Navigation */}
-      <nav className={cn(
-        "flex-1 py-6 relative overflow-y-auto",
-        mobile ? "px-6 space-y-3" : "mobile-container mobile-space-y"
-      )}>
+      <nav 
+        className={cn(
+          "flex-1 py-4 relative overflow-y-auto custom-scrollbar",
+          mobile ? "px-6 space-y-2" : "px-2 space-y-1"
+        )}
+        role="navigation"
+        aria-label="Main navigation"
+      >
         {filteredNavigation.map((item) => {
           const isActive = pathname === item.href
           return (
-            <button
-              key={item.name}
-              onClick={() => handleNavigation(item.href)}
-              className={cn(
-                "group flex items-center w-full text-sm font-medium rounded-xl transition-all duration-300 relative overflow-hidden touch-manipulation transform-gpu",
-                mobile ? "px-4 py-4 min-h-[56px] active:scale-95 hover:scale-[1.02]" : "mobile-button",
-                isActive
-                  ? "bg-white/20 text-white shadow-lg backdrop-blur-sm border border-white/20 scale-[1.02]"
-                  : "text-white/80 hover:bg-white/10 hover:text-white hover:scale-105 hover:shadow-md active:scale-95"
-              )}
-              style={{
-                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
-              }}
-            >
-              {/* Active indicator */}
-              {isActive && (
-                <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-blue-400 to-purple-400 rounded-r-full" />
-              )}
-              
-              {/* Icon with glow effect */}
-              <div className={cn(
-                "relative mr-3 transition-all duration-300",
-                isActive ? "text-blue-300" : "text-white/70 group-hover:text-white"
-              )}>
-                {isActive && (
-                  <div className="absolute inset-0 bg-blue-400/30 rounded-full blur-md" />
+            <div key={item.name} className="relative group/nav">
+              <button
+                onClick={() => handleNavigation(item.href)}
+                aria-label={`Navigate to ${item.name}`}
+                aria-current={isActive ? 'page' : undefined}
+                title={!mobile && !sidebarExpanded ? item.name : undefined}
+                className={cn(
+                  "group flex items-center w-full text-sm font-medium rounded-xl transition-all duration-300 relative overflow-hidden touch-manipulation transform-gpu focus:outline-none focus:ring-2 focus:ring-blue-400/50 focus:ring-offset-2 focus:ring-offset-transparent",
+                  mobile ? "px-4 py-3 min-h-[48px]" : cn(
+                    "px-3 py-2.5 min-h-[44px]",
+                    sidebarExpanded ? "justify-start" : "justify-center hover:justify-start"
+                  ),
+                  isActive
+                    ? "bg-white/20 text-white shadow-lg backdrop-blur-sm border border-white/20"
+                    : "text-white/80 hover:bg-white/10 hover:text-white hover:shadow-md"
                 )}
-                <item.icon className="relative h-5 w-5" />
-              </div>
+                style={{
+                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+                }}
+              >
+                {/* Active indicator */}
+                {isActive && (
+                  <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-blue-400 to-purple-400 rounded-r-full" />
+                )}
+                
+                {/* Icon with glow effect */}
+                <div className={cn(
+                  "relative transition-all duration-300 flex-shrink-0",
+                  mobile || sidebarExpanded ? "mr-3" : "mr-0",
+                  isActive ? "text-blue-300" : "text-white/70 group-hover:text-white"
+                )}>
+                  {isActive && (
+                    <div className="absolute inset-0 bg-blue-400/30 rounded-full blur-md" />
+                  )}
+                  <item.icon className="relative h-5 w-5" />
+                </div>
+                
+                {/* Text label with smooth transition */}
+                <span className={cn(
+                  "relative z-10 whitespace-nowrap transition-all duration-300",
+                  mobile ? "opacity-100" : cn(
+                    sidebarExpanded ? "opacity-100 translate-x-0" : "opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0"
+                  )
+                )}>
+                  {item.name}
+                </span>
+                
+                {/* Hover effect */}
+                <div className="absolute inset-0 bg-gradient-to-r from-white/5 to-white/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl" />
+              </button>
               
-              <span className="relative z-10">{item.name}</span>
-              
-              {/* Hover effect */}
-              <div className="absolute inset-0 bg-gradient-to-r from-white/5 to-white/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl" />
-            </button>
+              {/* Tooltip for collapsed state */}
+              {!mobile && !sidebarExpanded && (
+                <div 
+                  className="absolute left-full ml-2 top-1/2 -translate-y-1/2 z-50 opacity-0 group-hover/nav:opacity-100 group-focus/nav:opacity-100 transition-all duration-200 pointer-events-none"
+                  role="tooltip"
+                  aria-hidden="true"
+                >
+                  <div className="bg-gray-900/95 backdrop-blur-sm text-white text-sm px-3 py-2 rounded-lg shadow-lg border border-white/10 whitespace-nowrap">
+                    {item.name}
+                    <div className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1 w-2 h-2 bg-gray-900/95 rotate-45 border-l border-b border-white/10" />
+                  </div>
+                </div>
+              )}
+            </div>
           )
         })}
       </nav>
       
       {/* User Profile Section */}
       <div className={cn(
-        "relative border-t border-white/10",
-        mobile ? "p-6" : "p-4"
+        "relative border-t border-white/10 transition-all duration-300",
+        mobile ? "p-6" : "p-3"
       )}>
         <div className={cn(
-          "glass-card-light rounded-xl",
-          mobile ? "p-5" : "p-4"
+          "glass-card-light rounded-xl transition-all duration-300",
+          mobile ? "p-4" : cn(
+            sidebarExpanded ? "p-3" : "p-2"
+          )
         )}>
           <div className={cn(
-            "flex items-center",
-            mobile ? "space-x-4" : "space-x-3"
+            "flex items-center transition-all duration-300",
+            mobile ? "space-x-4" : cn(
+              sidebarExpanded ? "space-x-3" : "justify-center"
+            )
           )}>
-            <div className="relative">
+            <div className="relative flex-shrink-0">
               <div className="absolute inset-0 bg-white/20 rounded-full blur-md" />
               <Avatar className={cn(
                 "relative border-2 border-white/20 hover:border-white/40 transition-all duration-300 group",
-                mobile ? "h-12 w-12" : "h-10 w-10"
+                mobile ? "h-12 w-12" : "h-9 w-9"
               )}>
                 <AvatarFallback className="bg-white/10 group-hover:bg-white/20 text-white font-semibold transition-all duration-300">
-                  <span className="transition-all duration-300 group-hover:scale-110 group-hover:text-white/90">
+                  <span className="transition-all duration-300 group-hover:scale-110 group-hover:text-white/90 text-xs">
                     {user?.full_name?.split(' ').map(n => n[0]).join('') || user?.email?.[0]?.toUpperCase()}
                   </span>
                 </AvatarFallback>
               </Avatar>
             </div>
-            <div className="flex-1 min-w-0">
-              <p className={cn(
-                "font-semibold text-white truncate",
-                mobile ? "text-base" : "text-sm"
+            {(mobile || sidebarExpanded) && (
+              <div className={cn(
+                "flex-1 min-w-0 transition-all duration-300",
+                !mobile && "opacity-0 group-hover:opacity-100"
               )}>
-                {user?.full_name || user?.email}
-              </p>
-              <p className={cn(
-                "text-white/70 capitalize",
-                mobile ? "text-sm" : "text-xs"
-              )}>{user?.role}</p>
-            </div>
+                <p className={cn(
+                  "font-semibold text-white truncate",
+                  mobile ? "text-base" : "text-sm"
+                )}>
+                  {user?.full_name || user?.email}
+                </p>
+                <p className={cn(
+                  "text-white/70 capitalize",
+                  mobile ? "text-sm" : "text-xs"
+                )}>{user?.role}</p>
+              </div>
+            )}
           </div>
         </div>
       </div>
