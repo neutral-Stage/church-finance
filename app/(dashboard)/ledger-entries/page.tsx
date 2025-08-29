@@ -294,8 +294,10 @@ export default function LedgerEntriesPage(): JSX.Element {
   }
 
   const openComprehensiveDialog = (entry?: LedgerEntry) => {
+    console.log('🚀 openComprehensiveDialog called', { entry, hasEntry: !!entry })
     setEditingEntry(entry || null)
     setIsComprehensiveDialogOpen(true)
+    console.log('📋 Dialog state updated', { isOpen: true, editingEntry: entry || null })
   }
 
   const toggleEntryExpansion = (entryId: string) => {
@@ -367,15 +369,15 @@ export default function LedgerEntriesPage(): JSX.Element {
         {/* Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
           <div>
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+            <h1 className="text-4xl font-bold text-white">
               Ledger Entries
             </h1>
-            <p className="text-gray-600 mt-2">Manage hierarchical bill grouping and organization</p>
+            <p className="text-white/70 mt-2">Manage hierarchical bill grouping and organization</p>
           </div>
           <div className="flex gap-2">
             <Button
               onClick={() => openComprehensiveDialog()}
-              className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg border-0 transition-all duration-300 hover:shadow-xl hover:scale-105 flex items-center gap-2"
+              className="glass-button hover:scale-105 transition-all duration-300 flex items-center gap-2"
             >
               <Plus className="w-4 h-4" />
               Add New Ledger Entry
@@ -462,8 +464,8 @@ export default function LedgerEntriesPage(): JSX.Element {
             <Card className="bg-white/10 backdrop-blur-xl border border-white/20 hover:bg-white/15 transition-all duration-300">
               <CardContent className="p-12 text-center">
                 <FolderOpen className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">No ledger entries found</h3>
-                <p className="text-gray-600 mb-6">Create your first ledger entry to start organizing bills</p>
+                <h3 className="text-lg font-semibold text-white mb-2">No ledger entries found</h3>
+                <p className="text-white/70 mb-6">Create your first ledger entry to start organizing bills</p>
                 <GlassButton onClick={() => openComprehensiveDialog()}>
                   <Plus className="w-4 h-4 mr-2" />
                   Create Ledger Entry
@@ -558,14 +560,14 @@ export default function LedgerEntriesPage(): JSX.Element {
                             <h4 className="font-medium text-white mb-2">Direct Bills ({directBills.length})</h4>
                             <div className="space-y-2">
                               {directBills.map((bill) => (
-                                <div key={bill.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                <div key={bill.id} className="flex items-center justify-between p-3 bg-white/5 backdrop-blur-sm border border-white/10 rounded-lg">
                                   <div>
-                                    <p className="font-medium">{bill.vendor_name}</p>
-                                    <p className="text-sm text-gray-600">{bill.category}</p>
+                                    <p className="font-medium text-white">{bill.vendor_name}</p>
+                                    <p className="text-sm text-white/60">{bill.category}</p>
                                   </div>
                                   <div className="text-right">
-                                    <p className="font-medium">{formatCurrency(bill.amount)}</p>
-                                    <p className="text-sm text-gray-600">Due: {formatDate(bill.due_date)}</p>
+                                    <p className="font-medium text-white">{formatCurrency(bill.amount)}</p>
+                                    <p className="text-sm text-white/60">Due: {formatDate(bill.due_date)}</p>
                                   </div>
                                 </div>
                               ))}
@@ -578,15 +580,14 @@ export default function LedgerEntriesPage(): JSX.Element {
                           <div>
                             <div className="flex items-center justify-between mb-2">
                               <h4 className="font-medium text-white">Subgroups ({subgroups.length})</h4>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => openComprehensiveDialog(entry)}
-                                className="bg-white/10 backdrop-blur-xl border border-white/20 text-white hover:bg-white/20 transition-all duration-300"
-                              >
-                                <Plus className="w-4 h-4 mr-1" />
-                                Add Subgroup
-                              </Button>
+                              <GlassButton
+                              size="sm"
+                              onClick={() => openComprehensiveDialog(entry)}
+                              className="hover:scale-105 transition-all duration-300"
+                            >
+                              <Plus className="w-4 h-4 mr-1" />
+                              Add Subgroup
+                            </GlassButton>
                             </div>
                             <div className="space-y-3">
                               {subgroups.map((subgroup) => {
@@ -654,13 +655,13 @@ export default function LedgerEntriesPage(): JSX.Element {
                         {/* Add Subgroup Button */}
                         {subgroups.length === 0 && (
                           <div className="text-center py-4">
-                            <Button
-                              variant="outline"
+                            <GlassButton
                               onClick={() => openComprehensiveDialog(entry)}
+                              className="hover:scale-105 transition-all duration-300"
                             >
                               <Plus className="w-4 h-4 mr-2" />
                               Add First Subgroup
-                            </Button>
+                            </GlassButton>
                           </div>
                         )}
                       </div>
