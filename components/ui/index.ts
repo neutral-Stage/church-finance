@@ -15,6 +15,9 @@ export * from './status-badge';
 // Background Components
 export * from './animated-background';
 
+// Tabs Components
+export * from './tabs';
+
 // Re-export existing components for consistency
 export { Button } from './button';
 export { Card, CardHeader, CardFooter, CardTitle, CardDescription, CardContent } from './card';
@@ -30,6 +33,7 @@ export { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 export { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle, SheetTrigger } from './sheet';
 export { Avatar, AvatarFallback, AvatarImage } from './avatar';
 export { Checkbox } from './checkbox';
+export { Switch } from './switch';
 
 // Loader Components
 export { FullScreenLoader, InlineLoader } from './loader';

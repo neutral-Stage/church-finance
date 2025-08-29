@@ -7,6 +7,7 @@ import { useAuth, withAuth, type UserRole } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { ErrorBoundary } from '@/components/ui/error-boundary'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -85,6 +86,12 @@ const navigation = [
     name: 'Bills & Petty Cash',
     href: '/bills',
     icon: Receipt,
+    roles: ['viewer', 'treasurer', 'admin']
+  },
+  {
+    name: 'Ledger Entries',
+    href: '/ledger-entries',
+    icon: FileText,
     roles: ['viewer', 'treasurer', 'admin']
   },
   {
@@ -759,7 +766,9 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
         {/* Page Content with glass effect */}
         <main className="flex-1 overflow-auto mobile-container relative">
           <div className="glass-card-light rounded-xl sm:rounded-2xl mobile-card min-h-full backdrop-blur-xl border border-white/10">
-            {children}
+            <ErrorBoundary>
+              {children}
+            </ErrorBoundary>
           </div>
         </main>
       </div>

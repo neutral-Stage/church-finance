@@ -106,6 +106,127 @@ export interface Database {
           created_at?: string
         }
       }
+      ledger_entries: {
+        Row: {
+          id: string
+          title: string
+          description: string | null
+          status: 'draft' | 'active' | 'completed' | 'cancelled'
+          total_amount: number
+          default_due_date: string | null
+          default_fund_id: string | null
+          responsible_parties: string[] | null
+          priority: 'low' | 'medium' | 'high' | 'urgent'
+          approval_status: 'pending' | 'approved' | 'rejected'
+          approved_by: string | null
+          approved_at: string | null
+          notes: string | null
+          metadata: Json
+          created_by: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          title: string
+          description?: string | null
+          status?: 'draft' | 'active' | 'completed' | 'cancelled'
+          total_amount?: number
+          default_due_date?: string | null
+          default_fund_id?: string | null
+          responsible_parties?: string[] | null
+          priority?: 'low' | 'medium' | 'high' | 'urgent'
+          approval_status?: 'pending' | 'approved' | 'rejected'
+          approved_by?: string | null
+          approved_at?: string | null
+          notes?: string | null
+          metadata?: Json
+          created_by: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          title?: string
+          description?: string | null
+          status?: 'draft' | 'active' | 'completed' | 'cancelled'
+          total_amount?: number
+          default_due_date?: string | null
+          default_fund_id?: string | null
+          responsible_parties?: string[] | null
+          priority?: 'low' | 'medium' | 'high' | 'urgent'
+          approval_status?: 'pending' | 'approved' | 'rejected'
+          approved_by?: string | null
+          approved_at?: string | null
+          notes?: string | null
+          metadata?: Json
+          created_by?: string
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      ledger_subgroups: {
+        Row: {
+          id: string
+          ledger_entry_id: string
+          title: string
+          description: string | null
+          purpose: string | null
+          status: 'draft' | 'active' | 'completed' | 'cancelled'
+          total_amount: number
+          default_due_date: string | null
+          default_fund_id: string | null
+          responsible_parties: string[] | null
+          allocation_percentage: number | null
+          priority: 'low' | 'medium' | 'high' | 'urgent'
+          sort_order: number
+          notes: string | null
+          metadata: Json
+          created_by: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          ledger_entry_id: string
+          title: string
+          description?: string | null
+          purpose?: string | null
+          status?: 'draft' | 'active' | 'completed' | 'cancelled'
+          total_amount?: number
+          default_due_date?: string | null
+          default_fund_id?: string | null
+          responsible_parties?: string[] | null
+          allocation_percentage?: number | null
+          priority?: 'low' | 'medium' | 'high' | 'urgent'
+          sort_order?: number
+          notes?: string | null
+          metadata?: Json
+          created_by: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          ledger_entry_id?: string
+          title?: string
+          description?: string | null
+          purpose?: string | null
+          status?: 'draft' | 'active' | 'completed' | 'cancelled'
+          total_amount?: number
+          default_due_date?: string | null
+          default_fund_id?: string | null
+          responsible_parties?: string[] | null
+          allocation_percentage?: number | null
+          priority?: 'low' | 'medium' | 'high' | 'urgent'
+          sort_order?: number
+          notes?: string | null
+          metadata?: Json
+          created_by?: string
+          created_at?: string
+          updated_at?: string
+        }
+      }
       bills: {
         Row: {
           id: string
@@ -116,7 +237,24 @@ export interface Database {
           status: 'pending' | 'paid' | 'overdue'
           category: string
           fund_id: string
+          ledger_entry_id: string | null
+          ledger_subgroup_id: string | null
+          responsible_parties: string[] | null
+          allocation_percentage: number | null
+          priority: 'low' | 'medium' | 'high' | 'urgent'
+          approval_status: 'pending' | 'approved' | 'rejected'
+          approved_by: string | null
+          approved_at: string | null
+          sort_order: number
+          notes: string | null
+          metadata: Json
+          document_url: string | null
+          document_name: string | null
+          document_size: number | null
+          document_type: string | null
+          document_uploaded_at: string | null
           created_at: string
+          updated_at: string
         }
         Insert: {
           id?: string
@@ -127,7 +265,24 @@ export interface Database {
           status?: 'pending' | 'paid' | 'overdue'
           category: string
           fund_id: string
+          ledger_entry_id?: string | null
+          ledger_subgroup_id?: string | null
+          responsible_parties?: string[] | null
+          allocation_percentage?: number | null
+          priority?: 'low' | 'medium' | 'high' | 'urgent'
+          approval_status?: 'pending' | 'approved' | 'rejected'
+          approved_by?: string | null
+          approved_at?: string | null
+          sort_order?: number
+          notes?: string | null
+          metadata?: Json
+          document_url?: string | null
+          document_name?: string | null
+          document_size?: number | null
+          document_type?: string | null
+          document_uploaded_at?: string | null
           created_at?: string
+          updated_at?: string
         }
         Update: {
           id?: string
@@ -138,7 +293,95 @@ export interface Database {
           status?: 'pending' | 'paid' | 'overdue'
           category?: string
           fund_id?: string
+          ledger_entry_id?: string | null
+          ledger_subgroup_id?: string | null
+          responsible_parties?: string[] | null
+          allocation_percentage?: number | null
+          priority?: 'low' | 'medium' | 'high' | 'urgent'
+          approval_status?: 'pending' | 'approved' | 'rejected'
+          approved_by?: string | null
+          approved_at?: string | null
+          sort_order?: number
+          notes?: string | null
+          metadata?: Json
+          document_url?: string | null
+          document_name?: string | null
+          document_size?: number | null
+          document_type?: string | null
+          document_uploaded_at?: string | null
           created_at?: string
+          updated_at?: string
+        }
+      }
+      document_attachments: {
+        Row: {
+          id: string
+          bill_id: string | null
+          ledger_entry_id: string | null
+          ledger_subgroup_id: string | null
+          file_name: string
+          file_size: number
+          file_type: string
+          mime_type: string
+          storage_path: string
+          storage_bucket: string
+          title: string | null
+          description: string | null
+          category: 'invoice' | 'receipt' | 'contract' | 'quote' | 'statement' | 'correspondence' | 'approval' | 'general' | 'other'
+          is_primary: boolean
+          is_confidential: boolean
+          tags: string[] | null
+          version: number
+          parent_document_id: string | null
+          uploaded_by: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          bill_id?: string | null
+          ledger_entry_id?: string | null
+          ledger_subgroup_id?: string | null
+          file_name: string
+          file_size: number
+          file_type: string
+          mime_type: string
+          storage_path: string
+          storage_bucket?: string
+          title?: string | null
+          description?: string | null
+          category?: 'invoice' | 'receipt' | 'contract' | 'quote' | 'statement' | 'correspondence' | 'approval' | 'general' | 'other'
+          is_primary?: boolean
+          is_confidential?: boolean
+          tags?: string[] | null
+          version?: number
+          parent_document_id?: string | null
+          uploaded_by: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          bill_id?: string | null
+          ledger_entry_id?: string | null
+          ledger_subgroup_id?: string | null
+          file_name?: string
+          file_size?: number
+          file_type?: string
+          mime_type?: string
+          storage_path?: string
+          storage_bucket?: string
+          title?: string | null
+          description?: string | null
+          category?: 'invoice' | 'receipt' | 'contract' | 'quote' | 'statement' | 'correspondence' | 'approval' | 'general' | 'other'
+          is_primary?: boolean
+          is_confidential?: boolean
+          tags?: string[] | null
+          version?: number
+          parent_document_id?: string | null
+          uploaded_by?: string
+          created_at?: string
+          updated_at?: string
         }
       }
       advances: {
@@ -347,6 +590,8 @@ export type PettyCash = Database['public']['Tables']['petty_cash']['Row']
 export type Member = Database['public']['Tables']['members']['Row']
 export type OfferingMember = Database['public']['Tables']['offering_member']['Row']
 export type User = Database['public']['Tables']['users']['Row']
+export type LedgerEntry = Database['public']['Tables']['ledger_entries']['Row']
+export type LedgerSubgroup = Database['public']['Tables']['ledger_subgroups']['Row']
 export type FundSummary = Database['public']['Views']['fund_summary']['Row']
 
 // Insert types
@@ -359,6 +604,8 @@ export type PettyCashInsert = Database['public']['Tables']['petty_cash']['Insert
 export type MemberInsert = Database['public']['Tables']['members']['Insert']
 export type OfferingMemberInsert = Database['public']['Tables']['offering_member']['Insert']
 export type UserInsert = Database['public']['Tables']['users']['Insert']
+export type LedgerEntryInsert = Database['public']['Tables']['ledger_entries']['Insert']
+export type LedgerSubgroupInsert = Database['public']['Tables']['ledger_subgroups']['Insert']
 
 // Update types
 export type FundUpdate = Database['public']['Tables']['funds']['Update']
@@ -370,6 +617,8 @@ export type PettyCashUpdate = Database['public']['Tables']['petty_cash']['Update
 export type MemberUpdate = Database['public']['Tables']['members']['Update']
 export type OfferingMemberUpdate = Database['public']['Tables']['offering_member']['Update']
 export type UserUpdate = Database['public']['Tables']['users']['Update']
+export type LedgerEntryUpdate = Database['public']['Tables']['ledger_entries']['Update']
+export type LedgerSubgroupUpdate = Database['public']['Tables']['ledger_subgroups']['Update']
 
 // Extended types with relationships
 export interface TransactionWithFund extends Transaction {

@@ -18,7 +18,8 @@ import {
   Star,
   Zap,
   PiggyBank,
-  CreditCard
+  CreditCard,
+  AlertTriangle
 } from 'lucide-react'
 
 export default function HomePage(): JSX.Element {
@@ -40,18 +41,68 @@ export default function HomePage(): JSX.Element {
     return () => window.removeEventListener('mousemove', handleMouseMove)
   }, [])
 
+  const [redirecting, setRedirecting] = useState(false)
+  const [navigationError, setNavigationError] = useState('')
+
   // Redirect authenticated users to dashboard
   useEffect(() => {
-    if (!loading && user) {
-      router.push('/dashboard')
+    if (!loading && user && !redirecting) {
+      setRedirecting(true)
+      setNavigationError('')
+      
+      try {
+        // Use window.location.href for more reliable navigation
+        window.location.href = '/dashboard'
+      } catch (error) {
+        console.error('Navigation error:', error)
+        setNavigationError('Failed to navigate to dashboard. Please try again.')
+        setRedirecting(false)
+      }
     }
-  }, [user, loading, router])
+  }, [user, loading, redirecting])
 
   // Show loading state while checking authentication
-  if (loading) {
+  if (loading || redirecting) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
-        <div className="text-white text-xl">Loading...</div>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-400 mx-auto mb-4"></div>
+          <p className="text-white text-xl">
+            {redirecting ? 'Redirecting to dashboard...' : 'Loading...'}
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  // Show navigation error if any
+  if (navigationError) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+        <div className="text-center max-w-md mx-auto p-8">
+          <div className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl shadow-lg p-8">
+            <div className="h-12 w-12 text-red-400 mx-auto mb-4">⚠️</div>
+            <h1 className="text-2xl font-bold text-white mb-4">Navigation Error</h1>
+            <p className="text-gray-300 mb-6">{navigationError}</p>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <button
+                onClick={() => {
+                  setNavigationError('')
+                  setRedirecting(false)
+                }}
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+              >
+                Try Again
+              </button>
+              <Link
+                href="/auth/login"
+                className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors text-center"
+              >
+                Go to Login
+              </Link>
+            </div>
+          </div>
+        </div>
       </div>
     )
   }

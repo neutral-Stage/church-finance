@@ -225,16 +225,10 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden p-0">
-        <DialogHeader className="p-6 pb-0">
-          <DialogTitle className="text-white flex items-center font-semibold">
-            <div className="relative mr-3">
-              <div className="absolute inset-0 bg-blue-400/20 rounded-full blur-md" />
-              <div className="relative bg-blue-400/10 p-2 rounded-full backdrop-blur-sm border border-blue-400/20">
-                <Search className="h-4 w-4 text-blue-400" />
-              </div>
-            </div>
-            Search Dashboard
+      <DialogContent className="max-w-2xl max-h-[80vh] p-0 overflow-hidden">
+        <DialogHeader className="p-6 pb-4">
+          <DialogTitle className="text-xl font-semibold">
+            Search Church Finance
           </DialogTitle>
         </DialogHeader>
 
@@ -247,7 +241,7 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="Search members, transactions, offerings, bills..."
-              className="pl-10 bg-transparent border-white/20 text-white placeholder:text-white/50 focus:border-purple-400 hover:bg-white/5 focus:bg-white/5 transition-all duration-300 backdrop-blur-sm"
+              className="pl-10 bg-white/10 backdrop-blur-sm border border-white/20 text-white placeholder:text-white/60 focus:outline-none focus:ring-2 focus:ring-white/20 focus:border-white/30 transition-all duration-200"
             />
             {query && (
               <Button
@@ -335,7 +329,7 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
                               <div className="flex items-center ml-4">
                                 <Badge 
                                   variant="secondary" 
-                                  className={`${categoryInfo.color} text-white text-xs mr-3 backdrop-blur-sm border border-white/20 bg-transparent`}
+                                  className={`${categoryInfo.color} text-white text-xs mr-3 backdrop-blur-sm border-0 hover:scale-105 transition-all duration-200`}
                                 >
                                   {categoryInfo.label.slice(0, -1)}
                                 </Badge>

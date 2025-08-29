@@ -13,7 +13,11 @@ export async function GET(request: NextRequest) {
 
     let query = supabase
       .from('bills')
-      .select('*')
+      .select(`
+        *,
+        ledger_entries(*),
+        ledger_subgroups(*)
+      `)
       .order('due_date', { ascending: true });
 
     // Apply filters if provided
@@ -71,13 +75,43 @@ export async function POST(request: NextRequest) {
       due_date, 
       category, 
       status = 'pending',
-      fund_id 
+      fund_id,
+      ledger_entry_id,
+      ledger_subgroup_id,
+      responsible_parties,
+      allocation_percentage,
+      priority = 'medium',
+      approval_status = 'pending',
+      sort_order = 0,
+      notes,
+      metadata = {},
+      document_url,
+      document_name,
+      document_size,
+      document_type,
+      document_uploaded_at
     } = body;
 
     // Validate required fields
     if (!vendor || !amount || !due_date) {
       return NextResponse.json(
         { error: 'Vendor, amount, and due date are required' },
+        { status: 400 }
+      );
+    }
+
+    // Validate that bill is associated with either ledger entry or subgroup
+    if (!ledger_entry_id && !ledger_subgroup_id) {
+      return NextResponse.json(
+        { error: 'Bill must be associated with either a ledger entry or subgroup' },
+        { status: 400 }
+      );
+    }
+
+    // Validate that bill is not associated with both
+    if (ledger_entry_id && ledger_subgroup_id) {
+      return NextResponse.json(
+        { error: 'Bill cannot be associated with both ledger entry and subgroup' },
         { status: 400 }
       );
     }
@@ -93,6 +127,20 @@ export async function POST(request: NextRequest) {
         category: category || null,
         status,
         fund_id: fund_id || null,
+        ledger_entry_id: ledger_entry_id || null,
+        ledger_subgroup_id: ledger_subgroup_id || null,
+        responsible_parties: responsible_parties || null,
+        allocation_percentage: allocation_percentage || null,
+        priority,
+        approval_status,
+        sort_order,
+        notes: notes || null,
+        metadata,
+        document_url: document_url || null,
+        document_name: document_name || null,
+        document_size: document_size || null,
+        document_type: document_type || null,
+        document_uploaded_at: document_uploaded_at || null,
         created_at: new Date().toISOString(),
       })
       .select()
@@ -173,7 +221,21 @@ export async function PUT(request: NextRequest) {
       category, 
       status, 
       fund_id,
-      paid_date 
+      paid_date,
+      ledger_entry_id,
+      ledger_subgroup_id,
+      responsible_parties,
+      allocation_percentage,
+      priority,
+      approval_status,
+      sort_order,
+      notes,
+      metadata,
+      document_url,
+      document_name,
+      document_size,
+      document_type,
+      document_uploaded_at
     } = body;
 
     if (!id) {
@@ -207,6 +269,21 @@ export async function PUT(request: NextRequest) {
       status: status || currentBill.status,
       fund_id: fund_id !== undefined ? fund_id : currentBill.fund_id,
     };
+
+    if (ledger_entry_id !== undefined) updateData.ledger_entry_id = ledger_entry_id;
+    if (ledger_subgroup_id !== undefined) updateData.ledger_subgroup_id = ledger_subgroup_id;
+    if (responsible_parties !== undefined) updateData.responsible_parties = responsible_parties;
+    if (allocation_percentage !== undefined) updateData.allocation_percentage = allocation_percentage;
+    if (priority !== undefined) updateData.priority = priority;
+    if (approval_status !== undefined) updateData.approval_status = approval_status;
+    if (sort_order !== undefined) updateData.sort_order = sort_order;
+    if (notes !== undefined) updateData.notes = notes;
+    if (document_url !== undefined) updateData.document_url = document_url;
+    if (document_name !== undefined) updateData.document_name = document_name;
+    if (document_size !== undefined) updateData.document_size = document_size;
+    if (document_type !== undefined) updateData.document_type = document_type;
+    if (document_uploaded_at !== undefined) updateData.document_uploaded_at = document_uploaded_at;
+    if (metadata !== undefined) updateData.metadata = metadata;
 
     // Set paid_date if status is changing to paid
     if (status === 'paid' && currentBill.status !== 'paid') {
