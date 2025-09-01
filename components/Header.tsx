@@ -9,10 +9,10 @@ export default function Header() {
   const { user, signOut } = useAuth()
 
   return (
-    <header className="relative bg-white/10 backdrop-blur-xl border-b border-white/20 shadow-lg">
+    <header className="bg-gradient-to-l  from-purple-900 to-slate-900 glass-card-light border-b border-white/10 backdrop-blur-xl shadow-lg">
       {/* Gradient overlay */}
       <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 via-purple-500/5 to-pink-500/5" />
-      
+
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
@@ -33,8 +33,8 @@ export default function Header() {
             {user ? (
               <div className="flex items-center space-x-4">
                 <Link href="/dashboard">
-                  <Button 
-                    variant="ghost" 
+                  <Button
+                    variant="ghost"
                     className="bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 text-gray-200 hover:text-white backdrop-blur-sm transition-all duration-300"
                   >
                     Dashboard
@@ -59,7 +59,7 @@ export default function Header() {
             ) : (
               <div className="flex items-center space-x-4">
                 <Link href="/auth/login">
-                  <Button 
+                  <Button
                     variant="ghost"
                     className="bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 text-gray-200 hover:text-white backdrop-blur-sm transition-all duration-300"
                   >
@@ -76,7 +76,7 @@ export default function Header() {
           </nav>
         </div>
       </div>
-      
+
       {/* Bottom gradient line */}
       <div className="absolute bottom-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-blue-500/50 to-transparent" />
     </header>

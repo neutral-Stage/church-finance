@@ -9,14 +9,14 @@ import {
 
 export default function Footer() {
   return (
-    <footer className="relative z-10 bg-white/5 backdrop-blur-xl border-t border-white/10 text-gray-800">
+    <footer className="bg-gradient-to-bl from-slate-900 via-purple-900 to-slate-900 glass-card-light border-t border-white/10 backdrop-blur-xl text-gray-800 relative z-10">
       {/* Animated background elements */}
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute -top-4 -left-4 w-72 h-72 bg-gradient-to-br from-blue-400/10 to-purple-400/10 rounded-full blur-3xl animate-pulse" />
-        <div className="absolute -bottom-4 -right-4 w-96 h-96 bg-gradient-to-br from-purple-400/10 to-pink-400/10 rounded-full blur-3xl animate-pulse" style={{animationDelay: '1s'}} />
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-gradient-to-br from-cyan-400/5 to-blue-400/5 rounded-full blur-3xl animate-pulse" style={{animationDelay: '2s'}} />
+        <div className="absolute -bottom-4 -right-4 w-96 h-96 bg-gradient-to-br from-purple-400/10 to-pink-400/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-gradient-to-br from-cyan-400/5 to-blue-400/5 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }} />
       </div>
-      
+
       <div className="relative z-10 container mx-auto px-4 py-16">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12">
           {/* Brand Section */}
@@ -33,7 +33,7 @@ export default function Footer() {
               </div>
             </div>
             <p className="text-gray-200 text-lg leading-relaxed max-w-lg mb-8">
-              Empowering churches worldwide with comprehensive financial management solutions. 
+              Empowering churches worldwide with comprehensive financial management solutions.
               Trusted by over 500+ congregations for secure, efficient, and transparent financial operations.
             </p>
             <div className="flex flex-wrap gap-4">

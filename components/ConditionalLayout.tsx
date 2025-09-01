@@ -11,30 +11,23 @@ interface ConditionalLayoutProps {
 export default function ConditionalLayout({ children }: ConditionalLayoutProps) {
   const pathname = usePathname()
   
-  // Dashboard routes that should not show Header and Footer
-  const dashboardRoutes = [
-    '/dashboard',
-    '/advances',
-    '/bills',
-    '/funds',
-    '/member-contributions',
-    '/members',
-    '/offerings',
-    '/reports',
-    '/transactions',
-    '/cash-breakdown'
+  // Routes that should show Header and Footer
+  const allowedRoutes = [
+    '/',
+    '/auth/login',
+    '/auth/signup'
   ]
   
-  // Check if current path is a dashboard route
-  const isDashboardRoute = pathname ? dashboardRoutes.some(route => pathname.startsWith(route)) : false
+  // Check if current path should show header and footer
+  const shouldShowHeaderFooter = pathname ? allowedRoutes.includes(pathname) : false
   
   return (
     <>
-      {!isDashboardRoute && <Header />}
+      {shouldShowHeaderFooter && <Header />}
       <main className="flex-1 relative z-10">
         {children}
       </main>
-      {!isDashboardRoute && <Footer />}
+      {shouldShowHeaderFooter && <Footer />}
     </>
   )
 }
