@@ -7,7 +7,10 @@
       "Bash(node:*)",
       "Bash(npm run build:*)",
       "Bash(npx next lint:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(npm run dev:*)",
+      "Bash(npx supabase:*)",
+      "Bash(supabase db:*)"
     ],
     "deny": [],
     "ask": []

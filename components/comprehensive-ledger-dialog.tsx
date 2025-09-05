@@ -12,8 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { formatCurrency, formatDateForInput } from '@/lib/utils'
+import { formatDateForInput } from '@/lib/utils'
 import { Plus, Trash2, Upload, FileText, X, CheckCircle, AlertCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import type { Database, Fund } from '@/types/database'
@@ -21,7 +20,6 @@ import type { Database, Fund } from '@/types/database'
 type LedgerEntry = Database['public']['Tables']['ledger_entries']['Row']
 type LedgerSubgroup = Database['public']['Tables']['ledger_subgroups']['Row']
 type Bill = Database['public']['Tables']['bills']['Row']
-type DocumentAttachment = Database['public']['Tables']['document_attachments']['Row']
 
 interface LedgerSubgroupWithBills extends LedgerSubgroup {
   bills?: Bill[]
@@ -113,31 +111,78 @@ const isImageFile = (type: string): boolean => {
 }
 
 const getDocumentUrl = async (path: string): Promise<string> => {
-  const { data } = await supabase.storage
-    .from('documents')
-    .createSignedUrl(path, 3600) // 1 hour expiry
-  return data?.signedUrl || ''
+  try {
+    console.log('🔗 Getting signed URL for path:', path)
+    
+    // Check if the storage bucket exists and the file exists
+    const { data: listData, error: listError } = await supabase.storage
+      .from('documents')
+      .list(path.split('/')[0], { limit: 100 })
+    
+    if (listError) {
+      console.error('❌ Error listing storage contents:', listError)
+    } else {
+      console.log('📁 Storage bucket contents:', listData?.map(item => item.name))
+    }
+    
+    const { data, error } = await supabase.storage
+      .from('documents')
+      .createSignedUrl(path, 3600) // 1 hour expiry
+      
+    if (error) {
+      console.error('❌ Error creating signed URL:', error, {
+        path,
+        errorMessage: error.message,
+        errorDetails: error
+      })
+      throw error
+    }
+    
+    const url = data?.signedUrl || ''
+    console.log('✅ Signed URL created:', url ? `Success: ${url.substring(0, 100)}...` : 'No URL returned')
+    return url
+  } catch (error) {
+    console.error('❌ Failed to get document URL for path:', path, error)
+    return ''
+  }
 }
 
 const downloadDocument = async (path: string, filename: string) => {
   try {
+    console.log('📥 Downloading document:', { path, filename })
+    toast.info(`Downloading ${filename}...`)
+    
     const { data, error } = await supabase.storage
       .from('documents')
       .download(path)
     
-    if (error) throw error
+    if (error) {
+      console.error('❌ Download error:', error)
+      throw error
+    }
+    
+    if (!data) {
+      throw new Error('No data received from storage')
+    }
+    
+    console.log('✅ Document data received, size:', data.size, 'bytes')
     
     const url = URL.createObjectURL(data)
     const a = document.createElement('a')
     a.href = url
     a.download = filename
+    a.style.display = 'none'
     document.body.appendChild(a)
     a.click()
     document.body.removeChild(a)
     URL.revokeObjectURL(url)
+    
+    toast.success(`${filename} downloaded successfully`)
+    console.log('✅ Document download completed:', filename)
   } catch (error) {
-    console.error('Error downloading document:', error)
-    toast.error('Failed to download document')
+    console.error('❌ Error downloading document:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
+    toast.error(`Failed to download document: ${errorMessage}`)
   }
 }
 
@@ -219,6 +264,14 @@ export function ComprehensiveLedgerDialog({
       const entry = entryData as LedgerEntryWithRelations
       const hasSubgroups = entry.ledger_subgroups && entry.ledger_subgroups.length > 0
 
+      console.log('📊 Loading entry data:', {
+        entryId: editingEntry.id,
+        hasSubgroups,
+        subgroupCount: entry.ledger_subgroups?.length || 0,
+        directBillsCount: entry.bills?.length || 0,
+        sampleBill: entry.bills?.[0] || entry.ledger_subgroups?.[0]?.bills?.[0]
+      })
+
       setEntryForm({
         title: entry.title,
         description: entry.description || '',
@@ -238,7 +291,53 @@ export function ComprehensiveLedgerDialog({
           default_due_date: subgroup.default_due_date ? formatDateForInput(new Date(subgroup.default_due_date)) : '',
           allocation_percentage: subgroup.allocation_percentage?.toString() || '',
           notes: subgroup.notes || '',
-          bills: (subgroup.bills || []).map(bill => ({
+          bills: (subgroup.bills || []).map(bill => {
+            const existingDoc = bill.document_url ? {
+              url: bill.document_url,
+              name: bill.document_name || 'Unknown Document',
+              size: bill.document_size || 0,
+              type: bill.document_type || 'application/octet-stream',
+              uploadedAt: bill.document_uploaded_at || ''
+            } : null
+            
+            console.log(`📄 Subgroup bill ${bill.vendor_name} document:`, {
+              hasDocument: !!bill.document_url,
+              documentName: bill.document_name,
+              documentSize: bill.document_size,
+              existingDoc
+            })
+            
+            return {
+              vendor_name: bill.vendor_name,
+              amount: bill.amount.toString(),
+              due_date: formatDateForInput(new Date(bill.due_date)),
+              frequency: bill.frequency,
+              category: bill.category,
+              fund_id: bill.fund_id,
+              notes: bill.notes || '',
+              priority: bill.priority,
+              document: null,
+              existingDocument: existingDoc
+            }
+          })
+        })) : [],
+        directBills: !hasSubgroups ? (entry.bills || []).map(bill => {
+          const existingDoc = bill.document_url ? {
+            url: bill.document_url,
+            name: bill.document_name || 'Unknown Document',
+            size: bill.document_size || 0,
+            type: bill.document_type || 'application/octet-stream',
+            uploadedAt: bill.document_uploaded_at || ''
+          } : null
+          
+          console.log(`📄 Direct bill ${bill.vendor_name} document:`, {
+            hasDocument: !!bill.document_url,
+            documentName: bill.document_name,
+            documentSize: bill.document_size,
+            existingDoc
+          })
+          
+          return {
             vendor_name: bill.vendor_name,
             amount: bill.amount.toString(),
             due_date: formatDateForInput(new Date(bill.due_date)),
@@ -248,34 +347,12 @@ export function ComprehensiveLedgerDialog({
             notes: bill.notes || '',
             priority: bill.priority,
             document: null,
-            existingDocument: bill.document_url ? {
-              url: bill.document_url,
-              name: bill.document_name || 'Unknown Document',
-              size: bill.document_size || 0,
-              type: bill.document_type || 'application/octet-stream',
-              uploadedAt: bill.document_uploaded_at || ''
-            } : null
-          }))
-        })) : [],
-        directBills: !hasSubgroups ? (entry.bills || []).map(bill => ({
-          vendor_name: bill.vendor_name,
-          amount: bill.amount.toString(),
-          due_date: formatDateForInput(new Date(bill.due_date)),
-          frequency: bill.frequency,
-          category: bill.category,
-          fund_id: bill.fund_id,
-          notes: bill.notes || '',
-          priority: bill.priority,
-          document: null,
-          existingDocument: bill.document_url ? {
-            url: bill.document_url,
-            name: bill.document_name || 'Unknown Document',
-            size: bill.document_size || 0,
-            type: bill.document_type || 'application/octet-stream',
-            uploadedAt: bill.document_uploaded_at || ''
-          } : null
-        })) : []
+            existingDocument: existingDoc
+          }
+        }) : []
       })
+
+      console.log('✅ Entry form loaded successfully with document data')
     } catch (error) {
       console.error('Error loading entry data:', error)
       toast.error('Failed to load entry data')
@@ -316,6 +393,14 @@ export function ComprehensiveLedgerDialog({
     const uploadId = `${billId}-${Date.now()}`
     
     try {
+      console.log('📤 Starting document upload:', {
+        fileName: file.name,
+        fileSize: file.size,
+        fileType: file.type,
+        billId,
+        uploadId
+      })
+
       setUploadProgress(prev => ({
         ...prev,
         [uploadId]: { progress: 0, status: 'uploading' }
@@ -324,6 +409,8 @@ export function ComprehensiveLedgerDialog({
       const fileExt = file.name.split('.').pop()
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`
       const filePath = `bill-documents/${fileName}`
+
+      console.log('🗂️ Upload path:', filePath)
 
       // Simulate upload progress
       const progressInterval = setInterval(() => {
@@ -345,7 +432,12 @@ export function ComprehensiveLedgerDialog({
 
       clearInterval(progressInterval)
 
-      if (uploadError) throw uploadError
+      if (uploadError) {
+        console.error('❌ Supabase storage upload error:', uploadError)
+        throw uploadError
+      }
+
+      console.log('✅ Document uploaded successfully to storage:', filePath)
 
       setUploadProgress(prev => ({
         ...prev,
@@ -363,6 +455,13 @@ export function ComprehensiveLedgerDialog({
 
       return filePath
     } catch (error) {
+      console.error('❌ Document upload failed:', {
+        error,
+        fileName: file.name,
+        billId,
+        uploadId
+      })
+      
       setUploadProgress(prev => ({
         ...prev,
         [uploadId]: { 
@@ -371,6 +470,8 @@ export function ComprehensiveLedgerDialog({
           error: error instanceof Error ? error.message : 'Upload failed' 
         }
       }))
+      
+      toast.error(`Failed to upload ${file.name}: ${error instanceof Error ? error.message : 'Unknown error'}`)
       return null
     }
   }
@@ -382,25 +483,17 @@ export function ComprehensiveLedgerDialog({
       return
     }
 
-    // Visible test mechanism
-    alert(`🔄 File upload triggered: ${file.name} (${file.size} bytes)`);
-    
-    console.debug('🔄 handleFileUpload called:', {
+    console.log('🔄 handleFileUpload called:', {
       fileName: file.name,
       fileSize: file.size,
+      fileType: file.type,
       billIndex,
       isSubgroup,
       subgroupIndex
     })
 
-    // Log current state before update
-    console.debug('📊 Current state before update:', {
-      directBillsCount: entryForm.directBills.length,
-      subgroupsCount: entryForm.subgroups.length,
-      targetBill: isSubgroup && subgroupIndex !== undefined 
-        ? entryForm.subgroups[subgroupIndex]?.bills[billIndex]
-        : entryForm.directBills[billIndex]
-    })
+    // Show immediate feedback
+    toast.success(`Document "${file.name}" attached successfully`)
 
     if (isSubgroup && subgroupIndex !== undefined) {
       setEntryForm(prev => {
@@ -417,12 +510,11 @@ export function ComprehensiveLedgerDialog({
               : subgroup
           )
         }
-        console.debug('🔄 Updated subgroup state:', {
+        console.log('✅ Updated subgroup bill with new document:', {
           subgroupIndex,
           billIndex,
-          updatedBill: updated.subgroups[subgroupIndex].bills[billIndex],
-          hasDocument: !!updated.subgroups[subgroupIndex].bills[billIndex].document,
-          documentName: updated.subgroups[subgroupIndex].bills[billIndex].document?.name
+          documentName: file.name,
+          hasNewDocument: !!updated.subgroups[subgroupIndex].bills[billIndex].document
         })
         return updated
       })
@@ -434,20 +526,20 @@ export function ComprehensiveLedgerDialog({
             bIdx === billIndex ? { ...bill, document: file, existingDocument: null } : bill
           )
         }
-        console.debug('🔄 Updated direct bills state:', {
+        console.log('✅ Updated direct bill with new document:', {
           billIndex,
-          updatedBill: updated.directBills[billIndex],
-          hasDocument: !!updated.directBills[billIndex].document,
-          documentName: updated.directBills[billIndex].document?.name
+          documentName: file.name,
+          hasNewDocument: !!updated.directBills[billIndex].document
         })
         return updated
       })
     }
 
-    toast.success(`Document "${file.name}" attached successfully`)
   }
 
   const handleDocumentRemove = (billIndex: number, isSubgroup: boolean, subgroupIndex?: number) => {
+    console.log('🗑️ Removing document:', { billIndex, isSubgroup, subgroupIndex })
+    
     if (isSubgroup && subgroupIndex !== undefined) {
       setEntryForm(prev => ({
         ...prev,
@@ -470,6 +562,8 @@ export function ComprehensiveLedgerDialog({
         )
       }))
     }
+    
+    toast.success('Document removed successfully')
   }
 
   const addResponsibleParty = () => {
@@ -682,7 +776,17 @@ export function ComprehensiveLedgerDialog({
 
             let documentPath = null
             if (bill.document) {
+              console.log('🔄 Uploading document for subgroup bill:', {
+                billIndex,
+                fileName: bill.document.name,
+                fileSize: bill.document.size,
+                fileType: bill.document.type
+              })
               documentPath = await uploadDocument(bill.document, `subgroup-${subgroupResult.id}-bill-${billIndex}`)
+              console.log('📂 Document upload result:', {
+                success: !!documentPath,
+                path: documentPath
+              })
             }
 
             const billData = {
@@ -705,11 +809,27 @@ export function ComprehensiveLedgerDialog({
               document_uploaded_at: documentPath ? new Date().toISOString() : null
             }
 
+            console.log('💾 Saving subgroup bill to database:', {
+              vendor: billData.vendor_name,
+              hasDocument: !!documentPath,
+              documentData: {
+                url: billData.document_url,
+                name: billData.document_name,
+                size: billData.document_size,
+                type: billData.document_type
+              }
+            })
+
             const { error: billError } = await supabase
               .from('bills')
               .insert([billData])
 
-            if (billError) throw billError
+            if (billError) {
+              console.error('❌ Error saving bill to database:', billError)
+              throw billError
+            } else {
+              console.log('✅ Bill saved successfully to database')
+            }
           }
         }
       } else {
@@ -727,7 +847,17 @@ export function ComprehensiveLedgerDialog({
 
           let documentPath = null
           if (bill.document) {
+            console.log('🔄 Uploading document for direct bill:', {
+              index,
+              fileName: bill.document.name,
+              fileSize: bill.document.size,
+              fileType: bill.document.type
+            })
             documentPath = await uploadDocument(bill.document, `entry-${entryId}-bill-${index}`)
+            console.log('📂 Document upload result:', {
+              success: !!documentPath,
+              path: documentPath
+            })
           }
 
           const billData = {
@@ -750,11 +880,27 @@ export function ComprehensiveLedgerDialog({
             document_uploaded_at: documentPath ? new Date().toISOString() : null
           }
 
+          console.log('💾 Saving direct bill to database:', {
+            vendor: billData.vendor_name,
+            hasDocument: !!documentPath,
+            documentData: {
+              url: billData.document_url,
+              name: billData.document_name,
+              size: billData.document_size,
+              type: billData.document_type
+            }
+          })
+
           const { error: billError } = await supabase
             .from('bills')
             .insert([billData])
 
-          if (billError) throw billError
+          if (billError) {
+            console.error('❌ Error saving direct bill to database:', billError)
+            throw billError
+          } else {
+            console.log('✅ Direct bill saved successfully to database')
+          }
         }
       }
 
@@ -781,94 +927,167 @@ export function ComprehensiveLedgerDialog({
     subgroupIndex?: number
     uploadId: string
   }) => {
-    console.debug('🎯 DocumentDisplay component rendered for uploadId:', uploadId)
     const [imageUrl, setImageUrl] = useState<string>('')
     const progress = uploadProgress[uploadId]
-    const hasNewDocument = bill.document
-    const hasExistingDocument = bill.existingDocument
+    const hasNewDocument = !!bill.document
+    const hasExistingDocument = !!bill.existingDocument
     const hasAnyDocument = hasNewDocument || hasExistingDocument
     
-    // Debug logging
-    console.debug(`📋 DocumentDisplay rendered - uploadId: ${uploadId}`, {
-      hasNewDocument: !!hasNewDocument,
-      hasExistingDocument: !!hasExistingDocument,
+    // Debug logging with better visibility
+    console.log(`🎯 DocumentDisplay rendered - uploadId: ${uploadId}`, {
+      hasNewDocument,
+      hasExistingDocument,
       hasAnyDocument,
-      documentName: hasNewDocument ? hasNewDocument.name : (hasExistingDocument ? hasExistingDocument.name : 'none'),
-      billDocument: bill.document,
-      billExistingDocument: bill.existingDocument
+      newDocName: bill.document?.name,
+      existingDocName: bill.existingDocument?.name,
+      existingDocUrl: bill.existingDocument?.url,
+      existingDocType: bill.existingDocument?.type
     })
-    console.debug('🎯 DocumentDisplay component is being rendered for uploadId:', uploadId)
-
-
 
     useEffect(() => {
-      if (hasExistingDocument && isImageFile(hasExistingDocument.type)) {
-        getDocumentUrl(hasExistingDocument.url).then(setImageUrl)
+      if (hasExistingDocument && bill.existingDocument && isImageFile(bill.existingDocument.type)) {
+        console.log('🖼️ Loading image URL for:', {
+          name: bill.existingDocument.name,
+          url: bill.existingDocument.url,
+          type: bill.existingDocument.type
+        })
+        
+        getDocumentUrl(bill.existingDocument.url)
+          .then(url => {
+            console.log('✅ Image URL loaded successfully:', {
+              originalPath: bill.existingDocument?.url,
+              signedUrl: url.substring(0, 100) + '...',
+              fullUrl: url
+            })
+            setImageUrl(url)
+          })
+          .catch(err => {
+            console.error('❌ Failed to load image URL:', {
+              error: err,
+              path: bill.existingDocument?.url,
+              name: bill.existingDocument?.name
+            })
+            setImageUrl('')
+          })
+      } else {
+        console.log('🖼️ Skipping image URL loading:', {
+          hasExistingDocument,
+          hasExistingDocumentData: !!bill.existingDocument,
+          isImage: bill.existingDocument ? isImageFile(bill.existingDocument.type) : false,
+          type: bill.existingDocument?.type
+        })
+        setImageUrl('')
       }
-    }, [hasExistingDocument])
+    }, [hasExistingDocument, bill.existingDocument])
 
     const handleDocumentClick = async () => {
-      if (hasNewDocument) {
-        // For new uploads, create object URL for preview
-        const url = URL.createObjectURL(hasNewDocument)
-        if (isImageFile(hasNewDocument.type)) {
-          window.open(url, '_blank')
-        } else {
-          const a = document.createElement('a')
-          a.href = url
-          a.download = hasNewDocument.name
-          a.click()
+      try {
+        if (hasNewDocument && bill.document) {
+          console.log('🔗 Viewing new document:', bill.document.name)
+          // For new uploads, create object URL for preview
+          const url = URL.createObjectURL(bill.document)
+          if (isImageFile(bill.document.type)) {
+            window.open(url, '_blank')
+          } else {
+            const a = document.createElement('a')
+            a.href = url
+            a.download = bill.document.name
+            document.body.appendChild(a)
+            a.click()
+            document.body.removeChild(a)
+          }
+          URL.revokeObjectURL(url)
+          toast.success('Document opened successfully')
+        } else if (hasExistingDocument && bill.existingDocument) {
+          console.log('🔗 Viewing existing document:', bill.existingDocument.name)
+          if (isImageFile(bill.existingDocument.type)) {
+            const url = await getDocumentUrl(bill.existingDocument.url)
+            if (url) {
+              window.open(url, '_blank')
+              toast.success('Document opened in new tab')
+            } else {
+              toast.error('Failed to load document URL')
+            }
+          } else {
+            await downloadDocument(bill.existingDocument.url, bill.existingDocument.name)
+          }
         }
-        URL.revokeObjectURL(url)
-      } else if (hasExistingDocument) {
-        if (isImageFile(hasExistingDocument.type)) {
-          const url = await getDocumentUrl(hasExistingDocument.url)
-          window.open(url, '_blank')
-        } else {
-          await downloadDocument(hasExistingDocument.url, hasExistingDocument.name)
-        }
+      } catch (error) {
+        console.error('❌ Error handling document click:', error)
+        toast.error('Failed to open document')
       }
     }
 
     const getDocumentPreview = () => {
-      if (hasNewDocument) {
-        if (isImageFile(hasNewDocument.type)) {
-          const url = URL.createObjectURL(hasNewDocument)
+      console.log('🎨 Rendering document preview:', {
+        hasNewDocument,
+        hasExistingDocument,
+        imageUrl: imageUrl?.substring(0, 50),
+        newDocType: bill.document?.type,
+        existingDocType: bill.existingDocument?.type
+      })
+      
+      if (hasNewDocument && bill.document) {
+        if (isImageFile(bill.document.type)) {
+          const url = URL.createObjectURL(bill.document)
           return (
-            <img 
-              src={url} 
-              alt={hasNewDocument.name}
-              className="w-16 h-16 object-cover rounded-lg cursor-pointer hover:opacity-80 transition-opacity"
-              onClick={handleDocumentClick}
-            />
+            <div className="relative group">
+              <img 
+                src={url} 
+                alt={bill.document.name}
+                className="w-16 h-16 object-cover rounded-lg cursor-pointer hover:opacity-80 transition-opacity"
+                onClick={handleDocumentClick}
+                onLoad={() => URL.revokeObjectURL(url)}
+              />
+              <div className="absolute inset-0 bg-blue-500/20 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                <span className="text-xs text-white font-medium">View</span>
+              </div>
+            </div>
           )
         } else {
           return (
             <div 
-              className="w-16 h-16 bg-white/10 border border-white/20 rounded-lg flex items-center justify-center cursor-pointer hover:bg-white/20 transition-colors"
+              className="w-16 h-16 bg-white/10 border border-white/20 rounded-lg flex items-center justify-center cursor-pointer hover:bg-white/20 transition-colors group relative"
               onClick={handleDocumentClick}
             >
               <FileText className="w-8 h-8 text-blue-400" />
+              <div className="absolute inset-0 bg-blue-500/20 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                <span className="text-xs text-white font-medium">Download</span>
+              </div>
             </div>
           )
         }
-      } else if (hasExistingDocument) {
-        if (isImageFile(hasExistingDocument.type) && imageUrl) {
+      } else if (hasExistingDocument && bill.existingDocument) {
+        if (isImageFile(bill.existingDocument.type) && imageUrl) {
           return (
-            <img 
-              src={imageUrl} 
-              alt={hasExistingDocument.name}
-              className="w-16 h-16 object-cover rounded-lg cursor-pointer hover:opacity-80 transition-opacity"
-              onClick={handleDocumentClick}
-            />
+            <div className="relative group">
+              <img 
+                src={imageUrl} 
+                alt={bill.existingDocument.name}
+                className="w-16 h-16 object-cover rounded-lg cursor-pointer hover:opacity-80 transition-opacity"
+                onClick={handleDocumentClick}
+                onError={(e) => {
+                  console.error('❌ Image failed to load:', e)
+                  e.currentTarget.style.display = 'none'
+                }}
+              />
+              <div className="absolute inset-0 bg-green-500/20 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                <span className="text-xs text-white font-medium">View</span>
+              </div>
+            </div>
           )
         } else {
           return (
             <div 
-              className="w-16 h-16 bg-white/10 border border-white/20 rounded-lg flex items-center justify-center cursor-pointer hover:bg-white/20 transition-colors"
+              className="w-16 h-16 bg-white/10 border border-white/20 rounded-lg flex items-center justify-center cursor-pointer hover:bg-white/20 transition-colors group relative"
               onClick={handleDocumentClick}
             >
-              <FileText className="w-8 h-8 text-blue-400" />
+              <FileText className="w-8 h-8 text-green-400" />
+              <div className="absolute inset-0 bg-green-500/20 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                <span className="text-xs text-white font-medium">
+                  {isImageFile(bill.existingDocument.type) ? 'View' : 'Download'}
+                </span>
+              </div>
             </div>
           )
         }
@@ -877,24 +1096,42 @@ export function ComprehensiveLedgerDialog({
     }
 
     if (hasAnyDocument) {
-      const documentName = hasNewDocument ? hasNewDocument.name : hasExistingDocument!.name
-      const documentSize = hasNewDocument ? hasNewDocument.size : hasExistingDocument!.size
+      const documentName = hasNewDocument && bill.document ? bill.document.name : (bill.existingDocument?.name || 'Unknown Document')
+      const documentSize = hasNewDocument && bill.document ? bill.document.size : (bill.existingDocument?.size || 0)
+      const isExistingOnly = hasExistingDocument && !hasNewDocument
+      
+      console.log('📄 Rendering document info:', {
+        documentName,
+        documentSize,
+        isExistingOnly,
+        hasProgress: !!progress
+      })
       
       return (
-        <div className="flex items-center gap-3 p-3 bg-white/5 border border-white/10 rounded-lg">
-
+        <div className="flex items-center gap-3 p-3 bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 transition-colors">
           {getDocumentPreview()}
           <div className="flex-1">
-            <p className="text-sm font-medium text-white cursor-pointer hover:text-blue-400 transition-colors" onClick={handleDocumentClick}>
+            <p 
+              className="text-sm font-medium text-white cursor-pointer hover:text-blue-400 transition-colors flex items-center gap-2" 
+              onClick={handleDocumentClick}
+              title="Click to view/download document"
+            >
               {documentName}
+              {isExistingOnly && (
+                <span className="inline-flex items-center px-2 py-1 text-xs bg-green-500/20 text-green-400 rounded-full">
+                  Uploaded
+                </span>
+              )}
+              {hasNewDocument && (
+                <span className="inline-flex items-center px-2 py-1 text-xs bg-blue-500/20 text-blue-400 rounded-full">
+                  New
+                </span>
+              )}
             </p>
             <p className="text-xs text-white/60">
               {(documentSize / 1024 / 1024).toFixed(2)} MB
-              {hasExistingDocument && !hasNewDocument && (
-                <span className="ml-2 text-green-400">• Uploaded</span>
-              )}
-              {hasNewDocument && (
-                <span className="ml-2 text-blue-400">• New</span>
+              {bill.existingDocument?.uploadedAt && (
+                <span className="ml-2">• {new Date(bill.existingDocument.uploadedAt).toLocaleDateString()}</span>
               )}
             </p>
           </div>
@@ -923,7 +1160,7 @@ export function ComprehensiveLedgerDialog({
               size="sm"
               onClick={() => document.getElementById(`file-${uploadId}`)?.click()}
               className="text-blue-400 hover:text-blue-300 hover:bg-blue-500/20"
-              title="Replace document"
+              title={hasAnyDocument ? "Replace document" : "Upload document"}
             >
               <Upload className="w-4 h-4" />
             </Button>

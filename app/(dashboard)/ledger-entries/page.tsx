@@ -516,9 +516,6 @@ export default function LedgerEntriesPage(): JSX.Element {
                             <DropdownMenuItem onClick={() => openComprehensiveDialog(entry)} className="text-white hover:bg-white/20">
                               Edit Entry
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => openComprehensiveDialog(entry)} className="text-white hover:bg-white/20">
-                              Manage Entry
-                            </DropdownMenuItem>
                             <DropdownMenuItem 
                               onClick={() => deleteEntry(entry.id)}
                               className="text-red-400 hover:bg-red-500/20"
