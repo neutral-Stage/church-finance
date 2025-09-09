@@ -1,9 +1,14 @@
-import { createClient } from '@supabase/supabase-js'
+// DEPRECATED: This file is deprecated and should not be used
+// Use the new services instead:
+// - For server-side operations: import { ServerNotificationService } from '@/lib/notifications/server'
+// - For client-side operations: import { ClientNotificationService } from '@/lib/notifications/client'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+console.warn('DEPRECATED: notificationService.ts is deprecated. Use @/lib/notifications/server or @/lib/notifications/client instead')
 
-const supabase = createClient(supabaseUrl, supabaseKey)
+import { createAdminClient } from '@/lib/supabase-server'
+
+// Use admin client for server-side notifications - no realtime features
+const supabase = createAdminClient()
 
 export class NotificationService {
   /**

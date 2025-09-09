@@ -17,20 +17,9 @@ import {
   MoreHorizontal
 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
-import { supabase } from '@/lib/supabase'
+import { ClientNotificationService } from '@/lib/notifications/client'
+import { Notification } from '@/types/notifications'
 import { formatDistanceToNow } from 'date-fns'
-import NotificationService from '@/lib/notificationService'
-
-interface Notification {
-  id: string
-  title: string
-  message: string
-  type: 'info' | 'success' | 'warning' | 'error'
-  category: 'transaction' | 'member' | 'offering' | 'bill' | 'system' | 'report'
-  read: boolean
-  created_at: string
-  action_url?: string
-}
 
 interface NotificationsDropdownProps {
   className?: string
@@ -42,10 +31,9 @@ const notificationIcons = {
   offering: TrendingUp,
   bill: Calendar,
   system: Settings,
-  report: FileText
+  report: FileText,
+  general: Bell
 }
-
-
 
 const categoryColors = {
   transaction: 'bg-green-500',
@@ -53,135 +41,138 @@ const categoryColors = {
   offering: 'bg-purple-500',
   bill: 'bg-red-500',
   system: 'bg-gray-500',
-  report: 'bg-orange-500'
+  report: 'bg-orange-500',
+  general: 'bg-gray-500'
 }
 
 export default function NotificationsDropdown({ className }: NotificationsDropdownProps) {
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [unreadCount, setUnreadCount] = useState(0)
   const { user } = useAuth()
-
-  const generateRealNotifications = useCallback(async () => {
-    if (!user) return
-
-    try {
-      // Generate all types of notifications using the service
-      await NotificationService.generateAllNotifications()
-    } catch {
-      // Silently handle error
-    }
-  }, [user])
 
   const loadNotifications = useCallback(async () => {
     if (!user) return
 
     setLoading(true)
+    setError(null)
     try {
-      // Generate real notifications based on database events
-      await generateRealNotifications()
-
-      // Load notifications from database
-      const { data: dbNotifications } = await supabase
-        .from('notifications')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(20)
-
-      if (dbNotifications) {
-        setNotifications(dbNotifications)
-        setUnreadCount(dbNotifications.filter(n => !n.read).length)
-      } else {
-        setNotifications([])
-        setUnreadCount(0)
-      }
-    } catch {
+      // Load notifications via the client service
+      const fetchedNotifications = await ClientNotificationService.getUserNotifications({ limit: 20 })
+      setNotifications(fetchedNotifications)
+      setUnreadCount(ClientNotificationService.getUnreadCount(fetchedNotifications))
+    } catch (err) {
+      console.error('Error loading notifications:', err)
+      setError(err instanceof Error ? err.message : 'Failed to load notifications')
       setNotifications([])
       setUnreadCount(0)
     } finally {
       setLoading(false)
     }
-  }, [user, generateRealNotifications])
+  }, [user?.id])
 
   useEffect(() => {
-    const fetchNotifications = async () => {
-      if (user) {
-        await loadNotifications()
-        // Set up real-time subscription for new notifications
-        const subscription = supabase
-          .channel('notifications')
-          .on('postgres_changes', {
-            event: '*',
-            schema: 'public',
-            table: 'notifications',
-            filter: `user_id=eq.${user.id}`
-          }, () => {
-            loadNotifications()
-          })
-          .subscribe()
+    let unsubscribe: (() => void) | null = null
 
-        return () => {
-          subscription.unsubscribe()
+    const initializeNotifications = async () => {
+      if (user?.id) {
+        // Load initial notifications
+        await loadNotifications()
+        
+        // Set up real-time subscription for new notifications
+        try {
+          unsubscribe = ClientNotificationService.subscribeToNotifications(
+            user.id,
+            (updatedNotifications) => {
+              setNotifications(updatedNotifications)
+              setUnreadCount(ClientNotificationService.getUnreadCount(updatedNotifications))
+            }
+          )
+        } catch (err) {
+          console.error('Error setting up notification subscription:', err)
         }
       }
     }
-    fetchNotifications()
-  }, [user, loadNotifications])
+
+    initializeNotifications()
+
+    return () => {
+      if (unsubscribe) {
+        unsubscribe()
+      }
+    }
+  }, [user?.id, loadNotifications])
 
   const markAsRead = async (notificationId: string) => {
     try {
-      await NotificationService.markAsRead(notificationId)
-
-      // Update local state
+      // Optimistic update - update UI immediately
       setNotifications(prev =>
         prev.map(n =>
           n.id === notificationId ? { ...n, read: true } : n
         )
       )
       setUnreadCount(prev => Math.max(0, prev - 1))
-    } catch {
-      // Still update local state even if database update fails
+      
+      // Make API call
+      await ClientNotificationService.markAsRead(notificationId)
+    } catch (err) {
+      console.error('Error marking notification as read:', err)
+      // Revert optimistic update on error
       setNotifications(prev =>
         prev.map(n =>
-          n.id === notificationId ? { ...n, read: true } : n
+          n.id === notificationId ? { ...n, read: false } : n
         )
       )
-      setUnreadCount(prev => Math.max(0, prev - 1))
+      setUnreadCount(prev => prev + 1)
+      setError(err instanceof Error ? err.message : 'Failed to mark as read')
     }
   }
 
   const markAllAsRead = async () => {
     if (!user) return
-
+    
+    // Store original state for rollback
+    const originalNotifications = [...notifications]
+    const originalCount = unreadCount
+    
     try {
-      await NotificationService.markAllAsRead(user.id)
-
+      // Optimistic update - update UI immediately
       setNotifications(prev => prev.map(n => ({ ...n, read: true })))
       setUnreadCount(0)
-    } catch {
-      // Still update local state
-      setNotifications(prev => prev.map(n => ({ ...n, read: true })))
-      setUnreadCount(0)
+      
+      // Make API call
+      await ClientNotificationService.markAllAsRead()
+    } catch (err) {
+      console.error('Error marking all notifications as read:', err)
+      // Revert optimistic update on error
+      setNotifications(originalNotifications)
+      setUnreadCount(originalCount)
+      setError(err instanceof Error ? err.message : 'Failed to mark all as read')
     }
   }
 
   const deleteNotification = async (notificationId: string) => {
+    // Store original state for rollback
+    const notification = notifications.find(n => n.id === notificationId)
+    const originalNotifications = [...notifications]
+    const originalCount = unreadCount
+    
     try {
-      await NotificationService.deleteNotification(notificationId)
-
-      const notification = notifications.find(n => n.id === notificationId)
+      // Optimistic update - update UI immediately
       setNotifications(prev => prev.filter(n => n.id !== notificationId))
       if (notification && !notification.read) {
         setUnreadCount(prev => Math.max(0, prev - 1))
       }
-    } catch {
-      // Still update local state
-      const notification = notifications.find(n => n.id === notificationId)
-      setNotifications(prev => prev.filter(n => n.id !== notificationId))
-      if (notification && !notification.read) {
-        setUnreadCount(prev => Math.max(0, prev - 1))
-      }
+      
+      // Make API call
+      await ClientNotificationService.deleteNotification(notificationId)
+    } catch (err) {
+      console.error('Error deleting notification:', err)
+      // Revert optimistic update on error
+      setNotifications(originalNotifications)
+      setUnreadCount(originalCount)
+      setError(err instanceof Error ? err.message : 'Failed to delete notification')
     }
   }
 
@@ -245,6 +236,23 @@ export default function NotificationsDropdown({ className }: NotificationsDropdo
             <div className="flex items-center justify-center py-8">
               <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-400"></div>
               <span className="ml-2 text-white/70 text-sm">Loading...</span>
+            </div>
+          ) : error ? (
+            <div className="text-center py-8">
+              <div className="relative mb-4">
+                <div className="absolute inset-0 bg-red-500/20 rounded-full blur-xl" />
+                <X className="relative h-12 w-12 text-red-400 mx-auto" />
+              </div>
+              <p className="text-red-400 font-medium">Error loading notifications</p>
+              <p className="text-white/50 text-sm mt-1">{error}</p>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => { setError(null); loadNotifications(); }}
+                className="mt-3 text-xs text-white/70 hover:text-white hover:bg-white/10"
+              >
+                Try again
+              </Button>
             </div>
           ) : notifications.length === 0 ? (
             <div className="text-center py-8">

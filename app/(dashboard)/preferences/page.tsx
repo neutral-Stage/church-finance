@@ -1,3 +1,4 @@
+// User preferences management - client-side only due to user interaction requirements
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
@@ -70,7 +71,7 @@ const defaultPreferences: UserPreferences = {
 }
 
 export default function Preferences() {
-  const { user, session } = useAuth()
+  const { user } = useAuth()
   const [loading, setLoading] = useState(false)
   const [preferences, setPreferences] = useState<UserPreferences>(defaultPreferences)
 
@@ -78,16 +79,9 @@ export default function Preferences() {
     if (!user) return
 
     try {
-      // Check if we have a valid session from AuthContext
-      if (!session) {
+      if (!user) {
         return
       }
-
-      // Explicitly set the session on the Supabase client
-      await supabase.auth.setSession({
-        access_token: session.access_token,
-        refresh_token: session.refresh_token
-      })
 
       const { data } = await supabase
         .from('user_preferences')
@@ -101,7 +95,7 @@ export default function Preferences() {
     } catch {
       // Silently handle error - user will see default preferences
     }
-  }, [user, session])
+  }, [user])
 
   useEffect(() => {
     loadPreferences()
@@ -114,16 +108,9 @@ export default function Preferences() {
 
     setLoading(true)
     try {
-      // Check if we have a valid session from AuthContext
-      if (!session) {
-        throw new Error('Authentication session not found. Please sign in again.')
+      if (!user) {
+        throw new Error('User not found. Please sign in again.')
       }
-      
-      // Explicitly set the session on the Supabase client
-      await supabase.auth.setSession({
-        access_token: session.access_token,
-        refresh_token: session.refresh_token
-      })
 
       const { error } = await supabase
         .from('user_preferences')

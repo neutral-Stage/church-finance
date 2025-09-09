@@ -122,9 +122,15 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
   // Touch gesture handling for mobile sidebar
   const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(null)
 
-  // Add shimmer animation styles
+  // Add shimmer animation styles - only once on mount
   useEffect(() => {
+    // Check if styles already exist to prevent duplicates
+    if (document.querySelector('#shimmer-styles')) {
+      return;
+    }
+    
     const style = document.createElement('style');
+    style.id = 'shimmer-styles';
     style.textContent = `
       @keyframes shimmer {
         0% { transform: translateX(-100%); }
@@ -135,10 +141,14 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
       }
     `;
     document.head.appendChild(style);
+    
     return () => {
-      document.head.removeChild(style);
+      const existingStyle = document.querySelector('#shimmer-styles');
+      if (existingStyle && existingStyle.parentNode) {
+        existingStyle.parentNode.removeChild(existingStyle);
+      }
     };
-  }, []);
+  }, []); // Empty dependency array - only run once
 
   useEffect(() => {
     setMounted(true)
@@ -149,12 +159,10 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
     setIsTransitioning(true)
     setIsCollapsed(prev => !prev)
     // Reset hover state when toggling
-    if (isHovered) {
-      setIsHovered(false)
-    }
+    setIsHovered(false)
     // Reset transition state after animation completes
     setTimeout(() => setIsTransitioning(false), 600)
-  }, [isHovered])
+  }, []) // Remove isHovered dependency to prevent unnecessary re-renders
 
   const handleSignOut = async () => {
     await signOut()

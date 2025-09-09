@@ -1,40 +1,62 @@
 import { NextRequest, NextResponse } from 'next/server'
-import NotificationService from '@/lib/notificationService'
+import { ServerNotificationService } from '@/lib/notifications/server'
+import { NotificationApiResponse } from '@/types/notifications'
 
-export async function POST(request: NextRequest) {
+export async function POST(request: NextRequest): Promise<NextResponse<NotificationApiResponse>> {
   try {
-    // Optional: Add authentication/authorization here
+    // Optional: Add authentication/authorization here for additional security
+    // This endpoint could be protected with API keys for cron jobs or admin operations
     // const authorization = request.headers.get('authorization')
     // if (!authorization || !isValidApiKey(authorization)) {
     //   return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     // }
 
-    const body = await request.json()
+    // Parse and validate request body
+    let body
+    try {
+      body = await request.json()
+    } catch (parseError) {
+      return NextResponse.json(
+        { error: 'Invalid JSON', details: 'Request body must be valid JSON' },
+        { status: 400 }
+      )
+    }
+
     const { type } = body
+
+    // Validate type parameter if provided
+    const validTypes = ['all', 'bills', 'transactions', 'offerings', 'advances', 'cleanup']
+    if (type && !validTypes.includes(type)) {
+      return NextResponse.json(
+        { 
+          error: 'Invalid type', 
+          details: `Type must be one of: ${validTypes.join(', ')}` 
+        },
+        { status: 400 }
+      )
+    }
 
     // Generate notifications based on type
     switch (type) {
-      case 'all':
-        await NotificationService.generateAllNotifications()
-        break
       case 'bills':
-        await NotificationService.generateBillNotifications()
+        await ServerNotificationService.generateBillNotifications()
         break
       case 'transactions':
-        await NotificationService.generateTransactionNotifications()
+        await ServerNotificationService.generateTransactionNotifications()
         break
       case 'offerings':
-        await NotificationService.generateOfferingNotifications()
+        await ServerNotificationService.generateOfferingNotifications()
         break
       case 'advances':
-        await NotificationService.generateAdvanceNotifications()
+        await ServerNotificationService.generateAdvanceNotifications()
         break
       case 'cleanup':
-        await NotificationService.cleanupOldNotifications()
+        await ServerNotificationService.cleanupOldNotifications()
         break
+      case 'all':
       default:
         // Generate all types by default
-        await NotificationService.generateAllNotifications()
+        await ServerNotificationService.generateAllNotifications()
         break
     }
 
@@ -43,7 +65,7 @@ export async function POST(request: NextRequest) {
       message: `Notifications generated successfully for type: ${type || 'all'}` 
     })
   } catch (error) {
-    // Error handled silently
+    console.error('Error in POST /api/notifications/generate:', error)
     return NextResponse.json(
       { 
         error: 'Failed to generate notifications',

@@ -1,8 +1,8 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
+import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -17,8 +17,15 @@ export default function LoginPage(): JSX.Element {
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const { signIn } = useAuth()
+  const { signIn, user } = useAuth()
   const router = useRouter()
+
+  // Redirect authenticated users to dashboard
+  useEffect(() => {
+    if (user && !loading) {
+      router.push('/dashboard')
+    }
+  }, [user, loading, router])
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -29,13 +36,16 @@ export default function LoginPage(): JSX.Element {
       const { error } = await signIn(email, password)
 
       if (error) {
-        setError(typeof error === 'string' ? error : (error instanceof Error ? error.message : 'An error occurred during sign in'))
+        setError(typeof error === 'string' ? error : 'An error occurred during sign in')
+        setLoading(false)
       } else {
-        router.replace('/dashboard')
+        // Don't set loading to false here - let the user redirect effect handle it
+        // The useEffect above will redirect when user state updates
+        console.log('Login successful, redirecting to dashboard...')
+        router.push('/dashboard')
       }
     } catch {
       setError('An unexpected error occurred')
-    } finally {
       setLoading(false)
     }
   }

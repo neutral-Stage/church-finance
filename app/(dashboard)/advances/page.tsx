@@ -1,3 +1,5 @@
+// Complex interactive page - keeping as client component for now
+// Can be optimized later with more detailed server-side data fetching
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'

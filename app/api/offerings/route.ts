@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerClient, createAdminClient } from '@/lib/supabase';
+import { createServerClient, createAdminClient } from '@/lib/supabase-server';
 import { retrySupabaseQuery, logNetworkError } from '@/lib/retry-utils';
 
 // GET - Fetch all offerings
