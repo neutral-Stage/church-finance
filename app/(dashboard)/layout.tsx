@@ -138,15 +138,19 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
   }
 
   const Sidebar = ({ mobile = false }: { mobile?: boolean }) => (
-    <div className={cn(
-      "flex flex-col h-full bg-white/5 backdrop-blur-sm border-r border-white/10 transition-all duration-300 ease-in-out",
-      mobile ? "w-full" : isCollapsed ? "w-20" : "w-64"
-    )}>
+    <div
+      className={cn(
+        "flex flex-col h-full bg-white/5 backdrop-blur-sm border-r border-white/10",
+        mobile ? "w-full" : "w-full"
+      )}
+    >
       {/* Header */}
-      <div className={cn(
-        "flex items-center h-16 px-4 border-b border-white/10",
-        !mobile && isCollapsed ? "justify-center" : ""
-      )}>
+      <div
+        className={cn(
+          "flex items-center h-16 px-4 border-b border-white/10",
+          !mobile && isCollapsed ? "justify-center" : ""
+        )}
+      >
         <div className="flex items-center">
           <div className="bg-white/10 p-2 rounded-lg">
             <Church className="h-6 w-6 text-white" />
@@ -162,7 +166,12 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
       </div>
 
       {/* Navigation */}
-      <nav className={cn("flex-1 py-4 space-y-2 overflow-y-auto", mobile ? "px-6" : "px-3")}>
+      <nav
+        className={cn(
+          "flex-1 py-4 space-y-2 overflow-y-auto",
+          mobile ? "px-6" : "px-3"
+        )}
+      >
         {filteredNavigation.map((item) => {
           const isActive = pathname === item.href;
           return (
@@ -170,20 +179,26 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
               key={item.name}
               onClick={() => router.push(item.href)}
               className={cn(
-                "flex items-center w-full text-sm font-medium rounded-lg transition-all duration-200",
-                mobile ? "px-4 py-3" : isCollapsed ? "px-3 py-3 justify-center" : "px-4 py-3",
+                "flex items-center w-full text-sm font-medium rounded-lg transition-all duration-300",
+                mobile
+                  ? "px-4 py-3"
+                  : isCollapsed
+                  ? "px-3 py-3 justify-center"
+                  : "px-4 py-3",
                 isActive
                   ? "bg-white/20 text-white"
                   : "text-white/80 hover:text-white hover:bg-white/10"
               )}
               title={!mobile && isCollapsed ? item.name : undefined}
             >
-              <item.icon className={cn(
-                "h-5 w-5 transition-all duration-200", 
-                !mobile && !isCollapsed ? "mr-3" : ""
-              )} />
+              <item.icon
+                className={cn(
+                  "h-5 w-5 transition-all duration-300",
+                  !mobile && !isCollapsed ? "mr-3" : ""
+                )}
+              />
               {(!isCollapsed || mobile) && (
-                <span className="transition-opacity duration-200">
+                <span className="transition-opacity duration-300">
                   {item.name}
                 </span>
               )}
@@ -195,10 +210,12 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
       {/* User Profile Section */}
       <div className={cn("border-t border-white/10", mobile ? "p-6" : "p-4")}>
         <div className="bg-white/5 rounded-lg p-3">
-          <div className={cn(
-            "flex items-center transition-all duration-200",
-            !mobile && isCollapsed ? "justify-center" : "space-x-3"
-          )}>
+          <div
+            className={cn(
+              "flex items-center transition-all duration-300",
+              !mobile && isCollapsed ? "justify-center" : "space-x-3"
+            )}
+          >
             <Avatar className="h-8 w-8 border-2 border-white/20">
               <AvatarFallback className="bg-white/10 text-white font-semibold text-xs">
                 {user?.full_name
@@ -229,7 +246,12 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 relative">
       <div className="flex h-screen">
         {/* Desktop Sidebar */}
-        <div className="hidden lg:flex">
+        <div
+          className={cn(
+            "hidden lg:flex transition-[width] duration-300 ease-in-out will-change-[width]",
+            isCollapsed ? "w-20" : "w-64"
+          )}
+        >
           <Sidebar />
         </div>
 
@@ -245,7 +267,12 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
         </Sheet>
 
         {/* Main Content */}
-        <div className="flex-1 flex flex-col">
+        <div
+          className={cn(
+            "flex-1 lg:flex-none flex flex-col transition-[width] duration-300 ease-in-out will-change-[width] overflow-hidden",
+            isCollapsed ? "lg:w-[calc(100%-5rem)]" : "lg:w-[calc(100%-16rem)]"
+          )}
+        >
           {/* Header */}
           <header className="bg-white/5 backdrop-blur-xl border-b border-white/10 px-4 py-3">
             <div className="flex items-center justify-between">
@@ -259,18 +286,22 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
                 >
                   <Menu className="h-5 w-5" />
                 </Button>
-                
+
                 {/* Desktop sidebar toggle button */}
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="hidden lg:flex text-white hover:bg-white/10 p-2 rounded-lg transition-all duration-200"
+                  className="hidden lg:flex text-white hover:bg-white/10 p-2 rounded-lg transition-all duration-300"
                   onClick={toggleSidebar}
                   title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
                 >
-                  {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+                  {isCollapsed ? (
+                    <ChevronRight className="h-4 w-4" />
+                  ) : (
+                    <ChevronLeft className="h-4 w-4" />
+                  )}
                 </Button>
-                
+
                 {/* Page title */}
                 <h1 className="text-lg font-semibold text-white">
                   {navigation.find((item) => item.href === pathname)?.name ||
@@ -355,8 +386,8 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
           </header>
 
           {/* Main Content */}
-          <main className="flex-1 overflow-auto p-6">
-            <div className="bg-white/5 backdrop-blur-sm rounded-lg border border-white/10 p-6 min-h-full">
+          <main className="flex-1 overflow-auto">
+            <div className="bg-white/5 backdrop-blur-sm border border-white/10 p-6 min-h-full">
               <ErrorBoundary>{children}</ErrorBoundary>
             </div>
           </main>
