@@ -24,7 +24,8 @@
       "Read(//private/tmp/**)",
       "Bash(rg:*)",
       "Bash(npm run lint)",
-      "Bash(supabase status:*)"
+      "Bash(supabase status:*)",
+      "Bash(wc:*)"
     ],
     "deny": [],
     "ask": []

@@ -258,15 +258,18 @@
   }
   
   .glass-card-frosted {
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%);
-    backdrop-filter: blur(40px) saturate(200%) brightness(110%);
-    -webkit-backdrop-filter: blur(40px) saturate(200%) brightness(110%);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.06) 100%);
+    backdrop-filter: blur(48px) saturate(220%) brightness(115%);
+    -webkit-backdrop-filter: blur(48px) saturate(220%) brightness(115%);
+    border: 1px solid rgba(255, 255, 255, 0.12);
     box-shadow: 
-      0 20px 60px rgba(0, 0, 0, 0.2),
-      inset 0 2px 0 rgba(255, 255, 255, 0.1),
-      inset 0 -2px 0 rgba(255, 255, 255, 0.05);
+      0 32px 80px rgba(0, 0, 0, 0.25),
+      0 8px 24px rgba(0, 0, 0, 0.15),
+      inset 0 2px 0 rgba(255, 255, 255, 0.15),
+      inset 0 -2px 0 rgba(255, 255, 255, 0.08);
   }
+
+  /* Clean Sidebar Styles */
   
   /* Gradient utilities */
   .gradient-primary {
@@ -352,6 +355,7 @@
     background: rgba(255, 255, 255, 0.15);
     backdrop-filter: blur(20px);
   }
+
 }
 
 @layer utilities {
@@ -477,316 +481,14 @@
     background: rgba(255, 255, 255, 0.4);
   }
   
-  /* Premium Collapsible Sidebar Utilities */
-  .sidebar-collapsed {
-    width: 5rem; /* 80px - more elegant than 64px */
-    transition: width 0.6s cubic-bezier(0.23, 1, 0.32, 1);
-    transform: translateZ(0);
-    overflow: hidden;
-    contain: layout size;
-    position: relative;
-  }
   
-  .sidebar-expanded {
-    width: 17rem; /* 272px - slightly wider for better content spacing */
-    transition: width 0.6s cubic-bezier(0.23, 1, 0.32, 1);
-    transform: translateZ(0);
-    overflow: hidden; /* Keep hidden during transitions to prevent scrollbars */
-    contain: layout size;
-    position: relative;
-  }
-  
-  /* Sophisticated hover expansion with smooth push */
-  .sidebar-hover-expanded {
-    width: 17rem;
-    transition: width 0.4s cubic-bezier(0.23, 1, 0.32, 1), transform 0.4s cubic-bezier(0.23, 1, 0.32, 1), box-shadow 0.4s cubic-bezier(0.23, 1, 0.32, 1);
-    transform: translateZ(0);
-    box-shadow: 
-      0 25px 50px -12px rgba(0, 0, 0, 0.25),
-      0 0 0 1px rgba(255, 255, 255, 0.05);
-    overflow: hidden; /* Keep hidden during hover transitions */
-    contain: layout size;
-    position: relative;
-  }
-  
-  .sidebar-item-collapsed {
-    @apply justify-center;
-    padding-left: 0;
-    padding-right: 0;
-    transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
-    overflow: hidden;
-  }
-  
-  .sidebar-item-collapsed .sidebar-icon-container {
-    @apply mx-auto;
-    margin-left: auto !important;
-    margin-right: auto !important;
-    flex-shrink: 0;
-  }
-  
-  .sidebar-item-expanded {
-    @apply px-4 justify-start;
-    transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
-    overflow: hidden;
-  }
-  
-  .sidebar-item-expanded .sidebar-icon-container {
-    margin-left: 0 !important;
-    margin-right: 0.75rem !important;
-    flex-shrink: 0;
-  }
-  
-  /* Icon Visibility Enhancement */
-.sidebar-item-collapsed .relative {
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  min-width: 2rem !important;
-  min-height: 2rem !important;
-}
 
-.sidebar-item-collapsed svg {
-  opacity: 1 !important;
-  visibility: visible !important;
-  display: block !important;
-  transform: none !important;
-}
-
-/* Prevent layout conflicts */
-.sidebar-animate * {
-  box-sizing: border-box;
-}
-
-.sidebar-item-animate {
-  overflow: visible !important;
-}
-
-/* Fix z-index conflicts */
-.sidebar-expanded .sidebar-text-visible {
-  z-index: 10;
-}
-
-.sidebar-collapsed .sidebar-icon-animate {
-  z-index: 20;
-}
   
-  /* Premium Text Animation States with Improved Flow */
-  .sidebar-text-hidden {
-    opacity: 0;
-    transform: translateX(-0.5rem);
-    pointer-events: none;
-    transition: 
-      opacity 0.3s cubic-bezier(0.23, 1, 0.32, 1),
-      transform 0.3s cubic-bezier(0.23, 1, 0.32, 1);
-    will-change: opacity, transform;
-    visibility: hidden;
-    white-space: nowrap;
-    overflow: hidden;
-    width: 0;
-    min-width: 0;
-    flex-shrink: 1;
-  }
+
   
-  .sidebar-text-visible {
-    opacity: 1;
-    transform: translateX(0);
-    pointer-events: auto;
-    transition: 
-      opacity 0.4s cubic-bezier(0.23, 1, 0.32, 1) 0.2s,
-      transform 0.4s cubic-bezier(0.23, 1, 0.32, 1) 0.2s,
-      width 0.4s cubic-bezier(0.23, 1, 0.32, 1) 0.1s;
-    will-change: opacity, transform, width;
-    visibility: visible;
-    white-space: nowrap;
-    overflow: hidden;
-    width: auto;
-    min-width: 0;
-    flex-shrink: 0;
-  }
+
   
-  /* Sidebar Toggle Button Animation */
-.sidebar-toggle-icon {
-  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  transform-origin: center;
-  will-change: transform;
-}
-
-.sidebar-toggle-icon.collapsed {
-  transform: rotate(180deg);
-}
-
-.sidebar-toggle-icon.expanded {
-  transform: rotate(0deg);
-}
-
-/* Premium Smooth Animation Classes */
-.sidebar-animate {
-  transition: 
-    width 0.6s cubic-bezier(0.23, 1, 0.32, 1),
-    padding 0.6s cubic-bezier(0.23, 1, 0.32, 1),
-    margin 0.6s cubic-bezier(0.23, 1, 0.32, 1),
-    transform 0.6s cubic-bezier(0.23, 1, 0.32, 1),
-    box-shadow 0.6s cubic-bezier(0.23, 1, 0.32, 1);
-  will-change: width, padding, margin, transform, box-shadow;
-  transform: translateZ(0); /* GPU acceleration */
-  overflow: hidden; /* Prevent scrollbars during animation */
-  backface-visibility: hidden;
-  perspective: 1000px;
-  contain: layout size style;
-}
-
-.sidebar-item-animate {
-  transition: 
-    padding 0.4s cubic-bezier(0.23, 1, 0.32, 1),
-    justify-content 0.4s cubic-bezier(0.23, 1, 0.32, 1),
-    background-color 0.3s cubic-bezier(0.23, 1, 0.32, 1),
-    transform 0.25s cubic-bezier(0.23, 1, 0.32, 1),
-    box-shadow 0.35s cubic-bezier(0.23, 1, 0.32, 1);
-  will-change: padding, justify-content, background-color, transform, box-shadow;
-  transform: translateZ(0);
-  overflow: hidden; /* Prevent content overflow during animation */
-  display: flex;
-  align-items: center;
-}
-
-.sidebar-text-animate {
-  transition: 
-    opacity 0.4s cubic-bezier(0.23, 1, 0.32, 1),
-    transform 0.4s cubic-bezier(0.23, 1, 0.32, 1),
-    width 0.4s cubic-bezier(0.23, 1, 0.32, 1);
-  will-change: opacity, transform, width;
-  transform: translateZ(0);
-  display: inline-block;
-  vertical-align: top;
-}
-
-.sidebar-icon-animate {
-  transition: 
-    transform 0.3s cubic-bezier(0.23, 1, 0.32, 1),
-    color 0.3s cubic-bezier(0.23, 1, 0.32, 1),
-    margin 0.35s cubic-bezier(0.23, 1, 0.32, 1),
-    filter 0.3s cubic-bezier(0.23, 1, 0.32, 1);
-  will-change: transform, color, margin, filter;
-  transform: translateZ(0);
-}
-
-/* Premium Button Interactions */
-.sidebar-toggle-button {
-  transition: all 0.25s cubic-bezier(0.23, 1, 0.32, 1);
-  will-change: transform, opacity, background-color, box-shadow;
-  user-select: none;
-  -webkit-tap-highlight-color: transparent;
-  transform: translateZ(0);
-}
-
-.sidebar-toggle-button:hover {
-  transform: scale(1.12) translateZ(0);
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.08) 100%);
-  box-shadow: 
-    0 8px 25px -8px rgba(0, 0, 0, 0.3),
-    inset 0 1px 0 rgba(255, 255, 255, 0.2);
-}
-
-.sidebar-toggle-button:active {
-  transform: scale(0.96) translateZ(0);
-  transition-duration: 0.1s;
-}
-
-.sidebar-toggle-button:focus-visible {
-  outline: 2px solid rgba(99, 179, 237, 0.6);
-  outline-offset: 3px;
-  box-shadow: 
-    0 0 0 4px rgba(99, 179, 237, 0.15),
-    0 8px 25px -8px rgba(0, 0, 0, 0.3);
-}
   
-  /* Enhanced Sidebar Container Animation with Spring */
-.sidebar-container {
-  transition: width 0.6s cubic-bezier(0.23, 1, 0.32, 1), transform 0.6s cubic-bezier(0.23, 1, 0.32, 1);
-  transform: translateZ(0); /* Enable GPU acceleration */
-  will-change: width, transform;
-  overflow: hidden;
-}
-
-/* Prevent page-level scrollbars during sidebar animations */
-.dashboard-container {
-  overflow-x: hidden; /* Prevent horizontal scrollbars */
-  position: relative;
-}
-
-.main-content-container {
-  transition: margin-left 0.6s cubic-bezier(0.23, 1, 0.32, 1);
-  will-change: margin-left;
-  overflow-x: hidden;
-  position: relative;
-}
-
-/* Subtle Bounce for Navigation Items */
-.nav-item:hover {
-  transform: scale(1.02) translateZ(0);
-  transition: all 0.2s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-}
-  
-  /* Premium Staggered Animation for Navigation Items */
-  .nav-item {
-    transition: all 0.35s cubic-bezier(0.23, 1, 0.32, 1);
-    transform: translateZ(0);
-  }
-  
-  .nav-item:nth-child(1) { transition-delay: 0.03s; }
-  .nav-item:nth-child(2) { transition-delay: 0.06s; }
-  .nav-item:nth-child(3) { transition-delay: 0.09s; }
-  .nav-item:nth-child(4) { transition-delay: 0.12s; }
-  .nav-item:nth-child(5) { transition-delay: 0.15s; }
-  .nav-item:nth-child(6) { transition-delay: 0.18s; }
-  .nav-item:nth-child(7) { transition-delay: 0.21s; }
-  .nav-item:nth-child(8) { transition-delay: 0.24s; }
-  .nav-item:nth-child(9) { transition-delay: 0.27s; }
-  .nav-item:nth-child(10) { transition-delay: 0.30s; }
-  
-  /* Premium hover effects */
-  .nav-item:hover {
-    transform: scale(1.015) translateZ(0);
-    transition: transform 0.2s cubic-bezier(0.23, 1, 0.32, 1);
-  }
-  
-  /* Prevent overflow during animations */
-  .nav-item {
-    overflow: visible;
-    contain: layout;
-  }
-  
-  .nav-item .group\/button {
-    overflow: visible;
-    contain: none;
-  }
-  
-  /* Sidebar content optimization */
-  .sidebar-content-container {
-    will-change: width;
-    contain: layout style;
-  }
-  
-  /* Smooth content flow during animations */
-  .sidebar-collapsed .sidebar-text-animate {
-    opacity: 0;
-    pointer-events: none;
-    visibility: hidden;
-    white-space: nowrap;
-    width: 0;
-    overflow: hidden;
-    margin-left: 0;
-  }
-  
-  .sidebar-expanded .sidebar-text-animate {
-    opacity: 1;
-    pointer-events: auto;
-    visibility: visible;
-    white-space: nowrap;
-    width: auto;
-    overflow: visible;
-    margin-left: 0.75rem;
-  }
   
   .mobile-sidebar-closed {
     @apply -translate-x-full;
