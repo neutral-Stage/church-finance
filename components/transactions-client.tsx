@@ -1,8 +1,6 @@
 'use client'
 
 import { useEffect, useState, useCallback, useRef } from 'react'
-import { createAuthenticatedClient } from '@/lib/supabase'
-import { useAuth } from '@/contexts/AuthContext'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { GlassButton } from '@/components/ui/glass-button'
 import { Input } from '@/components/ui/input'
@@ -53,7 +51,7 @@ import {
   DollarSign,
   Filter
 } from 'lucide-react'
-import { Fund, TransactionWithFund, TransactionInsert } from '@/types/database'
+import { Fund, TransactionWithFund } from '@/types/database'
 import { formatCurrency, formatDate, formatDateForInput } from '@/lib/utils'
 import { toast } from 'sonner'
 import type { TransactionsData } from '@/lib/server-data'
@@ -103,7 +101,6 @@ interface TransactionsClientProps {
 }
 
 export function TransactionsClient({ initialData, permissions }: TransactionsClientProps) {
-  const { user } = useAuth()
   const [transactions, setTransactions] = useState<TransactionWithFund[]>(initialData.transactions)
   const [funds] = useState<Fund[]>(initialData.funds) // Funds rarely change, so no real-time needed
   const [error, setError] = useState('')
@@ -149,34 +146,10 @@ export function TransactionsClient({ initialData, permissions }: TransactionsCli
   }, [])
 
 
-  // Set up real-time subscription only for updates
+  // Set up periodic refresh since we're not using realtime subscriptions
   useEffect(() => {
-    let subscription: any = null
-    
-    const setupRealtimeSubscription = async () => {
-      try {
-        const supabase = await createAuthenticatedClient()
-        subscription = supabase
-          .channel('transactions_changes')
-          .on('postgres_changes', { event: '*', schema: 'public', table: 'transactions' }, () => {
-            fetchTransactions()
-          })
-          .subscribe()
-      } catch (error) {
-        console.warn('Failed to setup realtime subscription for transactions:', error)
-        // Fallback to periodic refresh if realtime fails
-        const interval = setInterval(fetchTransactions, 30000) // 30 seconds
-        return () => clearInterval(interval)
-      }
-    }
-    
-    setupRealtimeSubscription()
-
-    return () => {
-      if (subscription) {
-        subscription.unsubscribe()
-      }
-    }
+    const interval = setInterval(fetchTransactions, 30000) // 30 seconds
+    return () => clearInterval(interval)
   }, [fetchTransactions])
 
   const handleSubmit = async (e: React.FormEvent) => {

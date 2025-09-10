@@ -67,14 +67,30 @@ export async function GET(request: NextRequest) {
 // POST /api/transactions - Create a new transaction
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createServerClient()
     const adminSupabase = createAdminClient()
     
-    // Check authentication
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    if (authError || !user) {
+    // Check authentication using custom cookie system
+    const authCookie = request.cookies.get('church-auth-minimal')
+    if (!authCookie?.value) {
       return NextResponse.json(
         { error: 'Unauthorized' },
+        { status: 401 }
+      )
+    }
+
+    let userId: string
+    try {
+      const authData = JSON.parse(authCookie.value)
+      if (!authData.user_id || authData.expires_at <= Math.floor(Date.now() / 1000)) {
+        return NextResponse.json(
+          { error: 'Unauthorized' },
+          { status: 401 }
+        )
+      }
+      userId = authData.user_id
+    } catch {
+      return NextResponse.json(
+        { error: 'Invalid authentication' },
         { status: 401 }
       )
     }
@@ -107,7 +123,7 @@ export async function POST(request: NextRequest) {
     }
     
     // Verify fund exists
-    const { data: fund, error: fundError } = await supabase
+    const { data: fund, error: fundError } = await adminSupabase
       .from('funds')
       .select('id, current_balance')
       .eq('id', fund_id)
@@ -136,40 +152,24 @@ export async function POST(request: NextRequest) {
         amount,
         description,
         fund_id,
-        category
+        category,
+        payment_method,
+        transaction_date,
+        receipt_number,
+        created_by: userId
       })
       .select()
       .single()
     
     if (transactionError) {
+      console.error('Transaction creation error:', transactionError)
       return NextResponse.json(
-        { error: 'Failed to create transaction' },
+        { error: 'Failed to create transaction', details: transactionError.message },
         { status: 500 }
       )
     }
     
-    // Update fund balance
-    const balanceChange = type === 'income' ? amount : -amount
-    const newBalance = fund.current_balance + balanceChange
-
-    const { error: updateError } = await adminSupabase
-      .from('funds')
-      .update({ current_balance: newBalance })
-      .eq('id', fund_id)
-    
-    if (updateError) {
-      // Rollback transaction creation
-      await adminSupabase
-        .from('transactions')
-        .delete()
-        .eq('id', transaction.id)
-      
-      return NextResponse.json(
-        { error: 'Failed to update fund balance' },
-        { status: 500 }
-      )
-    }
-    
+    // Fund balance is automatically updated by database trigger
     return NextResponse.json({ transaction }, { status: 201 })
   } catch {
     return NextResponse.json(
