@@ -9,6 +9,7 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing Supabase environment variables')
 }
 
+// Enhanced client-side client with session synchronization
 export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
   auth: {
     autoRefreshToken: true,
@@ -32,6 +33,62 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
     }
   }
 })
+
+// Initialize client session synchronization
+let sessionSynced = false
+
+// Function to sync client session with server session
+export const syncClientSession = async () => {
+  if (sessionSynced) return true
+  
+  try {
+    // Check if we already have a valid session
+    const { data: { session } } = await supabase.auth.getSession()
+    if (session?.access_token) {
+      sessionSynced = true
+      return true
+    }
+
+    // Fetch session from server
+    const response = await fetch('/api/auth/session', {
+      method: 'GET',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    })
+
+    if (response.ok) {
+      const sessionData = await response.json()
+      if (sessionData.session?.access_token) {
+        // Set the session on the client
+        const { error } = await supabase.auth.setSession({
+          access_token: sessionData.session.access_token,
+          refresh_token: sessionData.session.refresh_token
+        })
+        
+        if (!error) {
+          sessionSynced = true
+          return true
+        }
+      }
+    }
+    
+    return false
+  } catch (error) {
+    console.warn('Failed to sync client session:', error)
+    return false
+  }
+}
+
+// Enhanced client for CRUD operations with auto session sync
+export const createAuthenticatedClient = async () => {
+  const synced = await syncClientSession()
+  if (!synced) {
+    throw new Error('Authentication required. Please sign in again.')
+  }
+  return supabase
+}
 
 // Server-side client for user authentication with cookies
 export const createServerClient = async () => {
@@ -165,11 +222,15 @@ export const signOut = async () => {
 }
 
 export const getCurrentUser = async () => {
+  // Try to sync session first
+  await syncClientSession()
   const { data: { user }, error } = await supabase.auth.getUser()
   return { user, error }
 }
 
 export const getSession = async () => {
-  const { data: { user }, error } = await supabase.auth.getUser()
-  return { session: user ? { user } : null, error }
+  // Try to sync session first
+  await syncClientSession()
+  const { data: { session }, error } = await supabase.auth.getSession()
+  return { session, error }
 }

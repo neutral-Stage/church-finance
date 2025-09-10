@@ -2,70 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient, createAdminClient } from '@/lib/supabase-server'
 import type { Database } from '@/types/database'
 
-type TransactionInsert = Database['public']['Tables']['transactions']['Insert']
 type TransactionUpdate = Database['public']['Tables']['transactions']['Update']
 
-// GET /api/transactions - Get all transactions with optional filters
-export async function GET(request: NextRequest) {
-  try {
-    const supabase = await createServerClient()
-    const { searchParams } = new URL(request.url)
-    
-    const fundId = searchParams.get('fund_id')
-    const type = searchParams.get('type')
-    const startDate = searchParams.get('start_date')
-    const endDate = searchParams.get('end_date')
-    const limit = searchParams.get('limit')
-    
-    let query = supabase
-      .from('transactions')
-      .select(`
-        *,
-        funds(name)
-      `)
-      .order('created_at', { ascending: false })
-    
-    // Apply filters
-    if (fundId) {
-      query = query.eq('fund_id', fundId)
-    }
-    
-    if (type) {
-      query = query.eq('type', type)
-    }
-    
-    if (startDate) {
-      query = query.gte('created_at', startDate)
-    }
-    
-    if (endDate) {
-      query = query.lte('created_at', endDate)
-    }
-    
-    if (limit) {
-      query = query.limit(parseInt(limit))
-    }
-    
-    const { data: transactions, error } = await query
-    
-    if (error) {
-      return NextResponse.json(
-        { error: 'Failed to fetch transactions' },
-        { status: 500 }
-      )
-    }
-    
-    return NextResponse.json({ transactions })
-  } catch {
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    )
-  }
-}
-
-// POST /api/transactions - Create a new transaction
-export async function POST(request: NextRequest) {
+// PUT /api/transactions/[id] - Update a specific transaction
+export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const supabase = await createServerClient()
     const adminSupabase = createAdminClient()
@@ -79,124 +19,10 @@ export async function POST(request: NextRequest) {
       )
     }
     
+    const { id } = params
     const body = await request.json()
     
-    const { 
-      type, 
-      amount, 
-      description, 
-      fund_id, 
-      category,
-      payment_method,
-      transaction_date,
-      receipt_number
-    }: TransactionInsert = body
-    
-    if (!type || !amount || !fund_id || !description || !category || !payment_method || !transaction_date) {
-      return NextResponse.json(
-        { error: 'Type, amount, fund_id, description, category, payment_method, and transaction_date are required' },
-        { status: 400 }
-      )
-    }
-    
-    if (amount <= 0) {
-      return NextResponse.json(
-        { error: 'Amount must be greater than 0' },
-        { status: 400 }
-      )
-    }
-    
-    // Verify fund exists
-    const { data: fund, error: fundError } = await supabase
-      .from('funds')
-      .select('id, current_balance')
-      .eq('id', fund_id)
-      .single()
-    
-    if (fundError || !fund) {
-      return NextResponse.json(
-        { error: 'Fund not found' },
-        { status: 404 }
-      )
-    }
-    
-    // For expense transactions, check if fund has sufficient balance
-    if (type === 'expense' && fund.current_balance < amount) {
-      return NextResponse.json(
-        { error: 'Insufficient funds' },
-        { status: 400 }
-      )
-    }
-    
-    // Create transaction
-    const { data: transaction, error: transactionError } = await adminSupabase
-      .from('transactions')
-      .insert({
-        type,
-        amount,
-        description,
-        fund_id,
-        category
-      })
-      .select()
-      .single()
-    
-    if (transactionError) {
-      return NextResponse.json(
-        { error: 'Failed to create transaction' },
-        { status: 500 }
-      )
-    }
-    
-    // Update fund balance
-    const balanceChange = type === 'income' ? amount : -amount
-    const newBalance = fund.current_balance + balanceChange
-
-    const { error: updateError } = await adminSupabase
-      .from('funds')
-      .update({ current_balance: newBalance })
-      .eq('id', fund_id)
-    
-    if (updateError) {
-      // Rollback transaction creation
-      await adminSupabase
-        .from('transactions')
-        .delete()
-        .eq('id', transaction.id)
-      
-      return NextResponse.json(
-        { error: 'Failed to update fund balance' },
-        { status: 500 }
-      )
-    }
-    
-    return NextResponse.json({ transaction }, { status: 201 })
-  } catch {
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    )
-  }
-}
-
-// PUT /api/transactions - Update a transaction
-export async function PATCH(request: NextRequest) {
-  try {
-    const supabase = await createServerClient()
-    const adminSupabase = createAdminClient()
-    
-    // Check authentication
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    if (authError || !user) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
-    }
-    
-    const body = await request.json()
-    
-    const { id, ...updates }: TransactionUpdate & { id: string } = body
+    const updates: TransactionUpdate = body
     
     if (!id) {
       return NextResponse.json(
@@ -283,8 +109,8 @@ export async function PATCH(request: NextRequest) {
   }
 }
 
-// DELETE /api/transactions - Delete a transaction
-export async function DELETE(request: NextRequest) {
+// DELETE /api/transactions/[id] - Delete a specific transaction
+export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const supabase = await createServerClient()
     const adminSupabase = createAdminClient()
@@ -298,8 +124,7 @@ export async function DELETE(request: NextRequest) {
       )
     }
     
-    const { searchParams } = new URL(request.url)
-    const id = searchParams.get('id')
+    const { id } = params
     
     if (!id) {
       return NextResponse.json(

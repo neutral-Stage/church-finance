@@ -1,7 +1,8 @@
 'use client'
 
 import { useEffect, useState, useCallback, useRef } from 'react'
-import { supabase } from '@/lib/supabase'
+import { createAuthenticatedClient } from '@/lib/supabase'
+import { useAuth } from '@/contexts/AuthContext'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { GlassButton } from '@/components/ui/glass-button'
 import { Input } from '@/components/ui/input'
@@ -102,6 +103,7 @@ interface TransactionsClientProps {
 }
 
 export function TransactionsClient({ initialData, permissions }: TransactionsClientProps) {
+  const { user } = useAuth()
   const [transactions, setTransactions] = useState<TransactionWithFund[]>(initialData.transactions)
   const [funds] = useState<Fund[]>(initialData.funds) // Funds rarely change, so no real-time needed
   const [error, setError] = useState('')
@@ -123,33 +125,57 @@ export function TransactionsClient({ initialData, permissions }: TransactionsCli
   const [submitting, setSubmitting] = useState(false)
 
   const fetchTransactions = useCallback(async () => {
-    const { data, error } = await supabase
-      .from('transactions')
-      .select(`
-        *,
-        fund:funds(*)
-      `)
-      .order('transaction_date', { ascending: false })
-      .order('created_at', { ascending: false })
-
-    if (error) {
-      setError(error.message)
-      return
+    try {
+      const response = await fetch('/api/transactions', {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      })
+      
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to fetch transactions')
+      }
+      
+      const data = await response.json()
+      setTransactions(data.transactions || [])
+      setError('') // Clear any previous errors
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to load transactions'
+      setError(errorMessage)
     }
-    setTransactions(data || [])
   }, [])
+
 
   // Set up real-time subscription only for updates
   useEffect(() => {
-    const subscription = supabase
-      .channel('transactions_changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'transactions' }, () => {
-        fetchTransactions()
-      })
-      .subscribe()
+    let subscription: any = null
+    
+    const setupRealtimeSubscription = async () => {
+      try {
+        const supabase = await createAuthenticatedClient()
+        subscription = supabase
+          .channel('transactions_changes')
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'transactions' }, () => {
+            fetchTransactions()
+          })
+          .subscribe()
+      } catch (error) {
+        console.warn('Failed to setup realtime subscription for transactions:', error)
+        // Fallback to periodic refresh if realtime fails
+        const interval = setInterval(fetchTransactions, 30000) // 30 seconds
+        return () => clearInterval(interval)
+      }
+    }
+    
+    setupRealtimeSubscription()
 
     return () => {
-      subscription.unsubscribe()
+      if (subscription) {
+        subscription.unsubscribe()
+      }
     }
   }, [fetchTransactions])
 
@@ -163,7 +189,7 @@ export function TransactionsClient({ initialData, permissions }: TransactionsCli
     try {
       setSubmitting(true)
       
-      const transactionData: TransactionInsert = {
+      const transactionData = {
         type: formData.type,
         fund_id: formData.fund_id,
         amount: parseFloat(formData.amount),
@@ -174,26 +200,28 @@ export function TransactionsClient({ initialData, permissions }: TransactionsCli
         receipt_number: formData.receipt_number || null
       }
 
-      if (editingTransaction) {
-        const { error } = await supabase
-          .from('transactions')
-          .update(transactionData)
-          .eq('id', editingTransaction.id)
+      const url = editingTransaction ? `/api/transactions/${editingTransaction.id}` : '/api/transactions'
+      const method = editingTransaction ? 'PUT' : 'POST'
 
-        if (error) throw error
-        toast.success('Transaction updated successfully')
-      } else {
-        const { error } = await supabase
-          .from('transactions')
-          .insert([transactionData])
+      const response = await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(transactionData),
+        credentials: 'include'
+      })
 
-        if (error) throw error
-        toast.success('Transaction added successfully')
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to save transaction')
       }
 
+      toast.success(editingTransaction ? 'Transaction updated successfully' : 'Transaction added successfully')
       resetForm()
       setIsDialogOpen(false)
       setEditingTransaction(null)
+      fetchTransactions() // Refresh the list
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'An error occurred')
     } finally {
@@ -232,13 +260,18 @@ export function TransactionsClient({ initialData, permissions }: TransactionsCli
     }
 
     try {
-      const { error } = await supabase
-        .from('transactions')
-        .delete()
-        .eq('id', transaction.id)
+      const response = await fetch(`/api/transactions/${transaction.id}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      })
 
-      if (error) throw error
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to delete transaction')
+      }
+
       toast.success('Transaction deleted successfully')
+      fetchTransactions() // Refresh the list
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'An error occurred')
     }

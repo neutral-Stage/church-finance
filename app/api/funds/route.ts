@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
     
     const body = await request.json()
     
-    const { name, current_balance = 0 }: FundInsert = body
+    const { name, description, target_amount, fund_type, current_balance = 0 }: FundInsert & { description?: string; target_amount?: number; fund_type?: string } = body
     
     if (!name) {
       return NextResponse.json(
@@ -60,6 +60,9 @@ export async function POST(request: NextRequest) {
       .from('funds')
       .insert({
         name,
+        description: description || null,
+        target_amount: target_amount || null,
+        fund_type: fund_type || null,
         current_balance,
         created_by: user.id
       })
@@ -82,4 +85,3 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// PATCH method removed - using direct Supabase approach in frontend

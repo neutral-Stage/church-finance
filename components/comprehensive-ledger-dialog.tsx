@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { supabase } from '@/lib/supabase'
+import { createAuthenticatedClient } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
@@ -713,23 +713,42 @@ export function ComprehensiveLedgerDialog({
       let entryId: string
 
       if (editingEntry) {
-        const { error } = await supabase
-          .from('ledger_entries')
-          .update(entryData)
-          .eq('id', editingEntry.id)
-
-        if (error) throw error
+        const response = await fetch('/api/ledger-entries', {
+          method: 'PUT',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            id: editingEntry.id,
+            ...entryData
+          })
+        })
+        
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(errorData.error || 'Failed to update ledger entry')
+        }
+        
         entryId = editingEntry.id
         toast.success('Ledger entry updated successfully')
       } else {
-        const { data, error } = await supabase
-          .from('ledger_entries')
-          .insert([entryData])
-          .select()
-          .single()
-
-        if (error) throw error
-        entryId = data.id
+        const response = await fetch('/api/ledger-entries', {
+          method: 'POST',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(entryData)
+        })
+        
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(errorData.error || 'Failed to create ledger entry')
+        }
+        
+        const data = await response.json()
+        entryId = data.ledgerEntry.id
         toast.success('Ledger entry created successfully')
       }
 

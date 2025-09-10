@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { supabase } from '@/lib/supabase'
+import { createAuthenticatedClient } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -47,29 +47,54 @@ export function MembersClient({ initialData, permissions }: MembersClientProps) 
   const [submitting, setSubmitting] = useState(false)
 
   const fetchMembers = useCallback(async () => {
-    const { data, error } = await supabase
-      .from('members')
-      .select('*')
-      .order('name')
-
-    if (error) {
+    try {
+      const response = await fetch('/api/members', {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      })
+      
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to fetch members')
+      }
+      
+      const data = await response.json()
+      setMembers(data.members || [])
+    } catch (error) {
       toast.error('Failed to load members')
-      return
     }
-    setMembers(data || [])
   }, [])
 
   // Set up real-time subscription only for updates
   useEffect(() => {
-    const subscription = supabase
-      .channel('members_changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'members' }, () => {
-        fetchMembers()
-      })
-      .subscribe()
+    let subscription: any = null
+    
+    const setupRealtimeSubscription = async () => {
+      try {
+        const supabase = await createAuthenticatedClient()
+        subscription = supabase
+          .channel('members_changes')
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'members' }, () => {
+            fetchMembers()
+          })
+          .subscribe()
+      } catch (error) {
+        console.warn('Failed to setup realtime subscription for members:', error)
+        // Fallback to periodic refresh if realtime fails
+        const interval = setInterval(fetchMembers, 30000) // 30 seconds
+        return () => clearInterval(interval)
+      }
+    }
+    
+    setupRealtimeSubscription()
 
     return () => {
-      subscription.unsubscribe()
+      if (subscription) {
+        subscription.unsubscribe()
+      }
     }
   }, [fetchMembers])
 
@@ -84,24 +109,39 @@ export function MembersClient({ initialData, permissions }: MembersClientProps) 
       setSubmitting(true)
 
       if (editingMember) {
-        const updateData = {
-          ...formData,
-          updated_at: new Date().toISOString()
+        const response = await fetch('/api/members', {
+          method: 'PUT',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            id: editingMember.id,
+            ...formData
+          })
+        })
+        
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(errorData.error || 'Failed to update member')
         }
-
-        const { error } = await supabase
-          .from('members')
-          .update(updateData)
-          .eq('id', editingMember.id)
-
-        if (error) throw error
+        
         toast.success('Member updated successfully')
       } else {
-        const { error } = await supabase
-          .from('members')
-          .insert([formData])
-
-        if (error) throw error
+        const response = await fetch('/api/members', {
+          method: 'POST',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(formData)
+        })
+        
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(errorData.error || 'Failed to add member')
+        }
+        
         toast.success('Member added successfully')
       }
 
@@ -141,13 +181,21 @@ export function MembersClient({ initialData, permissions }: MembersClientProps) 
     if (!confirm('Are you sure you want to delete this member?')) return
 
     try {
-      const { error } = await supabase
-        .from('members')
-        .delete()
-        .eq('id', member.id)
-
-      if (error) throw error
+      const response = await fetch(`/api/members?id=${member.id}`, {
+        method: 'DELETE',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      })
+      
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to delete member')
+      }
+      
       toast.success('Member deleted successfully')
+      fetchMembers() // Refresh the list
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'An error occurred')
     }

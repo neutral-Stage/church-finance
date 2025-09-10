@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { supabase } from '@/lib/supabase'
+import { createAuthenticatedClient } from '@/lib/supabase'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -35,18 +35,21 @@ export function LedgerEntriesClient({ initialData, permissions }: LedgerEntriesC
 
   const fetchData = useCallback(async () => {
     try {
-      const { data: entriesData, error: entriesError } = await supabase
-        .from('ledger_entries')
-        .select(`
-          *,
-          ledger_subgroups(*),
-          bills(*)
-        `)
-        .order('created_at', { ascending: false })
-
-      if (entriesError) throw entriesError
-
-      setLedgerEntries(entriesData || [])
+      const response = await fetch('/api/ledger-entries?include_subgroups=true&include_bills=true', {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      })
+      
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to fetch ledger entries')
+      }
+      
+      const data = await response.json()
+      setLedgerEntries(data.ledgerEntries || [])
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to load ledger entries data'
       toast.error(errorMessage)
@@ -55,18 +58,34 @@ export function LedgerEntriesClient({ initialData, permissions }: LedgerEntriesC
 
   // Set up real-time subscription only for updates
   useEffect(() => {
-    const subscription = supabase
-      .channel('ledger_entries_changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'ledger_entries' }, () => {
-        fetchData()
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'ledger_subgroups' }, () => {
-        fetchData()
-      })
-      .subscribe()
+    let subscription: any = null
+    
+    const setupRealtimeSubscription = async () => {
+      try {
+        const supabase = await createAuthenticatedClient()
+        subscription = supabase
+          .channel('ledger_entries_changes')
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'ledger_entries' }, () => {
+            fetchData()
+          })
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'ledger_subgroups' }, () => {
+            fetchData()
+          })
+          .subscribe()
+      } catch (error) {
+        console.warn('Failed to setup realtime subscription for ledger entries:', error)
+        // Fallback to periodic refresh if realtime fails
+        const interval = setInterval(fetchData, 30000) // 30 seconds
+        return () => clearInterval(interval)
+      }
+    }
+    
+    setupRealtimeSubscription()
 
     return () => {
-      subscription.unsubscribe()
+      if (subscription) {
+        subscription.unsubscribe()
+      }
     }
   }, [fetchData])
 
@@ -79,12 +98,18 @@ export function LedgerEntriesClient({ initialData, permissions }: LedgerEntriesC
     if (!confirm('Are you sure you want to delete this ledger entry? This will also delete all associated subgroups and bills.')) return
 
     try {
-      const { error } = await supabase
-        .from('ledger_entries')
-        .delete()
-        .eq('id', entryId)
-
-      if (error) throw error
+      const response = await fetch(`/api/ledger-entries?id=${entryId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      })
+      
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to delete ledger entry')
+      }
 
       toast.success('Ledger entry deleted successfully')
       fetchData()
@@ -103,12 +128,18 @@ export function LedgerEntriesClient({ initialData, permissions }: LedgerEntriesC
     if (!confirm('Are you sure you want to delete this subgroup? This will also delete all associated bills.')) return
 
     try {
-      const { error } = await supabase
-        .from('ledger_subgroups')
-        .delete()
-        .eq('id', subgroupId)
-
-      if (error) throw error
+      const response = await fetch(`/api/ledger-subgroups?id=${subgroupId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      })
+      
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to delete subgroup')
+      }
 
       toast.success('Subgroup deleted successfully')
       fetchData()

@@ -18,7 +18,7 @@ import { useConfirmationDialog } from '@/components/ui/confirmation-dialog'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { Plus, MoreHorizontal, Edit, Trash2, Banknote, TrendingUp, Eye, DollarSign } from 'lucide-react'
 import { toast } from 'sonner'
-import { supabase } from '@/lib/supabase'
+import { createAuthenticatedClient } from '@/lib/supabase'
 import type { Fund, TransactionWithFund } from '@/lib/server-data'
 import type { FundsPageData } from '@/lib/server-data'
 
@@ -60,26 +60,34 @@ export default function FundsClient({ initialData }: FundsClientProps) {
 
   const fetchData = async () => {
     try {
-      const [fundsResult, transactionsResult] = await Promise.all([
-        supabase
-          .from('funds')
-          .select('*')
-          .order('name'),
-        supabase
-          .from('transactions')
-          .select(`
-            *,
-            fund:funds(*)
-          `)
-          .order('created_at', { ascending: false })
-          .limit(20)
+      const [fundsResponse, transactionsResponse] = await Promise.all([
+        fetch('/api/funds', {
+          method: 'GET',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' }
+        }),
+        fetch('/api/transactions?limit=20', {
+          method: 'GET',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' }
+        })
       ])
 
-      if (fundsResult.error) throw fundsResult.error
-      if (transactionsResult.error) throw transactionsResult.error
+      if (!fundsResponse.ok) {
+        const errorData = await fundsResponse.json()
+        throw new Error(errorData.error || 'Failed to fetch funds')
+      }
+      
+      if (!transactionsResponse.ok) {
+        const errorData = await transactionsResponse.json()
+        throw new Error(errorData.error || 'Failed to fetch transactions')
+      }
 
-      setFunds(fundsResult.data || [])
-      setRecentTransactions(transactionsResult.data || [])
+      const fundsData = await fundsResponse.json()
+      const transactionsData = await transactionsResponse.json()
+
+      setFunds(fundsData.funds || [])
+      setRecentTransactions(transactionsData.transactions || [])
     } catch (error) {
       toast.error('Failed to load funds data')
     }
@@ -102,22 +110,35 @@ export default function FundsClient({ initialData }: FundsClientProps) {
       }
 
       if (editingFund) {
-        const { error } = await supabase
-          .from('funds')
-          .update(requestData)
-          .eq('id', editingFund.id)
-
-        if (error) throw error
+        const response = await fetch(`/api/funds/${editingFund.id}`, {
+          method: 'PUT',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(requestData)
+        })
+        
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(errorData.error || 'Failed to update fund')
+        }
+        
         toast.success('Fund updated successfully')
       } else {
-        const { error } = await supabase
-          .from('funds')
-          .insert({
+        const response = await fetch('/api/funds', {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
             ...requestData,
             current_balance: 0
           })
-
-        if (error) throw error
+        })
+        
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(errorData.error || 'Failed to create fund')
+        }
+        
         toast.success('Fund created successfully')
       }
 
@@ -154,12 +175,16 @@ export default function FundsClient({ initialData }: FundsClientProps) {
 
       if (!confirmResult) return
 
-      const { error } = await supabase
-        .from('funds')
-        .delete()
-        .eq('id', id)
-
-      if (error) throw error
+      const response = await fetch(`/api/funds/${id}`, {
+        method: 'DELETE',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' }
+      })
+      
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to delete fund')
+      }
 
       toast.success('Fund deleted successfully')
       fetchData()
