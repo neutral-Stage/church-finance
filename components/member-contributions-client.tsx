@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -36,7 +36,6 @@ export default function MemberContributionsClient({ initialData }: MemberContrib
   const [searchTerm, setSearchTerm] = useState('')
   const [sortBy, setSortBy] = useState<'name' | 'total' | 'recent' | 'frequency'>('total')
   const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'inactive' | 'missing'>('all')
-  const [selectedMember, setSelectedMember] = useState<MemberContribution | null>(null)
 
   // Memoized filtered and sorted data
   const { filteredContributions, summaryStats } = useMemo(() => {
@@ -96,17 +95,17 @@ export default function MemberContributionsClient({ initialData }: MemberContrib
     return { filteredContributions: filtered, summaryStats: stats }
   }, [memberContributions, searchTerm, sortBy, filterStatus])
 
-  const getStatusColor = (contrib: MemberContribution) => {
+  const getStatusColor = useCallback((contrib: MemberContribution) => {
     if (contrib.months_with_contributions >= 6) return 'bg-green-500'
     if (contrib.months_with_contributions >= 3) return 'bg-yellow-500'
     return 'bg-red-500'
-  }
+  }, [])
 
-  const getStatusText = (contrib: MemberContribution) => {
+  const getStatusText = useCallback((contrib: MemberContribution) => {
     if (contrib.months_with_contributions >= 6) return 'Very Active'
     if (contrib.months_with_contributions >= 3) return 'Active'
     return 'Inactive'
-  }
+  }, [])
 
   return (
     <div className="min-h-screen relative overflow-hidden">
@@ -257,7 +256,6 @@ export default function MemberContributionsClient({ initialData }: MemberContrib
                         variant="ghost" 
                         size="sm" 
                         className="text-white/70 hover:text-white hover:bg-white/10"
-                        onClick={() => setSelectedMember(contrib)}
                       >
                         <Eye className="h-4 w-4" />
                       </Button>

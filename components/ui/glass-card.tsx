@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { cn } from '@/lib/utils';
 import { cva, type VariantProps } from 'class-variance-authority';
 
@@ -44,7 +44,7 @@ export interface GlassCardProps
   glow?: boolean;
 }
 
-const GlassCard = React.forwardRef<HTMLDivElement, GlassCardProps>(
+const GlassCardComponent = React.forwardRef<HTMLDivElement, GlassCardProps>(
   ({ className, variant, size, animation, children, hover = true, glow = false, ...props }, ref) => {
     return (
       <div
@@ -65,7 +65,8 @@ const GlassCard = React.forwardRef<HTMLDivElement, GlassCardProps>(
   }
 );
 
-GlassCard.displayName = 'GlassCard';
+GlassCardComponent.displayName = 'GlassCard';
+const GlassCard = memo(GlassCardComponent);
 
 // Header component for cards
 export interface GlassCardHeaderProps extends React.HTMLAttributes<HTMLDivElement> {

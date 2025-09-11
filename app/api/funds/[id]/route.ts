@@ -51,8 +51,8 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
       .update({
         name: updates.name || existingFund.name,
         description: updates.description !== undefined ? updates.description : existingFund.description,
-        target_amount: updates.target_amount !== undefined ? updates.target_amount : (existingFund as any).target_amount,
-        fund_type: updates.fund_type !== undefined ? updates.fund_type : (existingFund as any).fund_type,
+        target_amount: updates.target_amount !== undefined ? updates.target_amount : (existingFund as Database['public']['Tables']['funds']['Row'] & { target_amount?: number }).target_amount,
+        fund_type: updates.fund_type !== undefined ? updates.fund_type : (existingFund as Database['public']['Tables']['funds']['Row'] & { fund_type?: string }).fund_type,
         current_balance: updates.current_balance !== undefined ? updates.current_balance : existingFund.current_balance
       })
       .eq('id', id)

@@ -11,6 +11,7 @@ import type {
   Bill,
   Fund,
   AuthUser,
+  Database,
 } from "@/types/database";
 
 // Re-export types for components
@@ -417,7 +418,7 @@ export const getAdvancesData = cache(async (): Promise<AdvancesData> => {
 
 // Offerings data fetching
 export interface OfferingsData {
-  offerings: any[]; // Define proper type based on your offerings schema
+  offerings: Database['public']['Tables']['offerings']['Row'][];
   funds: Fund[];
 }
 
@@ -438,7 +439,7 @@ export const getOfferingsData = cache(async (): Promise<OfferingsData> => {
         fund:funds(*)
       `
       )
-      .order("created_at", { ascending: false }),
+      .order("service_date", { ascending: false }),
 
     supabase.from("funds").select("*").order("name"),
   ]);
@@ -616,12 +617,19 @@ export const getMemberContributionsData = cache(
       const offeringMember = offering.offering_member;
       if (!offeringMember) return;
 
-      const member = (offeringMember as unknown as { member: any }).member;
+      const member = (offeringMember as unknown as { member: Database['public']['Tables']['members']['Row'] }).member;
       if (!member) return;
 
       if (!memberMap.has(member.id)) {
         memberMap.set(member.id, {
-          member,
+          member: {
+            id: member.id,
+            name: member.name,
+            phone: member.phone || undefined,
+            fellowship_name: member.fellowship_name || undefined,
+            job: member.job || undefined,
+            location: member.location || undefined,
+          },
           contributions: [],
           total_amount: 0,
           contribution_count: 0,
@@ -782,7 +790,7 @@ export const getNotificationsData = cache(
 // Reports data fetching
 export interface ReportsData {
   transactions: TransactionWithFund[];
-  offerings: any[];
+  offerings: Database['public']['Tables']['offerings']['Row'][];
   bills: BillWithFund[];
   advances: AdvanceWithFund[];
   funds: Fund[];

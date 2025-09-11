@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { GlassButton } from '@/components/ui/glass-button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
@@ -15,12 +15,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { AnimatedCounter } from '@/components/ui/animated-counter'
 import { useConfirmationDialog } from '@/components/ui/confirmation-dialog'
 
-import { formatCurrency, formatDate } from '@/lib/utils'
+import { formatDate } from '@/lib/utils'
 import { Plus, MoreHorizontal, Edit, Trash2, Banknote, TrendingUp, Eye, DollarSign } from 'lucide-react'
 import { toast } from 'sonner'
-import { createAuthenticatedClient } from '@/lib/supabase'
+
 import type { Fund, TransactionWithFund } from '@/lib/server-data'
 import type { FundsPageData } from '@/lib/server-data'
+
+// Extended fund interface for form data
+interface ExtendedFund extends Fund {
+  target_amount?: number
+  fund_type?: string
+}
 
 interface FundForm {
   name: string
@@ -88,7 +94,7 @@ export default function FundsClient({ initialData }: FundsClientProps) {
 
       setFunds(fundsData.funds || [])
       setRecentTransactions(transactionsData.transactions || [])
-    } catch (error) {
+    } catch {
       toast.error('Failed to load funds data')
     }
   }
@@ -146,7 +152,7 @@ export default function FundsClient({ initialData }: FundsClientProps) {
       setEditingFund(null)
       resetForm()
       fetchData()
-    } catch (error) {
+    } catch {
       toast.error('Failed to save fund')
     }
   }
@@ -156,8 +162,8 @@ export default function FundsClient({ initialData }: FundsClientProps) {
     setForm({
       name: fund.name,
       description: fund.description || '',
-      target_amount: (fund as any).target_amount || undefined,
-      fund_type: (fund as any).fund_type || 'Management Fund'
+      target_amount: (fund as ExtendedFund).target_amount || undefined,
+      fund_type: (fund as ExtendedFund).fund_type || 'Management Fund'
     })
     setDialogOpen(true)
   }
@@ -188,7 +194,7 @@ export default function FundsClient({ initialData }: FundsClientProps) {
 
       toast.success('Fund deleted successfully')
       fetchData()
-    } catch (error) {
+    } catch {
       toast.error('Failed to delete fund')
     }
   }
@@ -213,16 +219,16 @@ export default function FundsClient({ initialData }: FundsClientProps) {
   const filteredFunds = funds.filter(fund => {
     const matchesSearch = fund.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       fund.description?.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesType = filterType === 'all' || (fund as any).fund_type === filterType
+    const matchesType = filterType === 'all' || (fund as ExtendedFund).fund_type === filterType
 
     return matchesSearch && matchesType
   })
 
   // Calculate summary statistics
   const totalBalance = filteredFunds.reduce((sum, fund) => sum + fund.current_balance, 0)
-  const totalTarget = filteredFunds.reduce((sum, fund) => sum + ((fund as any).target_amount || 0), 0)
+  const totalTarget = filteredFunds.reduce((sum, fund) => sum + ((fund as ExtendedFund).target_amount || 0), 0)
   const averageBalance = filteredFunds.length > 0 ? totalBalance / filteredFunds.length : 0
-  const fundsWithTargets = filteredFunds.filter(fund => (fund as any).target_amount && (fund as any).target_amount > 0)
+
 
   return (
     <div className="min-h-screen relative overflow-hidden">
@@ -465,7 +471,7 @@ export default function FundsClient({ initialData }: FundsClientProps) {
                   </div>
                   <div className="flex items-center gap-2">
                     <Badge variant="outline" className="border-white/30 text-white/80 text-xs">
-                      {(fund as any).fund_type || 'Management Fund'}
+                      {(fund as ExtendedFund).fund_type || 'Management Fund'}
                     </Badge>
                   </div>
                 </CardHeader>
@@ -478,22 +484,22 @@ export default function FundsClient({ initialData }: FundsClientProps) {
                       <p className="text-sm text-white/60">Current Balance</p>
                     </div>
                     
-                    {(fund as any).target_amount && (fund as any).target_amount > 0 && (
+                    {(fund as ExtendedFund).target_amount && (fund as ExtendedFund).target_amount! > 0 && (
                       <div>
                         <div className="flex justify-between text-sm mb-2">
                           <span className="text-white/70">Target Progress</span>
                           <span className="text-white/80">
-                            {Math.min(100, (fund.current_balance / (fund as any).target_amount) * 100).toFixed(1)}%
+                            {Math.min(100, (fund.current_balance / (fund as ExtendedFund).target_amount!) * 100).toFixed(1)}%
                           </span>
                         </div>
                         <div className="w-full bg-white/10 rounded-full h-2">
                           <div 
                             className="bg-gradient-to-r from-green-400 to-emerald-500 h-2 rounded-full transition-all duration-500"
-                            style={{ width: `${Math.min(100, (fund.current_balance / (fund as any).target_amount) * 100)}%` }}
+                            style={{ width: `${Math.min(100, (fund.current_balance / (fund as ExtendedFund).target_amount!) * 100)}%` }}
                           />
                         </div>
                         <p className="text-xs text-white/50 mt-1">
-                          Target: <AnimatedCounter value={(fund as any).target_amount} />
+                          Target: <AnimatedCounter value={(fund as ExtendedFund).target_amount!} />
                         </p>
                       </div>
                     )}

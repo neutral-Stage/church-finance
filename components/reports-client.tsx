@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useCallback } from 'react'
+import { useState, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
-import { formatDate, getMonthStart, getMonthEnd } from '@/lib/utils'
+import { formatDate } from '@/lib/utils'
 import { Download, FileText, TrendingUp, TrendingDown, Banknote, Calendar } from 'lucide-react'
 import { toast } from 'sonner'
 import * as XLSX from 'xlsx'
@@ -40,38 +40,7 @@ export default function ReportsClient({ initialData, initialDateRange }: Reports
   const [reportType, setReportType] = useState<'monthly' | 'quarterly' | 'yearly' | 'custom'>('monthly')
   const [exporting, setExporting] = useState(false)
 
-  const updateDateRange = useCallback(() => {
-    const now = new Date()
-    let startDate: string
-    let endDate: string
 
-    switch (reportType) {
-      case 'monthly':
-        startDate = getMonthStart(now)
-        endDate = getMonthEnd(now)
-        break
-      case 'quarterly':
-        const quarter = Math.floor(now.getMonth() / 3)
-        const quarterStart = new Date(now.getFullYear(), quarter * 3, 1)
-        const quarterEnd = new Date(now.getFullYear(), quarter * 3 + 3, 0)
-        startDate = quarterStart.toISOString().split('T')[0]
-        endDate = quarterEnd.toISOString().split('T')[0]
-        break
-      case 'yearly':
-        const yearStart = new Date(now.getFullYear(), 0, 1)
-        const yearEnd = new Date(now.getFullYear(), 11, 31)
-        startDate = yearStart.toISOString().split('T')[0]
-        endDate = yearEnd.toISOString().split('T')[0]
-        break
-      default:
-        return // Keep current dates for custom
-    }
-
-    setDateRange({
-      startDate,
-      endDate
-    })
-  }, [reportType])
 
   const fetchReportData = useCallback(async () => {
     try {

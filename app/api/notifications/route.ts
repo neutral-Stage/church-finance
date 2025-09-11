@@ -7,7 +7,8 @@ export async function GET(request: NextRequest): Promise<NextResponse<Notificati
   try {
     // Get authenticated user - first try Supabase auth, then minimal auth cookie
     const supabase = await createApiRouteClient(request)
-    let { data: { user }, error: authError } = await supabase.auth.getUser()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    let userId: string | null = null
     
     // If Supabase auth fails, check minimal auth cookie
     if (authError || !user) {
@@ -16,18 +17,17 @@ export async function GET(request: NextRequest): Promise<NextResponse<Notificati
         try {
           const authData = JSON.parse(authCookie.value)
           if (authData.expires_at && authData.expires_at > Math.floor(Date.now() / 1000)) {
-            user = {
-              id: authData.user_id,
-              email: authData.email
-            }
+            userId = authData.user_id
           }
-        } catch (error) {
-          console.error('Error parsing minimal auth cookie:', error)
+        } catch (parseError) {
+          console.error('Error parsing minimal auth cookie:', parseError)
         }
       }
+    } else {
+      userId = user.id
     }
     
-    if (!user) {
+    if (!userId) {
       return NextResponse.json(
         { error: 'Unauthorized', details: 'No authenticated user' }, 
         { status: 401 }
@@ -47,7 +47,7 @@ export async function GET(request: NextRequest): Promise<NextResponse<Notificati
     }
 
     // Fetch notifications
-    const notifications = await ServerNotificationService.getUserNotifications(user.id, limit)
+    const notifications = await ServerNotificationService.getUserNotifications(userId, limit)
     
     return NextResponse.json({ notifications })
   } catch (error) {
@@ -66,7 +66,8 @@ export async function POST(request: NextRequest): Promise<NextResponse<Notificat
   try {
     // Get authenticated user - first try Supabase auth, then minimal auth cookie
     const supabase = await createApiRouteClient(request)
-    let { data: { user }, error: authError } = await supabase.auth.getUser()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    let userId: string | null = null
     
     // If Supabase auth fails, check minimal auth cookie
     if (authError || !user) {
@@ -75,18 +76,17 @@ export async function POST(request: NextRequest): Promise<NextResponse<Notificat
         try {
           const authData = JSON.parse(authCookie.value)
           if (authData.expires_at && authData.expires_at > Math.floor(Date.now() / 1000)) {
-            user = {
-              id: authData.user_id,
-              email: authData.email
-            }
+            userId = authData.user_id
           }
         } catch (error) {
           console.error('Error parsing minimal auth cookie:', error)
         }
       }
+    } else {
+      userId = user.id
     }
     
-    if (!user) {
+    if (!userId) {
       return NextResponse.json(
         { error: 'Unauthorized', details: 'No authenticated user' },
         { status: 401 }
@@ -97,7 +97,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<Notificat
     let body
     try {
       body = await request.json()
-    } catch (parseError) {
+    } catch {
       return NextResponse.json(
         { error: 'Invalid JSON', details: 'Request body must be valid JSON' },
         { status: 400 }
@@ -125,7 +125,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<Notificat
         return NextResponse.json({ success: true, message: 'Notification marked as read' })
 
       case 'markAllAsRead':
-        await ServerNotificationService.markAllAsRead(user.id)
+        await ServerNotificationService.markAllAsRead(userId)
         return NextResponse.json({ success: true, message: 'All notifications marked as read' })
 
       case 'delete':
@@ -170,7 +170,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<Notificat
         }
 
         const notification = await ServerNotificationService.createNotification({
-          userId: user.id,
+          userId: userId,
           title: notificationData.title,
           message: notificationData.message,
           type: notificationData.type || 'info',

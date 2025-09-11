@@ -13,6 +13,7 @@ import { toast } from 'sonner'
 import { Plus, Edit, Trash2, Phone, MapPin, Briefcase, Users } from 'lucide-react'
 import { AnimatedCounter } from '@/components/ui/animated-counter'
 import type { Member } from '@/lib/server-data'
+import type { RealtimeChannel } from '@supabase/supabase-js'
 
 interface MemberFormData {
   name: string
@@ -63,14 +64,14 @@ export function MembersClient({ initialData, permissions }: MembersClientProps) 
       
       const data = await response.json()
       setMembers(data.members || [])
-    } catch (error) {
+    } catch {
       toast.error('Failed to load members')
     }
   }, [])
 
   // Set up real-time subscription only for updates
   useEffect(() => {
-    let subscription: any = null
+    let subscription: RealtimeChannel | null = null
     
     const setupRealtimeSubscription = async () => {
       try {

@@ -12,10 +12,9 @@ import { Plus, MoreHorizontal, FolderOpen, Users, Calendar, CheckCircle, Clock, 
 import { toast } from 'sonner'
 import type { LedgerEntryWithRelations } from '@/lib/server-data'
 import type { Database } from '@/types/database'
+import type { RealtimeChannel } from '@supabase/supabase-js'
 
 type LedgerEntry = Database['public']['Tables']['ledger_entries']['Row']
-type LedgerSubgroup = Database['public']['Tables']['ledger_subgroups']['Row']
-type Bill = Database['public']['Tables']['bills']['Row']
 
 interface LedgerEntriesClientProps {
   initialData: LedgerEntryWithRelations[]
@@ -58,7 +57,7 @@ export function LedgerEntriesClient({ initialData, permissions }: LedgerEntriesC
 
   // Set up real-time subscription only for updates
   useEffect(() => {
-    let subscription: any = null
+    let subscription: RealtimeChannel | null = null
     
     const setupRealtimeSubscription = async () => {
       try {

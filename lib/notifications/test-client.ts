@@ -25,7 +25,7 @@ export const testNotificationSystem = async (): Promise<void> => {
     try {
       await ClientNotificationService.generateNotifications()
       console.log('Notification generation: SUCCESS')
-    } catch (error) {
+    } catch {
       console.log('Notification generation: FAILED (may require authentication)')
     }
     

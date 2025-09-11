@@ -1,6 +1,6 @@
 import { createServerClient as createSSRServerClient } from '@supabase/ssr'
 import { Database } from '@/types/database'
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -123,7 +123,7 @@ export const createApiRouteClient = async (request: NextRequest) => {
           const cookieStore = request.cookies
           return cookieStore.getAll()
         },
-        setAll(cookiesToSet) {
+        setAll() {
           // For API routes, we don't set cookies in the response here
           // as it's handled differently
         },

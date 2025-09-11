@@ -255,7 +255,7 @@ export class ClientNotificationService {
    * Unsubscribe from all real-time updates
    */
   static unsubscribeAll(): void {
-    this.subscriptions.forEach((subscription, key) => {
+    this.subscriptions.forEach((subscription) => {
       subscription.unsubscribe()
     })
     this.subscriptions.clear()

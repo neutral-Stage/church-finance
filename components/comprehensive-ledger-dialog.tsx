@@ -1,8 +1,12 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
+import Image from 'next/image'
 import { createAuthenticatedClient } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
+
+// Initialize supabase client for storage operations
+const getSupabaseClient = () => createAuthenticatedClient()
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -115,6 +119,7 @@ const getDocumentUrl = async (path: string): Promise<string> => {
     console.log('🔗 Getting signed URL for path:', path)
     
     // Check if the storage bucket exists and the file exists
+    const supabase = await getSupabaseClient()
     const { data: listData, error: listError } = await supabase.storage
       .from('documents')
       .list(path.split('/')[0], { limit: 100 })
@@ -152,6 +157,7 @@ const downloadDocument = async (path: string, filename: string) => {
     console.log('📥 Downloading document:', { path, filename })
     toast.info(`Downloading ${filename}...`)
     
+    const supabase = await getSupabaseClient()
     const { data, error } = await supabase.storage
       .from('documents')
       .download(path)
@@ -213,39 +219,14 @@ export function ComprehensiveLedgerDialog({
   })
 
 
-  useEffect(() => {
-    if (open) {
-      fetchFunds()
-      if (editingEntry) {
-        loadEntryData()
-      } else {
-        resetForm()
-      }
-    }
-  }, [open, editingEntry])
-
-  const fetchFunds = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('funds')
-        .select('*')
-        .order('name')
-
-      if (error) throw error
-      setFunds(data || [])
-    } catch (error) {
-      console.error('Error fetching funds:', error)
-      toast.error('Failed to load funds')
-    }
-  }
-
-  const loadEntryData = async () => {
+  const loadEntryData = useCallback(async () => {
     if (!editingEntry) return
 
     try {
       setLoading(true)
 
       // Fetch entry with subgroups and bills
+      const supabase = await getSupabaseClient()
       const { data: entryData, error: entryError } = await supabase
         .from('ledger_entries')
         .select(`
@@ -359,6 +340,33 @@ export function ComprehensiveLedgerDialog({
     } finally {
       setLoading(false)
     }
+  }, [editingEntry])
+
+  useEffect(() => {
+    if (open) {
+      fetchFunds()
+      if (editingEntry) {
+        loadEntryData()
+      } else {
+        resetForm()
+      }
+    }
+  }, [open, editingEntry, loadEntryData])
+
+  const fetchFunds = async () => {
+    try {
+      const supabase = await getSupabaseClient()
+      const { data, error } = await supabase
+        .from('funds')
+        .select('*')
+        .order('name')
+
+      if (error) throw error
+      setFunds(data || [])
+    } catch (error) {
+      console.error('Error fetching funds:', error)
+      toast.error('Failed to load funds')
+    }
   }
 
   const resetForm = () => {
@@ -390,6 +398,7 @@ export function ComprehensiveLedgerDialog({
   }
 
   const uploadDocument = async (file: File, billId: string): Promise<string | null> => {
+    const supabase = await getSupabaseClient()
     const uploadId = `${billId}-${Date.now()}`
     
     try {
@@ -687,6 +696,7 @@ export function ComprehensiveLedgerDialog({
 
     try {
       setLoading(true)
+      const supabase = await getSupabaseClient()
 
       // Calculate total amount
       const totalAmount = entryForm.subgroupsEnabled
@@ -1051,9 +1061,11 @@ export function ComprehensiveLedgerDialog({
           const url = URL.createObjectURL(bill.document)
           return (
             <div className="relative group">
-              <img 
+              <Image 
                 src={url} 
                 alt={bill.document.name}
+                width={64}
+                height={64}
                 className="w-16 h-16 object-cover rounded-lg cursor-pointer hover:opacity-80 transition-opacity"
                 onClick={handleDocumentClick}
                 onLoad={() => URL.revokeObjectURL(url)}
@@ -1080,9 +1092,11 @@ export function ComprehensiveLedgerDialog({
         if (isImageFile(bill.existingDocument.type) && imageUrl) {
           return (
             <div className="relative group">
-              <img 
+              <Image 
                 src={imageUrl} 
                 alt={bill.existingDocument.name}
+                width={64}
+                height={64}
                 className="w-16 h-16 object-cover rounded-lg cursor-pointer hover:opacity-80 transition-opacity"
                 onClick={handleDocumentClick}
                 onError={(e) => {
@@ -1258,7 +1272,6 @@ export function ComprehensiveLedgerDialog({
     }
 
     const uploadId = isSubgroup ? `subgroup-${subgroupIndex}-bill-${billIndex}` : `direct-bill-${billIndex}`
-    const progress = uploadProgress[uploadId]
 
     return (
       <Card key={billIndex} className="bg-white/5 backdrop-blur-sm border border-white/10">
@@ -1444,7 +1457,7 @@ export function ComprehensiveLedgerDialog({
                   <Label htmlFor="status" className="text-white/90">Status</Label>
                   <Select 
                     value={entryForm.status} 
-                    onValueChange={(value) => setEntryForm(prev => ({ ...prev, status: value as any }))}
+                    onValueChange={(value) => setEntryForm(prev => ({ ...prev, status: value as 'draft' | 'active' | 'completed' | 'cancelled' }))}
                   >
                     <SelectTrigger className="bg-white/10 border-white/20 text-white">
                       <SelectValue />
@@ -1461,7 +1474,7 @@ export function ComprehensiveLedgerDialog({
                   <Label htmlFor="priority" className="text-white/90">Priority</Label>
                   <Select 
                     value={entryForm.priority} 
-                    onValueChange={(value) => setEntryForm(prev => ({ ...prev, priority: value as any }))}
+                    onValueChange={(value) => setEntryForm(prev => ({ ...prev, priority: value as 'low' | 'medium' | 'high' | 'urgent' }))}
                   >
                     <SelectTrigger className="bg-white/10 border-white/20 text-white">
                       <SelectValue />
@@ -1639,7 +1652,7 @@ export function ComprehensiveLedgerDialog({
                               setEntryForm(prev => ({
                                 ...prev,
                                 subgroups: prev.subgroups.map((sg, idx) => 
-                                  idx === subgroupIndex ? { ...sg, status: value as any } : sg
+                                  idx === subgroupIndex ? { ...sg, status: value as 'draft' | 'active' | 'completed' | 'cancelled' } : sg
                                 )
                               }))
                             }}
@@ -1663,7 +1676,7 @@ export function ComprehensiveLedgerDialog({
                               setEntryForm(prev => ({
                                 ...prev,
                                 subgroups: prev.subgroups.map((sg, idx) => 
-                                  idx === subgroupIndex ? { ...sg, priority: value as any } : sg
+                                  idx === subgroupIndex ? { ...sg, priority: value as 'low' | 'medium' | 'high' | 'urgent' } : sg
                                 )
                               }))
                             }}

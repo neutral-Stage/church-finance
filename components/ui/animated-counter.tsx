@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, memo } from 'react'
 
 interface AnimatedCounterProps {
   value: number
@@ -10,7 +10,7 @@ interface AnimatedCounterProps {
   className?: string
 }
 
-export function AnimatedCounter({ 
+function AnimatedCounterComponent({ 
   value, 
   duration = 2000, 
   prefix = '', 
@@ -81,3 +81,5 @@ export function AnimatedCounter({
     </span>
   )
 }
+
+export const AnimatedCounter = memo(AnimatedCounterComponent)

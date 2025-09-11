@@ -1,5 +1,5 @@
 import { createAdminClient } from '@/lib/supabase-server'
-import { Notification, CreateNotificationData } from '@/types/notifications'
+import { Notification } from '@/types/notifications'
 
 /**
  * Server-side notification service for admin operations

@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
 import type { AuthUser } from '@/types/database'
-import { Alert, AlertDescription } from '@/components/ui/alert'
+
 import { AnimatedCounter } from '@/components/ui/animated-counter'
 import {
   GlassCard,
@@ -27,7 +27,6 @@ import {
   Section
 } from '@/components/ui'
 import {
-  AlertTriangle,
   Activity,
 } from 'lucide-react'
 import { formatCurrency, formatDate } from '@/lib/utils'
@@ -58,7 +57,7 @@ export function DashboardClient({ initialData, permissions, serverUser }: Dashbo
       setServerUser(serverUser)
       hasSetServerUser.current = true
     }
-  }, [serverUser?.id, user?.id, setServerUser])
+  }, [serverUser, user, setServerUser])
 
   // Set up real-time subscriptions only for updates, not initial loading
   useEffect(() => {

@@ -70,7 +70,7 @@ export default function NotificationsDropdown({ className }: NotificationsDropdo
     } finally {
       setLoading(false)
     }
-  }, [user?.id])
+  }, [user])
 
   useEffect(() => {
     let unsubscribe: (() => void) | null = null

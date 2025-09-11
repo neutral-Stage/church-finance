@@ -18,8 +18,7 @@ import {
   Star,
   Zap,
   PiggyBank,
-  CreditCard,
-  AlertTriangle
+  CreditCard
 } from 'lucide-react'
 
 export default function HomePage(): JSX.Element {
