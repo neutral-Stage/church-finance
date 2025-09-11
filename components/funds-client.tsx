@@ -16,7 +16,7 @@ import { AnimatedCounter } from '@/components/ui/animated-counter'
 import { useConfirmationDialog } from '@/components/ui/confirmation-dialog'
 
 import { formatDate } from '@/lib/utils'
-import { Plus, MoreHorizontal, Edit, Trash2, Banknote, TrendingUp, Eye, DollarSign } from 'lucide-react'
+import { Plus, MoreHorizontal, Edit, Trash2, Banknote, TrendingUp, Eye, DollarSign, ArrowRightLeft } from 'lucide-react'
 import { toast } from 'sonner'
 
 import type { Fund, TransactionWithFund } from '@/lib/server-data'
@@ -33,6 +33,13 @@ interface FundForm {
   description: string
   target_amount?: number
   fund_type: string
+}
+
+interface FundTransferForm {
+  from_fund_id: string
+  to_fund_id: string
+  amount: number
+  description: string
 }
 
 const FUND_TYPES = [
@@ -52,6 +59,7 @@ export default function FundsClient({ initialData }: FundsClientProps) {
   const [funds, setFunds] = useState<Fund[]>(initialData.funds)
   const [recentTransactions, setRecentTransactions] = useState<TransactionWithFund[]>(initialData.recentTransactions)
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [transferDialogOpen, setTransferDialogOpen] = useState(false)
   const [editingFund, setEditingFund] = useState<Fund | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [filterType, setFilterType] = useState('all')
@@ -62,6 +70,13 @@ export default function FundsClient({ initialData }: FundsClientProps) {
     description: '',
     target_amount: undefined,
     fund_type: 'Management Fund'
+  })
+
+  const [transferForm, setTransferForm] = useState<FundTransferForm>({
+    from_fund_id: '',
+    to_fund_id: '',
+    amount: 0,
+    description: ''
   })
 
   const fetchData = async () => {
@@ -209,6 +224,55 @@ export default function FundsClient({ initialData }: FundsClientProps) {
     setEditingFund(null)
   }
 
+  const resetTransferForm = () => {
+    setTransferForm({
+      from_fund_id: '',
+      to_fund_id: '',
+      amount: 0,
+      description: ''
+    })
+  }
+
+  const handleTransferSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    if (!transferForm.from_fund_id || !transferForm.to_fund_id || !transferForm.amount || !transferForm.description.trim()) {
+      toast.error('All fields are required')
+      return
+    }
+
+    if (transferForm.from_fund_id === transferForm.to_fund_id) {
+      toast.error('Cannot transfer to the same fund')
+      return
+    }
+
+    if (transferForm.amount <= 0) {
+      toast.error('Transfer amount must be greater than 0')
+      return
+    }
+
+    try {
+      const response = await fetch('/api/funds/transfer', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(transferForm)
+      })
+      
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to transfer funds')
+      }
+
+      toast.success('Fund transfer completed successfully')
+      setTransferDialogOpen(false)
+      resetTransferForm()
+      fetchData()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to transfer funds')
+    }
+  }
+
   const handleDialogChange = (open: boolean) => {
     setDialogOpen(open)
     if (!open) {
@@ -249,13 +313,125 @@ export default function FundsClient({ initialData }: FundsClientProps) {
             <p className="text-white/70">Manage church funds, balances, and allocations</p>
           </div>
           {hasRole('admin') && (
-            <Dialog open={dialogOpen} onOpenChange={handleDialogChange}>
-              <DialogTrigger asChild>
-                <Button onClick={() => { setEditingFund(null); resetForm(); }} className="glass-button hover:scale-105 transition-all duration-300">
-                  <Plus className="mr-2 h-4 w-4" />
-                  Create Fund
-                </Button>
-              </DialogTrigger>
+            <div className="flex gap-3">
+              <Dialog open={transferDialogOpen} onOpenChange={setTransferDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button onClick={resetTransferForm} className="glass-button hover:scale-105 transition-all duration-300">
+                    <ArrowRightLeft className="mr-2 h-4 w-4" />
+                    Transfer Funds
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-[500px]">
+                  <DialogHeader className="space-y-3 pb-6">
+                    <DialogTitle className="text-xl font-semibold bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent">
+                      Transfer Funds
+                    </DialogTitle>
+                    <DialogDescription className="text-white/70 text-sm leading-relaxed">
+                      Transfer funds from one account to another.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <form onSubmit={handleTransferSubmit} className="space-y-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="from_fund" className="text-white/90 font-medium text-sm">
+                          From Fund *
+                        </Label>
+                        <Select value={transferForm.from_fund_id} onValueChange={(value) => setTransferForm({ ...transferForm, from_fund_id: value })}>
+                          <SelectTrigger className="glass-card-dark bg-white/10 backdrop-blur-xl border border-white/20 text-white rounded-xl hover:bg-white/15 transition-all duration-300">
+                            <SelectValue placeholder="Select source fund" />
+                          </SelectTrigger>
+                          <SelectContent className="glass-card-dark bg-white/10 backdrop-blur-xl border border-white/20 rounded-xl">
+                            {funds.filter(fund => fund.current_balance > 0).map((fund) => (
+                              <SelectItem
+                                key={fund.id}
+                                value={fund.id}
+                                className="text-white hover:bg-white/20 focus:bg-white/20 rounded-lg transition-colors duration-200"
+                              >
+                                {fund.name} (${fund.current_balance.toFixed(2)})
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="to_fund" className="text-white/90 font-medium text-sm">
+                          To Fund *
+                        </Label>
+                        <Select value={transferForm.to_fund_id} onValueChange={(value) => setTransferForm({ ...transferForm, to_fund_id: value })}>
+                          <SelectTrigger className="glass-card-dark bg-white/10 backdrop-blur-xl border border-white/20 text-white rounded-xl hover:bg-white/15 transition-all duration-300">
+                            <SelectValue placeholder="Select destination fund" />
+                          </SelectTrigger>
+                          <SelectContent className="glass-card-dark bg-white/10 backdrop-blur-xl border border-white/20 rounded-xl">
+                            {funds.filter(fund => fund.id !== transferForm.from_fund_id).map((fund) => (
+                              <SelectItem
+                                key={fund.id}
+                                value={fund.id}
+                                className="text-white hover:bg-white/20 focus:bg-white/20 rounded-lg transition-colors duration-200"
+                              >
+                                {fund.name} (${fund.current_balance.toFixed(2)})
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="transfer_amount" className="text-white/90 font-medium text-sm">
+                        Transfer Amount *
+                      </Label>
+                      <Input
+                        id="transfer_amount"
+                        type="number"
+                        step="0.01"
+                        min="0.01"
+                        placeholder="0.00"
+                        value={transferForm.amount || ''}
+                        onChange={(e) => setTransferForm({ ...transferForm, amount: parseFloat(e.target.value) || 0 })}
+                        className="glass-card-dark bg-white/10 backdrop-blur-xl border border-white/20 text-white placeholder:text-white/50 rounded-xl focus:border-white/40 focus:ring-white/20 hover:bg-white/15 transition-all duration-300"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="transfer_description" className="text-white/90 font-medium text-sm">
+                        Description *
+                      </Label>
+                      <Textarea
+                        id="transfer_description"
+                        value={transferForm.description}
+                        onChange={(e) => setTransferForm({ ...transferForm, description: e.target.value })}
+                        placeholder="Reason for transfer..."
+                        rows={3}
+                        className="glass-card-dark bg-white/10 backdrop-blur-xl border border-white/20 text-white placeholder:text-white/50 rounded-xl focus:border-white/40 focus:ring-white/20 hover:bg-white/15 transition-all duration-300 resize-none"
+                      />
+                    </div>
+
+                    <DialogFooter className="flex flex-col sm:flex-row gap-3 pt-6">
+                      <GlassButton
+                        type="button"
+                        variant="outline"
+                        onClick={() => setTransferDialogOpen(false)}
+                        className="order-2 sm:order-1"
+                      >
+                        Cancel
+                      </GlassButton>
+                      <GlassButton
+                        type="submit"
+                        className="order-1 sm:order-2"
+                      >
+                        Transfer Funds
+                      </GlassButton>
+                    </DialogFooter>
+                  </form>
+                </DialogContent>
+              </Dialog>
+              <Dialog open={dialogOpen} onOpenChange={handleDialogChange}>
+                <DialogTrigger asChild>
+                  <Button onClick={() => { setEditingFund(null); resetForm(); }} className="glass-button hover:scale-105 transition-all duration-300">
+                    <Plus className="mr-2 h-4 w-4" />
+                    Create Fund
+                  </Button>
+                </DialogTrigger>
               <DialogContent className="sm:max-w-[500px]">
                 <DialogHeader className="space-y-3 pb-6">
                   <DialogTitle className="text-xl font-semibold bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent">
@@ -352,6 +528,7 @@ export default function FundsClient({ initialData }: FundsClientProps) {
                 </form>
               </DialogContent>
             </Dialog>
+            </div>
           )}
         </div>
 
@@ -471,7 +648,7 @@ export default function FundsClient({ initialData }: FundsClientProps) {
                   </div>
                   <div className="flex items-center gap-2">
                     <Badge variant="outline" className="border-white/30 text-white/80 text-xs">
-                      {(fund as ExtendedFund).fund_type || 'Management Fund'}
+                      {(fund as ExtendedFund).fund_type || `${fund.name} Fund`}
                     </Badge>
                   </div>
                 </CardHeader>
