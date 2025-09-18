@@ -171,38 +171,50 @@ export default function AdvancesPage() {
 
     // Check if fund has sufficient balance
     const selectedFund = funds.find(f => f.id === advanceForm.fund_id)
-    if (!selectedFund || selectedFund.current_balance < amount) {
+    if (!selectedFund || (selectedFund.current_balance ?? 0) < amount) {
       toast.error('Insufficient balance in selected fund')
       return
     }
 
     try {
-      const advanceData = {
-        recipient_name: advanceForm.recipient_name,
-        amount: amount,
-        purpose: advanceForm.purpose,
-        fund_id: advanceForm.fund_id,
-        advance_date: new Date().toISOString().split('T')[0],
-        expected_return_date: advanceForm.expected_return_date,
-        status: advanceForm.status,
-        notes: advanceForm.notes,
-        amount_returned: 0,
-        payment_method: 'bank',
-        approved_by: user?.email || 'Unknown'
-      }
-
       if (editingAdvance) {
+        // Update operation - only update editable fields
+        const updateData = {
+          recipient_name: advanceForm.recipient_name,
+          amount: amount,
+          purpose: advanceForm.purpose,
+          fund_id: advanceForm.fund_id,
+          expected_return_date: advanceForm.expected_return_date,
+          status: advanceForm.status,
+          notes: advanceForm.notes
+        }
+
         const { error } = await supabase
           .from('advances')
-          .update(advanceData)
+          .update(updateData)
           .eq('id', editingAdvance.id)
 
         if (error) throw error
         toast.success('Advance updated successfully')
       } else {
+        // Insert operation - include all required fields
+        const insertData = {
+          recipient_name: advanceForm.recipient_name,
+          amount: amount,
+          purpose: advanceForm.purpose,
+          fund_id: advanceForm.fund_id,
+          advance_date: new Date().toISOString().split('T')[0],
+          expected_return_date: advanceForm.expected_return_date,
+          status: advanceForm.status,
+          notes: advanceForm.notes,
+          amount_returned: 0,
+          payment_method: 'bank',
+          approved_by: user?.email || 'Unknown'
+        }
+
         const { error } = await supabase
           .from('advances')
-          .insert([advanceData])
+          .insert([insertData])
 
         if (error) throw error
         toast.success('Advance created successfully')
@@ -231,14 +243,14 @@ export default function AdvancesPage() {
       return
     }
 
-    const remainingAmount = selectedAdvanceForRepayment.amount - selectedAdvanceForRepayment.amount_returned
+    const remainingAmount = selectedAdvanceForRepayment.amount - (selectedAdvanceForRepayment.amount_returned ?? 0)
     if (repaymentAmount > remainingAmount) {
       toast.error(`Repayment amount cannot exceed remaining balance of ${formatCurrency(remainingAmount)}`)
       return
     }
 
     try {
-      const newAmountReturned = selectedAdvanceForRepayment.amount_returned + repaymentAmount
+      const newAmountReturned = (selectedAdvanceForRepayment.amount_returned ?? 0) + repaymentAmount
       const newStatus = newAmountReturned >= selectedAdvanceForRepayment.amount ? 'returned' : 'partial'
 
       // Update advance with new repayment amount and status
@@ -350,7 +362,7 @@ export default function AdvancesPage() {
 
   // Calculate statistics
   const totalAdvances = advances.reduce((sum, advance) => sum + advance.amount, 0)
-  const totalRepaid = advances.reduce((sum, advance) => sum + advance.amount_returned, 0)
+  const totalRepaid = advances.reduce((sum, advance) => sum + (advance.amount_returned ?? 0), 0)
   const totalOutstanding = totalAdvances - totalRepaid
   const outstandingAdvances = advances.filter(a => a.status === 'outstanding').length
   const overdueAdvances = advances.filter(a => {
@@ -444,7 +456,7 @@ export default function AdvancesPage() {
                         <SelectContent className="bg-white/10 backdrop-blur-xl border-white/20">
                           {funds.map((fund) => (
                             <SelectItem key={fund.id} value={fund.id} className="text-white/90 hover:bg-white/10">
-                              {fund.name} ({formatCurrency(fund.current_balance)})
+                              {fund.name} ({formatCurrency(fund.current_balance ?? 0)})
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -571,7 +583,7 @@ export default function AdvancesPage() {
               </div>
               <p className="text-xs text-white/60">
                 <AnimatedCounter
-                  value={overdueAdvances.reduce((sum, a) => sum + (a.amount - a.amount_returned), 0)}
+                  value={overdueAdvances.reduce((sum, a) => sum + (a.amount - (a.amount_returned ?? 0)), 0)}
                   formatter={(v) => formatCurrency(v)}
                 /> overdue
               </p>
@@ -609,18 +621,18 @@ export default function AdvancesPage() {
                     {advances.map((advance) => {
                       const returnDate = new Date(advance.expected_return_date)
                       const isOverdue = advance.status !== 'returned' && returnDate < new Date()
-                      const remainingBalance = advance.amount - advance.amount_returned
+                      const remainingBalance = advance.amount - (advance.amount_returned ?? 0)
 
                       return (
                         <tr key={advance.id} className={`border-b border-white/10 hover:bg-white/5 transition-colors ${isOverdue ? 'bg-red-500/10' : ''}`}>
-                          <td className="p-4 text-white/90">{new Date(advance.created_at).toLocaleDateString()}</td>
+                          <td className="p-4 text-white/90">{advance.created_at ? new Date(advance.created_at).toLocaleDateString() : 'No date'}</td>
                           <td className="p-4 font-medium text-white/90">{advance.recipient_name}</td>
                           <td className="p-4 max-w-xs truncate text-white/90">{advance.purpose}</td>
                           <td className="p-4 font-medium text-white/90">{formatCurrency(advance.amount)}</td>
                           <td className="p-4">
                             <div className="flex items-center gap-1">
                               <TrendingDown className="w-3 h-3 text-green-400" />
-                              <span className="text-green-300 font-medium">{formatCurrency(advance.amount_returned)}</span>
+                              <span className="text-green-300 font-medium">{formatCurrency(advance.amount_returned ?? 0)}</span>
                             </div>
                           </td>
                           <td className="p-4">
@@ -710,11 +722,11 @@ export default function AdvancesPage() {
                   </div>
                   <div className="flex justify-between">
                     <span className="text-sm text-white/60">Already Repaid:</span>
-                    <span className="font-medium text-green-300">{formatCurrency(selectedAdvanceForRepayment.amount_returned)}</span>
+                    <span className="font-medium text-green-300">{formatCurrency(selectedAdvanceForRepayment.amount_returned ?? 0)}</span>
                   </div>
                   <div className="flex justify-between border-t border-white/20 pt-2">
                     <span className="text-sm font-medium text-white/90">Remaining Balance:</span>
-                    <span className="font-bold text-white">{formatCurrency(selectedAdvanceForRepayment.amount - selectedAdvanceForRepayment.amount_returned)}</span>
+                    <span className="font-bold text-white">{formatCurrency(selectedAdvanceForRepayment.amount - (selectedAdvanceForRepayment.amount_returned ?? 0))}</span>
                   </div>
                 </div>
 
@@ -726,7 +738,7 @@ export default function AdvancesPage() {
                       type="number"
                       step="0.01"
                       min="0.01"
-                      max={selectedAdvanceForRepayment.amount - selectedAdvanceForRepayment.amount_returned}
+                      max={selectedAdvanceForRepayment.amount - (selectedAdvanceForRepayment.amount_returned ?? 0)}
                       value={repaymentForm.amount}
                       onChange={(e) => setRepaymentForm({ ...repaymentForm, amount: e.target.value })}
                       placeholder="Enter repayment amount"

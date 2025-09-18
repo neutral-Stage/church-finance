@@ -342,7 +342,7 @@ export function DashboardClient({ initialData, permissions, serverUser }: Dashbo
                       <div className="flex-1">
                         <Text weight="medium">{advance.recipient_name}</Text>
                         <Text size="sm" className="text-white/60">
-                          Issued: {formatDate(advance.created_at)}
+                          Issued: {advance.created_at ? formatDate(advance.created_at) : 'Unknown'}
                         </Text>
                       </div>
                       <div className="flex items-center gap-3">

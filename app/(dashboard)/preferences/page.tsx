@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { GlassCard, GlassCardContent, GlassCardDescription, GlassCardHeader, GlassCardTitle } from '@/components/ui/glass-card'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from 'sonner'
@@ -25,6 +25,7 @@ import {
   Database
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { Json } from '@/types/database'
 
 interface UserPreferences {
   theme: 'light' | 'dark' | 'system'
@@ -90,7 +91,7 @@ export default function Preferences() {
         .single()
 
       if (data && data.preferences) {
-        setPreferences({ ...defaultPreferences, ...data.preferences })
+        setPreferences({ ...defaultPreferences, ...(data.preferences as unknown as UserPreferences) })
       }
     } catch {
       // Silently handle error - user will see default preferences
@@ -116,7 +117,7 @@ export default function Preferences() {
         .from('user_preferences')
         .upsert({
           user_id: user.id,
-          preferences: preferences
+          preferences: preferences as unknown as Json
         }, {
           onConflict: 'user_id'
         })
@@ -182,17 +183,17 @@ export default function Preferences() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Appearance Settings */}
-        <Card className="bg-white/10 backdrop-blur-xl border-white/20 hover:bg-white/15 transition-all duration-300 animate-fade-in animate-slide-in-from-bottom-4">
-          <CardHeader>
-            <CardTitle className="text-white/90 flex items-center">
+        <GlassCard variant="default" className="animate-fade-in animate-slide-in-from-bottom-4">
+          <GlassCardHeader>
+            <GlassCardTitle className="text-white/90 flex items-center">
               <Sun className="h-5 w-5 mr-2" />
               Appearance
-            </CardTitle>
-            <CardDescription className="text-white/70">
+            </GlassCardTitle>
+            <GlassCardDescription className="text-white/70">
               Customize the look and feel of your dashboard
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
+            </GlassCardDescription>
+          </GlassCardHeader>
+          <GlassCardContent className="space-y-4">
             <div className="space-y-2">
               <Label className="text-white/90">Theme</Label>
               <Select
@@ -256,21 +257,21 @@ export default function Preferences() {
                 </SelectContent>
               </Select>
             </div>
-          </CardContent>
-        </Card>
+          </GlassCardContent>
+        </GlassCard>
 
         {/* Notification Settings */}
-        <Card className="bg-white/10 backdrop-blur-xl border-white/20 hover:bg-white/15 transition-all duration-300 animate-fade-in animate-slide-in-from-bottom-4">
-          <CardHeader>
-            <CardTitle className="text-white/90 flex items-center">
+        <GlassCard variant="default" className="animate-fade-in animate-slide-in-from-bottom-4">
+          <GlassCardHeader>
+            <GlassCardTitle className="text-white/90 flex items-center">
               <Bell className="h-5 w-5 mr-2" />
               Notifications
-            </CardTitle>
-            <CardDescription className="text-white/70">
+            </GlassCardTitle>
+            <GlassCardDescription className="text-white/70">
               Choose how you want to be notified
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
+            </GlassCardDescription>
+          </GlassCardHeader>
+          <GlassCardContent className="space-y-4">
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
@@ -317,21 +318,21 @@ export default function Preferences() {
                 />
               </div>
             </div>
-          </CardContent>
-        </Card>
+          </GlassCardContent>
+        </GlassCard>
 
         {/* Privacy Settings */}
-        <Card className="bg-white/10 backdrop-blur-xl border-white/20 hover:bg-white/15 transition-all duration-300 animate-fade-in animate-slide-in-from-bottom-4">
-          <CardHeader>
-            <CardTitle className="text-white/90 flex items-center">
+        <GlassCard variant="default" className="animate-fade-in animate-slide-in-from-bottom-4">
+          <GlassCardHeader>
+            <GlassCardTitle className="text-white/90 flex items-center">
               <Shield className="h-5 w-5 mr-2" />
               Privacy
-            </CardTitle>
-            <CardDescription className="text-white/70">
+            </GlassCardTitle>
+            <GlassCardDescription className="text-white/70">
               Control your privacy and data visibility
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
+            </GlassCardDescription>
+          </GlassCardHeader>
+          <GlassCardContent className="space-y-4">
             <div className="space-y-2">
               <Label className="text-white/90">Profile Visibility</Label>
               <Select
@@ -383,21 +384,21 @@ export default function Preferences() {
                 />
               </div>
             </div>
-          </CardContent>
-        </Card>
+          </GlassCardContent>
+        </GlassCard>
 
         {/* Dashboard Settings */}
-        <Card className="bg-white/10 backdrop-blur-xl border-white/20 hover:bg-white/15 transition-all duration-300 animate-fade-in animate-slide-in-from-bottom-4">
-          <CardHeader>
-            <CardTitle className="text-white/90 flex items-center">
+        <GlassCard variant="default" className="animate-fade-in animate-slide-in-from-bottom-4">
+          <GlassCardHeader>
+            <GlassCardTitle className="text-white/90 flex items-center">
               <Database className="h-5 w-5 mr-2" />
               Dashboard
-            </CardTitle>
-            <CardDescription className="text-white/70">
+            </GlassCardTitle>
+            <GlassCardDescription className="text-white/70">
               Customize your dashboard experience
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
+            </GlassCardDescription>
+          </GlassCardHeader>
+          <GlassCardContent className="space-y-4">
             <div className="space-y-2">
               <Label className="text-white/90">Default View</Label>
               <Select
@@ -445,8 +446,8 @@ export default function Preferences() {
                 className="border-white/20 data-[state=checked]:bg-blue-500"
               />
             </div>
-          </CardContent>
-        </Card>
+          </GlassCardContent>
+        </GlassCard>
       </div>
       </div>
     </div>

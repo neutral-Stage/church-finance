@@ -32,7 +32,7 @@ type Member = Database['public']['Tables']['members']['Row']
 interface OfferingWithFund extends Offering {
   offering_member?: {
     member: Member
-  }
+  } | null
 }
 
 interface OfferingForm {
@@ -127,7 +127,7 @@ export default function OfferingsPage() {
       }
 
       // Process offerings data - offering_member is a single object from the join
-      const processedOfferings = offeringsData?.map((offering: Offering & { offering_member?: { member: Member } }) => ({
+      const processedOfferings = offeringsData?.map((offering: Offering & { offering_member?: { member: Member } | null }) => ({
         ...offering,
         member: offering.offering_member?.member || null
       })) || []

@@ -6,7 +6,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { GlassCard, GlassCardContent, GlassCardDescription, GlassCardHeader, GlassCardTitle } from '@/components/ui/glass-card'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
@@ -34,8 +34,6 @@ export default function ProfileSettings() {
     address: '',
     bio: ''
   })
-
-
 
   useEffect(() => {
     if (user) {
@@ -132,19 +130,19 @@ export default function ProfileSettings() {
         </div>
         <div>
           <h1 className="text-2xl font-bold text-white">Profile Settings</h1>
-          <p className="text-white/70">Manage your personal information and account details</p>
+          <p className="text-white/70 mt-2">Manage your personal information and account details</p>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Profile Overview Card */}
-        <Card className="bg-white/10 backdrop-blur-xl border-white/20 hover:bg-white/15 transition-all duration-300 animate-fade-in animate-slide-in-from-bottom-4">
-          <CardHeader className="text-center">
+        <GlassCard variant="default" className="animate-fade-in animate-slide-in-from-bottom-4">
+          <GlassCardHeader className="text-center">
             <div className="flex justify-center mb-4">
               <div className="relative group">
                 <Avatar className="h-24 w-24 border-4 border-white/20">
                   <AvatarFallback className="bg-white/10 text-white font-bold text-2xl">
-                    {user.full_name?.split(' ').map(n => n[0]).join('') || user.email?.[0]?.toUpperCase()}
+                    {user.full_name?.split(' ').map((n: string) => n[0]).join('') || user.email?.[0]?.toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
                 <Button
@@ -155,16 +153,16 @@ export default function ProfileSettings() {
                 </Button>
               </div>
             </div>
-            <CardTitle className="text-white/90">{user.full_name || 'User'}</CardTitle>
-            <CardDescription className="text-white/70">{user.email}</CardDescription>
+            <GlassCardTitle className="text-white/90">{user.full_name || 'User'}</GlassCardTitle>
+            <GlassCardDescription className="text-white/70">{user.email}</GlassCardDescription>
             <div className="flex justify-center mt-2">
               <Badge variant="secondary" className="bg-white/10 text-white border-white/20 capitalize">
                 <Shield className="h-3 w-3 mr-1" />
                 {user.role}
               </Badge>
             </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
+          </GlassCardHeader>
+          <GlassCardContent className="space-y-4">
             <div className="bg-white/5 backdrop-blur-sm p-4 rounded-lg space-y-2 hover:bg-white/10 transition-all duration-300">
               <div className="flex items-center text-sm text-white/80">
                 <Calendar className="h-4 w-4 mr-2" />
@@ -175,21 +173,21 @@ export default function ProfileSettings() {
                 <span>Email verified</span>
               </div>
             </div>
-          </CardContent>
-        </Card>
+          </GlassCardContent>
+        </GlassCard>
 
         {/* Profile Form */}
-        <Card className="lg:col-span-2 bg-white/10 backdrop-blur-xl border-white/20 hover:bg-white/15 transition-all duration-300 animate-fade-in animate-slide-in-from-bottom-4">
-          <CardHeader>
-            <CardTitle className="text-white/90 flex items-center">
+        <GlassCard variant="default" className="lg:col-span-2 animate-fade-in animate-slide-in-from-bottom-4">
+          <GlassCardHeader>
+            <GlassCardTitle className="text-white/90 flex items-center">
               <Edit3 className="h-5 w-5 mr-2" />
               Edit Profile Information
-            </CardTitle>
-            <CardDescription className="text-white/70">
+            </GlassCardTitle>
+            <GlassCardDescription className="text-white/70">
               Update your personal details and contact information
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
+            </GlassCardDescription>
+          </GlassCardHeader>
+          <GlassCardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -307,8 +305,8 @@ export default function ProfileSettings() {
                 </Button>
               </div>
             </form>
-          </CardContent>
-        </Card>
+          </GlassCardContent>
+        </GlassCard>
       </div>
       </div>
     </div>

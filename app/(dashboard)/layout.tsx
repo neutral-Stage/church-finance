@@ -34,6 +34,9 @@ import {
   Search,
   ChevronLeft,
   ChevronRight,
+  Shield,
+  UserCog,
+  Building2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import SearchModal from "@/components/SearchModal";
@@ -108,6 +111,33 @@ const navigation = [
   },
 ];
 
+const adminNavigation = [
+  {
+    name: "Churches",
+    href: "/admin/churches",
+    icon: Building2,
+    roles: ["admin"],
+  },
+  {
+    name: "Users",
+    href: "/admin/users",
+    icon: Users,
+    roles: ["admin"],
+  },
+  {
+    name: "Roles",
+    href: "/admin/roles",
+    icon: Shield,
+    roles: ["admin"],
+  },
+  {
+    name: "User Roles",
+    href: "/admin/user-roles",
+    icon: UserCog,
+    roles: ["admin"],
+  },
+];
+
 function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -130,6 +160,10 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
   };
 
   const filteredNavigation = navigation.filter((item) =>
+    item.roles.some((role) => hasRole(role as UserRole))
+  );
+
+  const filteredAdminNavigation = adminNavigation.filter((item) =>
     item.roles.some((role) => hasRole(role as UserRole))
   );
 
@@ -172,6 +206,7 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
           mobile ? "px-6" : "px-3"
         )}
       >
+        {/* Main Navigation */}
         {filteredNavigation.map((item) => {
           const isActive = pathname === item.href;
           return (
@@ -205,6 +240,55 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
             </button>
           );
         })}
+
+        {/* Admin Section */}
+        {filteredAdminNavigation.length > 0 && (
+          <>
+            <div className={cn(
+              "border-t border-white/10 mt-4 pt-4",
+              !mobile && isCollapsed ? "mx-2" : "mx-3"
+            )}>
+              {(!isCollapsed || mobile) && (
+                <h3 className="text-xs font-semibold text-white/60 uppercase tracking-wider mb-2 px-1">
+                  Administration
+                </h3>
+              )}
+            </div>
+            {filteredAdminNavigation.map((item) => {
+              const isActive = pathname === item.href;
+              return (
+                <button
+                  key={item.name}
+                  onClick={() => router.push(item.href)}
+                  className={cn(
+                    "flex items-center w-full text-sm font-medium rounded-lg transition-all duration-300",
+                    mobile
+                      ? "px-4 py-3"
+                      : isCollapsed
+                      ? "px-3 py-3 justify-center"
+                      : "px-4 py-3",
+                    isActive
+                      ? "bg-white/20 text-white"
+                      : "text-white/80 hover:text-white hover:bg-white/10"
+                  )}
+                  title={!mobile && isCollapsed ? item.name : undefined}
+                >
+                  <item.icon
+                    className={cn(
+                      "h-5 w-5 transition-all duration-300",
+                      !mobile && !isCollapsed ? "mr-3" : ""
+                    )}
+                  />
+                  {(!isCollapsed || mobile) && (
+                    <span className="transition-opacity duration-300">
+                      {item.name}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </>
+        )}
       </nav>
 
       {/* User Profile Section */}
@@ -220,7 +304,7 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
               <AvatarFallback className="bg-white/10 text-white font-semibold text-xs">
                 {user?.full_name
                   ?.split(" ")
-                  .map((n) => n[0])
+                  .map((n: string) => n[0])
                   .join("") || user?.email?.[0]?.toUpperCase()}
               </AvatarFallback>
             </Avatar>
@@ -305,6 +389,7 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
                 {/* Page title */}
                 <h1 className="text-lg font-semibold text-white">
                   {navigation.find((item) => item.href === pathname)?.name ||
+                    adminNavigation.find((item) => item.href === pathname)?.name ||
                     "Dashboard"}
                 </h1>
               </div>
@@ -335,7 +420,7 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
                         <AvatarFallback className="bg-white/10 text-white font-semibold text-xs">
                           {user?.full_name
                             ?.split(" ")
-                            .map((n) => n[0])
+                            .map((n: string) => n[0])
                             .join("") || user?.email?.[0]?.toUpperCase()}
                         </AvatarFallback>
                       </Avatar>
@@ -371,6 +456,18 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
                       <Settings className="mr-2 h-4 w-4" />
                       Preferences
                     </DropdownMenuItem>
+                    {hasRole("admin") && (
+                      <>
+                        <DropdownMenuSeparator className="bg-white/10" />
+                        <DropdownMenuItem
+                          onClick={() => router.push("/admin/churches")}
+                          className="hover:bg-blue-500/20 text-blue-300 hover:text-blue-200"
+                        >
+                          <Shield className="mr-2 h-4 w-4" />
+                          Administration
+                        </DropdownMenuItem>
+                      </>
+                    )}
                     <DropdownMenuSeparator className="bg-white/10" />
                     <DropdownMenuItem
                       onClick={handleSignOut}

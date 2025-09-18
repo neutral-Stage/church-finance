@@ -1,4 +1,5 @@
 import { createServerClient } from "@/lib/supabase-server";
+import { safeSelect } from "@/lib/supabase-helpers";
 import { redirect } from "next/navigation";
 import { cache } from "react";
 import type {
@@ -31,11 +32,11 @@ export const getServerUser = cache(async (): Promise<AuthUser | null> => {
     }
 
     // Try to get user data from users table
-    const { data: userData, error: userError } = await supabase
-      .from("users")
-      .select("*")
-      .eq("id", user.id)
-      .single();
+    const { data: userDataArray, error: userError } = await safeSelect(supabase, "users", {
+      filter: { column: "id", value: user.id }
+    });
+
+    const userData = userDataArray && userDataArray.length > 0 ? userDataArray[0] : null;
 
     if (userError || !userData) {
       // Fallback to auth metadata
@@ -95,94 +96,60 @@ export const getDashboardData = cache(async (): Promise<DashboardData> => {
   // Now we can safely assume user is authenticated
   const supabase = await createServerClient();
 
-  // Fetch all data in parallel for better performance
-  const [
-    fundsResult,
-    transactionsResult,
-    billsResult,
-    advancesResult,
-    monthlyIncomeResult,
-    monthlyExpensesResult,
-  ] = await Promise.all([
-    // Fetch fund summaries
-    supabase.from("fund_summary").select("*").order("name"),
+  // Fetch fund summaries using safe method
+  const fundsResult = await safeSelect(supabase, "fund_summary", {
+    order: { column: "name", ascending: true }
+  });
 
-    // Fetch recent transactions with fund details
-    supabase
-      .from("transactions")
-      .select(
-        `
-        *,
-        fund:funds(*)
-      `
-      )
-      .order("created_at", { ascending: false })
-      .limit(10),
+  // Fetch recent transactions (without joins for now to avoid RLS issues)
+  const transactionsResult = await safeSelect(supabase, "transactions", {
+    order: { column: "created_at", ascending: false },
+    limit: 10
+  });
 
-    // Fetch upcoming bills
-    supabase
-      .from("bills")
-      .select(
-        `
-        *,
-        fund:funds(*)
-      `
-      )
-      .in("status", ["pending", "overdue"])
-      .order("due_date")
-      .limit(5),
+  // Fetch all funds to join manually
+  const allFundsResult = await safeSelect(supabase, "funds");
 
-    // Fetch outstanding advances
-    supabase
-      .from("advances")
-      .select(
-        `
-        *,
-        fund:funds(*)
-      `
-      )
-      .in("status", ["outstanding", "partial"])
-      .order("expected_return_date")
-      .limit(5),
+  // Fetch upcoming bills
+  const allBillsResult = await safeSelect(supabase, "bills", {
+    order: { column: "due_date", ascending: true },
+    limit: 50 // Get more and filter in memory
+  });
 
-    // Calculate monthly income
-    (() => {
-      const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM format
-      const nextMonth = new Date(
-        new Date().getFullYear(),
-        new Date().getMonth() + 1,
-        1
-      )
-        .toISOString()
-        .slice(0, 10);
+  // Fetch outstanding advances
+  const allAdvancesResult = await safeSelect(supabase, "advances", {
+    order: { column: "expected_return_date", ascending: true },
+    limit: 50 // Get more and filter in memory
+  });
 
-      return supabase
-        .from("transactions")
-        .select("amount")
-        .eq("type", "income")
-        .gte("transaction_date", `${currentMonth}-01`)
-        .lt("transaction_date", nextMonth);
-    })(),
+  // Calculate monthly income and expenses
+  const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM format
+  const nextMonth = new Date(
+    new Date().getFullYear(),
+    new Date().getMonth() + 1,
+    1
+  ).toISOString().slice(0, 10);
 
-    // Calculate monthly expenses
-    (() => {
-      const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM format
-      const nextMonth = new Date(
-        new Date().getFullYear(),
-        new Date().getMonth() + 1,
-        1
-      )
-        .toISOString()
-        .slice(0, 10);
+  const allTransactionsResult = await safeSelect(supabase, "transactions");
 
-      return supabase
-        .from("transactions")
-        .select("amount")
-        .eq("type", "expense")
-        .gte("transaction_date", `${currentMonth}-01`)
-        .lt("transaction_date", nextMonth);
-    })(),
-  ]);
+  // Filter for monthly data in memory
+  const monthlyIncomeResult = {
+    data: allTransactionsResult.data?.filter(t =>
+      t.type === "income" &&
+      t.transaction_date >= `${currentMonth}-01` &&
+      t.transaction_date < nextMonth
+    ) || [],
+    error: allTransactionsResult.error
+  };
+
+  const monthlyExpensesResult = {
+    data: allTransactionsResult.data?.filter(t =>
+      t.type === "expense" &&
+      t.transaction_date >= `${currentMonth}-01` &&
+      t.transaction_date < nextMonth
+    ) || [],
+    error: allTransactionsResult.error
+  };
 
   // Handle errors
   if (fundsResult.error)
@@ -191,11 +158,11 @@ export const getDashboardData = cache(async (): Promise<DashboardData> => {
     throw new Error(
       `Failed to fetch transactions: ${transactionsResult.error.message}`
     );
-  if (billsResult.error)
-    throw new Error(`Failed to fetch bills: ${billsResult.error.message}`);
-  if (advancesResult.error)
+  if (allBillsResult.error)
+    throw new Error(`Failed to fetch bills: ${allBillsResult.error.message}`);
+  if (allAdvancesResult.error)
     throw new Error(
-      `Failed to fetch advances: ${advancesResult.error.message}`
+      `Failed to fetch advances: ${allAdvancesResult.error.message}`
     );
   if (monthlyIncomeResult.error)
     throw new Error(
@@ -205,6 +172,33 @@ export const getDashboardData = cache(async (): Promise<DashboardData> => {
     throw new Error(
       `Failed to fetch monthly expenses: ${monthlyExpensesResult.error.message}`
     );
+
+  // Create fund lookup map
+  const fundsMap = new Map((allFundsResult.data || []).map(fund => [fund.id, fund]));
+
+  // Manually join transactions with funds
+  const recentTransactions: TransactionWithFund[] = (transactionsResult.data || []).map(transaction => ({
+    ...transaction,
+    fund: transaction.fund_id ? fundsMap.get(transaction.fund_id) : undefined
+  }));
+
+  // Filter and join bills
+  const upcomingBills: BillWithFund[] = (allBillsResult.data || [])
+    .filter(bill => ["pending", "overdue"].includes(bill.status || ""))
+    .slice(0, 5)
+    .map(bill => ({
+      ...bill,
+      funds: bill.fund_id ? fundsMap.get(bill.fund_id) : undefined
+    }));
+
+  // Filter and join advances
+  const outstandingAdvances: AdvanceWithFund[] = (allAdvancesResult.data || [])
+    .filter(advance => ["outstanding", "partial"].includes(advance.status || ""))
+    .slice(0, 5)
+    .map(advance => ({
+      ...advance,
+      funds: advance.fund_id ? fundsMap.get(advance.fund_id) : undefined
+    }));
 
   // Calculate monthly totals
   const totalIncome =
@@ -216,9 +210,9 @@ export const getDashboardData = cache(async (): Promise<DashboardData> => {
 
   return {
     funds: fundsResult.data || [],
-    recentTransactions: transactionsResult.data || [],
-    upcomingBills: billsResult.data || [],
-    outstandingAdvances: advancesResult.data || [],
+    recentTransactions,
+    upcomingBills,
+    outstandingAdvances,
     monthlyStats: {
       income: totalIncome,
       expenses: totalExpenses,

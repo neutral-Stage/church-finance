@@ -23,7 +23,7 @@ import type { Fund, TransactionWithFund } from '@/lib/server-data'
 import type { FundsPageData } from '@/lib/server-data'
 
 // Extended fund interface for form data
-interface ExtendedFund extends Fund {
+interface ExtendedFund extends Omit<Fund, 'target_amount' | 'fund_type'> {
   target_amount?: number
   fund_type?: string
 }
@@ -289,7 +289,7 @@ export default function FundsClient({ initialData }: FundsClientProps) {
   })
 
   // Calculate summary statistics
-  const totalBalance = filteredFunds.reduce((sum, fund) => sum + fund.current_balance, 0)
+  const totalBalance = filteredFunds.reduce((sum, fund) => sum + (fund.current_balance || 0), 0)
   const totalTarget = filteredFunds.reduce((sum, fund) => sum + ((fund as ExtendedFund).target_amount || 0), 0)
   const averageBalance = filteredFunds.length > 0 ? totalBalance / filteredFunds.length : 0
 
@@ -341,13 +341,13 @@ export default function FundsClient({ initialData }: FundsClientProps) {
                             <SelectValue placeholder="Select source fund" />
                           </SelectTrigger>
                           <SelectContent className="glass-card-dark bg-white/10 backdrop-blur-xl border border-white/20 rounded-xl">
-                            {funds.filter(fund => fund.current_balance > 0).map((fund) => (
+                            {funds.filter(fund => (fund.current_balance || 0) > 0).map((fund) => (
                               <SelectItem
                                 key={fund.id}
                                 value={fund.id}
                                 className="text-white hover:bg-white/20 focus:bg-white/20 rounded-lg transition-colors duration-200"
                               >
-                                {fund.name} (${fund.current_balance.toFixed(2)})
+                                {fund.name} (${(fund.current_balance || 0).toFixed(2)})
                               </SelectItem>
                             ))}
                           </SelectContent>
@@ -368,7 +368,7 @@ export default function FundsClient({ initialData }: FundsClientProps) {
                                 value={fund.id}
                                 className="text-white hover:bg-white/20 focus:bg-white/20 rounded-lg transition-colors duration-200"
                               >
-                                {fund.name} (${fund.current_balance.toFixed(2)})
+                                {fund.name} (${(fund.current_balance || 0).toFixed(2)})
                               </SelectItem>
                             ))}
                           </SelectContent>
@@ -656,7 +656,7 @@ export default function FundsClient({ initialData }: FundsClientProps) {
                   <div className="space-y-4">
                     <div>
                       <p className="text-2xl font-bold text-white/90">
-                        <AnimatedCounter value={fund.current_balance} />
+                        <AnimatedCounter value={fund.current_balance || 0} />
                       </p>
                       <p className="text-sm text-white/60">Current Balance</p>
                     </div>
@@ -666,13 +666,13 @@ export default function FundsClient({ initialData }: FundsClientProps) {
                         <div className="flex justify-between text-sm mb-2">
                           <span className="text-white/70">Target Progress</span>
                           <span className="text-white/80">
-                            {Math.min(100, (fund.current_balance / (fund as ExtendedFund).target_amount!) * 100).toFixed(1)}%
+                            {Math.min(100, ((fund.current_balance || 0) / ((fund as ExtendedFund).target_amount || 1)) * 100).toFixed(1)}%
                           </span>
                         </div>
                         <div className="w-full bg-white/10 rounded-full h-2">
                           <div 
                             className="bg-gradient-to-r from-green-400 to-emerald-500 h-2 rounded-full transition-all duration-500"
-                            style={{ width: `${Math.min(100, (fund.current_balance / (fund as ExtendedFund).target_amount!) * 100)}%` }}
+                            style={{ width: `${Math.min(100, ((fund.current_balance || 0) / ((fund as ExtendedFund).target_amount || 1)) * 100)}%` }}
                           />
                         </div>
                         <p className="text-xs text-white/50 mt-1">

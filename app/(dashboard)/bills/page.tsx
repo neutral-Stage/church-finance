@@ -4,7 +4,8 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { GlassCard, GlassCardContent, GlassCardDescription, GlassCardHeader, GlassCardTitle } from '@/components/ui/glass-card'
+import { GlassButton } from '@/components/ui/glass-button'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -17,80 +18,20 @@ import { toast } from 'sonner'
 import { Plus, FileText, CreditCard, MoreHorizontal, AlertTriangle, Clock, Receipt, CheckCircle, ChevronDown, ChevronRight, FolderOpen, Folder } from 'lucide-react'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { useAuth } from '@/contexts/AuthContext'
+import { Database } from '@/types/database'
 
-
-
-type Bill = {
-  id: string
-  vendor_name: string
-  amount: number
-  due_date: string
-  status: 'pending' | 'paid' | 'overdue'
-  category?: string
-  frequency: 'one-time' | 'monthly' | 'quarterly' | 'yearly'
-  fund_id: string
-  ledger_entry_id?: string
-  ledger_subgroup_id?: string
-  responsible_parties?: string[]
-  allocation_percentage?: number
-  priority?: 'low' | 'medium' | 'high'
-  approval_status?: 'pending' | 'approved' | 'rejected'
-  sort_order?: number
-  notes?: string
-  metadata?: Record<string, unknown>
-  created_at: string
-  updated_at: string
-  ledger_entries?: LedgerEntry
-  ledger_subgroups?: LedgerSubgroup
+type Bill = Database['public']['Tables']['bills']['Row'] & {
+  ledger_entries?: LedgerEntry | null
+  ledger_subgroups?: LedgerSubgroup | null
 }
 
-type LedgerEntry = {
-  id: string
-  title: string
-  description?: string
-  status: 'draft' | 'active' | 'completed' | 'archived'
-  priority: 'low' | 'medium' | 'high'
-  approval_status: 'pending' | 'approved' | 'rejected'
-  approved_by?: string
-  approved_at?: string
-  metadata?: Record<string, unknown>
-  created_at: string
-  updated_at: string
-}
+type LedgerEntry = Database['public']['Tables']['ledger_entries']['Row']
 
-type LedgerSubgroup = {
-  id: string
-  ledger_entry_id: string
-  title: string
-  description?: string
-  responsible_parties?: string[]
-  billing_date?: string
-  status: 'draft' | 'active' | 'completed' | 'archived'
-  priority: 'low' | 'medium' | 'high'
-  sort_order?: number
-  metadata?: Record<string, unknown>
-  created_at: string
-  updated_at: string
-}
+type LedgerSubgroup = Database['public']['Tables']['ledger_subgroups']['Row']
 
-type PettyCash = {
-  id: string
-  amount: number
-  purpose: string
-  approved_by?: string
-  receipt_available: boolean
-  transaction_date: string
-  created_at: string
-  updated_at: string
-}
+type PettyCash = Database['public']['Tables']['petty_cash']['Row']
 
-type Fund = {
-  id: string
-  name: string
-  balance: number
-  created_at: string
-  updated_at: string
-}
+type Fund = Database['public']['Tables']['funds']['Row']
 
 interface BillForm {
   vendor_name: string
@@ -509,14 +450,14 @@ export default function BillsPage(): JSX.Element {
         due_date: formatDateForInput(new Date(bill.due_date)),
         fund_id: bill.fund_id,
         category: bill.category || '',
-        frequency: bill.frequency,
-        status: bill.status,
+        frequency: (bill.frequency as 'one-time' | 'monthly' | 'quarterly' | 'yearly') || 'one-time',
+        status: (bill.status as 'pending' | 'paid' | 'overdue') || 'pending',
         ledger_entry_id: bill.ledger_entry_id || '',
         ledger_subgroup_id: bill.ledger_subgroup_id || '',
         responsible_parties: bill.responsible_parties ? bill.responsible_parties.join(', ') : '',
         allocation_percentage: bill.allocation_percentage ? bill.allocation_percentage.toString() : '',
-        priority: bill.priority || 'medium',
-        approval_status: bill.approval_status || 'pending',
+        priority: (bill.priority as 'low' | 'medium' | 'high') || 'medium',
+        approval_status: (bill.approval_status as 'pending' | 'approved' | 'rejected') || 'pending',
         notes: bill.notes || ''
       })
       setEditingBill(bill)
@@ -651,10 +592,10 @@ export default function BillsPage(): JSX.Element {
                   <>
                     <Dialog open={billDialogOpen} onOpenChange={setBillDialogOpen}>
                       <DialogTrigger asChild>
-                        <Button className="bg-blue-600 hover:bg-blue-700 text-white border-0 shadow-xl hover:shadow-2xl transition-all duration-300 px-6 py-3 text-base font-semibold" onClick={() => openBillDialog()}>
+                        <GlassButton variant="primary" className="shadow-xl hover:shadow-2xl transition-all duration-300 px-6 py-3 text-base font-semibold" onClick={() => openBillDialog()}>
                           <Plus className="w-5 h-5 mr-2" />
                           Add Bill
-                        </Button>
+                        </GlassButton>
                       </DialogTrigger>
                   <DialogContent className="sm:max-w-[500px]">
                     <DialogHeader>
@@ -878,10 +819,10 @@ export default function BillsPage(): JSX.Element {
 
                   <Dialog open={pettyCashDialogOpen} onOpenChange={setPettyCashDialogOpen}>
                     <DialogTrigger asChild>
-                      <Button className="bg-green-600 hover:bg-green-700 text-white border-0 shadow-xl hover:shadow-2xl transition-all duration-300 px-6 py-3 text-base font-semibold" onClick={() => openPettyCashDialog()}>
+                      <GlassButton variant="success" className="shadow-xl hover:shadow-2xl transition-all duration-300 px-6 py-3 text-base font-semibold" onClick={() => openPettyCashDialog()}>
                         <Plus className="w-5 h-5 mr-2" />
                         Petty Cash
-                      </Button>
+                      </GlassButton>
                     </DialogTrigger>
                   <DialogContent className="sm:max-w-[500px]">
                     <DialogHeader>
@@ -973,62 +914,62 @@ export default function BillsPage(): JSX.Element {
 
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          <Card className="bg-white/10 backdrop-blur-xl border-white/20 hover:bg-white/15 transition-all duration-300 hover:scale-105 animate-fade-in animate-slide-in-from-bottom-4" style={{ animationDelay: '100ms' }}>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-white/90">Overdue Bills</CardTitle>
+          <GlassCard variant="default" className="hover:scale-105 animate-fade-in animate-slide-in-from-bottom-4" style={{ animationDelay: '100ms' }}>
+            <GlassCardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <GlassCardTitle className="text-sm font-medium text-white/90">Overdue Bills</GlassCardTitle>
               <div className="p-2 bg-red-500/20 rounded-lg backdrop-blur-sm">
                 <AlertTriangle className="h-4 w-4 text-red-300" />
               </div>
-            </CardHeader>
-            <CardContent>
+            </GlassCardHeader>
+            <GlassCardContent>
               <AnimatedCounter value={overdueBills.length} />
               <p className="text-xs text-white/60 mt-1">
                 {formatCurrency(overdueBills.reduce((sum, bill) => sum + bill.amount, 0))} total
               </p>
-            </CardContent>
-          </Card>
-          <Card className="bg-white/10 backdrop-blur-xl border-white/20 hover:bg-white/15 transition-all duration-300 hover:scale-105 animate-fade-in animate-slide-in-from-bottom-4" style={{ animationDelay: '200ms' }}>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-white/90">Pending Bills</CardTitle>
+            </GlassCardContent>
+          </GlassCard>
+          <GlassCard variant="default" className="hover:scale-105 animate-fade-in animate-slide-in-from-bottom-4" style={{ animationDelay: '200ms' }}>
+            <GlassCardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <GlassCardTitle className="text-sm font-medium text-white/90">Pending Bills</GlassCardTitle>
               <div className="p-2 bg-yellow-500/20 rounded-lg backdrop-blur-sm">
                 <Clock className="h-4 w-4 text-yellow-300" />
               </div>
-            </CardHeader>
-            <CardContent>
+            </GlassCardHeader>
+            <GlassCardContent>
               <AnimatedCounter value={pendingBills.length} />
               <p className="text-xs text-white/60 mt-1">
                 {formatCurrency(totalBillsAmount)} total amount
               </p>
-            </CardContent>
-          </Card>
-          <Card className="bg-white/10 backdrop-blur-xl border-white/20 hover:bg-white/15 transition-all duration-300 hover:scale-105 animate-fade-in animate-slide-in-from-bottom-4" style={{ animationDelay: '300ms' }}>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-white/90">Pending Petty Cash</CardTitle>
+            </GlassCardContent>
+          </GlassCard>
+          <GlassCard variant="default" className="hover:scale-105 animate-fade-in animate-slide-in-from-bottom-4" style={{ animationDelay: '300ms' }}>
+            <GlassCardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <GlassCardTitle className="text-sm font-medium text-white/90">Pending Petty Cash</GlassCardTitle>
               <div className="p-2 bg-blue-500/20 rounded-lg backdrop-blur-sm">
                 <Receipt className="h-4 w-4 text-blue-300" />
               </div>
-            </CardHeader>
-            <CardContent>
+            </GlassCardHeader>
+            <GlassCardContent>
               <AnimatedCounter value={pendingPettyCash.length} />
               <p className="text-xs text-white/60 mt-1">
                 {formatCurrency(pendingPettyCash.reduce((sum, pc) => sum + pc.amount, 0))} requested
               </p>
-            </CardContent>
-          </Card>
-          <Card className="bg-white/10 backdrop-blur-xl border-white/20 hover:bg-white/15 transition-all duration-300 hover:scale-105 animate-fade-in animate-slide-in-from-bottom-4" style={{ animationDelay: '400ms' }}>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-white/90">Approved Petty Cash</CardTitle>
+            </GlassCardContent>
+          </GlassCard>
+          <GlassCard variant="default" className="hover:scale-105 animate-fade-in animate-slide-in-from-bottom-4" style={{ animationDelay: '400ms' }}>
+            <GlassCardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <GlassCardTitle className="text-sm font-medium text-white/90">Approved Petty Cash</GlassCardTitle>
               <div className="p-2 bg-green-500/20 rounded-lg backdrop-blur-sm">
                 <CheckCircle className="h-4 w-4 text-green-300" />
               </div>
-            </CardHeader>
-            <CardContent>
+            </GlassCardHeader>
+            <GlassCardContent>
               <div className="text-2xl font-bold text-white">{formatCurrency(totalPettyCashAmount)}</div>
               <p className="text-xs text-white/60 mt-1">
                 Ready for disbursement
               </p>
-            </CardContent>
-          </Card>
+            </GlassCardContent>
+          </GlassCard>
         </div>
 
         {/* Tab Navigation */}
@@ -1057,15 +998,15 @@ export default function BillsPage(): JSX.Element {
 
         {/* Bills Hierarchical Display */}
         {activeTab === 'bills' && (
-          <Card className="bg-white/10 backdrop-blur-xl border-white/20 animate-in fade-in-0 slide-in-from-bottom-4 duration-700 shadow-lg hover:bg-white/15 transition-all duration-500" style={{ animationDelay: '600ms' }}>
-            <CardHeader className="pb-6">
-              <CardTitle className="text-2xl text-white font-bold bg-gradient-to-r from-white via-white/90 to-white/80 bg-clip-text text-transparent flex items-center gap-3">
+          <GlassCard variant="default" className="animate-in fade-in-0 slide-in-from-bottom-4 duration-700 shadow-lg transition-all duration-500" style={{ animationDelay: '600ms' }}>
+            <GlassCardHeader className="pb-6">
+              <GlassCardTitle className="text-2xl text-white font-bold bg-gradient-to-r from-white via-white/90 to-white/80 bg-clip-text text-transparent flex items-center gap-3">
                 <FileText className="w-6 h-6" />
                 Ledger Entries & Bills
-              </CardTitle>
-              <CardDescription className="text-white/70 text-base font-medium">Manage bills organized by ledger entries and subgroups</CardDescription>
-            </CardHeader>
-            <CardContent className="pt-0">
+              </GlassCardTitle>
+              <GlassCardDescription className="text-white/70 text-base font-medium">Manage bills organized by ledger entries and subgroups</GlassCardDescription>
+            </GlassCardHeader>
+            <GlassCardContent className="pt-0">
               <div className="space-y-4">
                 {/* Ledger Entries */}
                 {Object.entries(groupedBills()).map(([entryId, entryData]) => {
@@ -1286,21 +1227,21 @@ export default function BillsPage(): JSX.Element {
                   </div>
                 )}
               </div>
-            </CardContent>
-          </Card>
+            </GlassCardContent>
+          </GlassCard>
         )}
 
         {/* Petty Cash Table */}
          {activeTab === 'petty-cash' && (
-           <Card className="bg-white/10 backdrop-blur-xl border-white/20 animate-in fade-in-0 slide-in-from-bottom-4 duration-700 shadow-lg hover:bg-white/15 transition-all duration-500" style={{ animationDelay: '600ms' }}>
-             <CardHeader className="pb-6">
-               <CardTitle className="text-2xl text-white font-bold bg-gradient-to-r from-white via-white/90 to-white/80 bg-clip-text text-transparent flex items-center gap-3">
+           <GlassCard variant="default" className="animate-in fade-in-0 slide-in-from-bottom-4 duration-700 shadow-lg transition-all duration-500" style={{ animationDelay: '600ms' }}>
+             <GlassCardHeader className="pb-6">
+               <GlassCardTitle className="text-2xl text-white font-bold bg-gradient-to-r from-white via-white/90 to-white/80 bg-clip-text text-transparent flex items-center gap-3">
                  <CreditCard className="w-6 h-6" />
                  Petty Cash Management
-               </CardTitle>
-               <CardDescription className="text-white/70 text-base font-medium">Manage petty cash requests and approvals</CardDescription>
-             </CardHeader>
-            <CardContent className="pt-0">
+               </GlassCardTitle>
+               <GlassCardDescription className="text-white/70 text-base font-medium">Manage petty cash requests and approvals</GlassCardDescription>
+             </GlassCardHeader>
+            <GlassCardContent className="pt-0">
               <div className="rounded-xl border border-white/20 bg-white/5 backdrop-blur-xl shadow-lg">
                 <div className="overflow-x-auto">
                   <table className="w-full">
@@ -1317,7 +1258,7 @@ export default function BillsPage(): JSX.Element {
                     <tbody>
                       {pettyCash.map((pc, index) => (
                         <tr key={pc.id} className="border-b border-white/20 hover:bg-white/10 transition-all duration-300 group animate-in fade-in-0 slide-in-from-bottom-2" style={{ animationDelay: `${700 + index * 50}ms` }}>
-                          <td className="p-6 text-white/80 font-medium">{formatDate(pc.created_at)}</td>
+                          <td className="p-6 text-white/80 font-medium">{formatDate(pc.created_at || '')}</td>
                           <td className="p-6 font-bold text-white/90">{pc.approved_by || 'N/A'}</td>
                           <td className="p-6 max-w-xs truncate text-white/80 font-medium">{pc.purpose}</td>
                           <td className="p-6 font-bold text-white/90 text-lg">{formatCurrency(pc.amount)}</td>
@@ -1364,8 +1305,8 @@ export default function BillsPage(): JSX.Element {
                   </div>
                 )}
               </div>
-            </CardContent>
-          </Card>
+            </GlassCardContent>
+          </GlassCard>
         )}
       </div>
     </div>

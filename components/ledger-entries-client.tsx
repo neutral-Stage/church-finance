@@ -357,8 +357,8 @@ export function LedgerEntriesClient({ initialData, permissions }: LedgerEntriesC
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        {getStatusBadge(entry.status)}
-                        {getPriorityBadge(entry.priority)}
+                        {getStatusBadge(entry.status || 'draft')}
+                        {getPriorityBadge(entry.priority || 'medium')}
                         {permissions.canEdit && (
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
@@ -458,8 +458,8 @@ export function LedgerEntriesClient({ initialData, permissions }: LedgerEntriesC
                                         )}
                                       </div>
                                       <div className="flex items-center gap-2">
-                                        {getStatusBadge(subgroup.status)}
-                                        {getPriorityBadge(subgroup.priority)}
+                                        {getStatusBadge(subgroup.status || 'draft')}
+                                        {getPriorityBadge(subgroup.priority || 'medium')}
                                         {permissions.canEdit && (
                                           <DropdownMenu>
                                             <DropdownMenuTrigger asChild>

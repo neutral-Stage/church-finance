@@ -25,7 +25,10 @@
       "Bash(rg:*)",
       "Bash(npm run lint)",
       "Bash(supabase status:*)",
-      "Bash(wc:*)"
+      "Bash(wc:*)",
+      "Bash(ls:*)",
+      "Bash(tail:*)",
+      "Bash(npm install:*)"
     ],
     "deny": [],
     "ask": []
