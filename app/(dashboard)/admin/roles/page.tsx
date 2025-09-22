@@ -1,14 +1,15 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { GlassCard, GlassCardContent, GlassCardDescription, GlassCardHeader, GlassCardTitle } from '@/components/ui/glass-card'
-import { GlassButton } from '@/components/ui/glass-button'
+import { GlassCard, GlassCardContent, GlassCardDescription, GlassCardHeader, GlassCardTitle, GlassCardFooter } from '@/components/ui/glass-card'
+import { GlassButton, GlassButtonGroup } from '@/components/ui/glass-button'
+import { GlassTable, GlassTableHeader, GlassTableBody, GlassTableRow, GlassTableHead, GlassTableCell, GlassTableEmpty, GlassTableLoading } from '@/components/ui/glass-table'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Switch } from '@/components/ui/switch'
 import { Badge } from '@/components/ui/badge'
-import { Plus, Shield, Search, Users, Settings, Edit, Trash2 } from 'lucide-react'
+import { Plus, Shield, Search, Users, Settings, Edit, Trash2, BarChart3, Eye, CheckCircle2, XCircle, Clock, Crown, Zap, Download, TrendingUp, AlertTriangle } from 'lucide-react'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Database } from '@/types/database'
@@ -49,6 +50,10 @@ export default function RolesPage() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [editingRole, setEditingRole] = useState<Role | null>(null)
+  const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid')
+  const [sortBy, setSortBy] = useState<'name' | 'created' | 'permissions'>('name')
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
+  const [submitting, setSubmitting] = useState(false)
   const [formData, setFormData] = useState<RoleInsert>({
     name: '',
     display_name: '',
@@ -206,11 +211,133 @@ export default function RolesPage() {
     return displayName.toLowerCase().replace(/[^a-z0-9]/g, '_')
   }
 
+  const getPermissionCount = (permissions: ChurchPermissions) => {
+    return Object.values(permissions).reduce((total, resourcePerms) => {
+      return total + Object.values(resourcePerms as Record<string, boolean>).filter(Boolean).length
+    }, 0)
+  }
+
+  const getRoleTypeIcon = (roleName: string) => {
+    if (roleName.includes('admin')) return <Crown className="w-4 h-4" />
+    if (roleName.includes('treasurer')) return <BarChart3 className="w-4 h-4" />
+    if (roleName.includes('viewer')) return <Eye className="w-4 h-4" />
+    return <Shield className="w-4 h-4" />
+  }
+
+  const getRolePriorityColor = (roleName: string) => {
+    if (roleName.includes('super_admin')) return 'bg-red-500/20 text-red-300 border-red-500/30'
+    if (roleName.includes('admin')) return 'bg-orange-500/20 text-orange-300 border-orange-500/30'
+    if (roleName.includes('treasurer')) return 'bg-blue-500/20 text-blue-300 border-blue-500/30'
+    return 'bg-green-500/20 text-green-300 border-green-500/30'
+  }
+
+  const exportRolesReport = () => {
+    try {
+      const csvContent = generateCSVReport(roles)
+      const blob = new Blob([csvContent], { type: 'text/csv' })
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `roles-report-${new Date().toISOString().split('T')[0]}.csv`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      window.URL.revokeObjectURL(url)
+    } catch (error) {
+      console.error('Error exporting report:', error)
+      setError('Failed to export report')
+    }
+  }
+
+  const generateCSVReport = (roles: Role[]) => {
+    const headers = [
+      'Role Name', 'Display Name', 'Type', 'Status', 'Permission Count',
+      'Created Date', 'Description'
+    ]
+
+    const rows = roles.map(role => [
+      role.name,
+      role.display_name,
+      role.is_system_role ? 'System' : 'Custom',
+      role.is_active ? 'Active' : 'Inactive',
+      getPermissionCount(role.permissions as ChurchPermissions || {}),
+      role.created_at ? new Date(role.created_at).toLocaleDateString() : '',
+      role.description || ''
+    ])
+
+    return [headers, ...rows].map(row => row.join(',')).join('\n')
+  }
+
+  const getSystemSummary = () => {
+    const activeRoles = roles.filter(r => r.is_active).length
+    const systemRoles = roles.filter(r => r.is_system_role).length
+    const customRoles = roles.filter(r => !r.is_system_role).length
+    const totalPermissions = roles.reduce((total, role) =>
+      total + getPermissionCount(role.permissions as ChurchPermissions || {}), 0
+    )
+
+    return {
+      totalRoles: roles.length,
+      activeRoles,
+      systemRoles,
+      customRoles,
+      totalPermissions,
+      avgPermissionsPerRole: roles.length ? Math.round(totalPermissions / roles.length) : 0
+    }
+  }
+
+  const summary = getSystemSummary()
+
+  const sortedAndFilteredRoles = roles
+    .filter(role =>
+      role.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      role.display_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (role.description && role.description.toLowerCase().includes(searchTerm.toLowerCase()))
+    )
+    .sort((a, b) => {
+      let aValue: any, bValue: any
+
+      switch (sortBy) {
+        case 'created':
+          aValue = new Date(a.created_at || '')
+          bValue = new Date(b.created_at || '')
+          break
+        case 'permissions':
+          aValue = getPermissionCount(a.permissions as ChurchPermissions || {})
+          bValue = getPermissionCount(b.permissions as ChurchPermissions || {})
+          break
+        default: // name
+          aValue = a.display_name.toLowerCase()
+          bValue = b.display_name.toLowerCase()
+      }
+
+      if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1
+      if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1
+      return 0
+    })
+
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-400"></div>
-        <span className="ml-3 text-white/70">Loading roles...</span>
+      <div className="space-y-6">
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold text-white">Role Management</h1>
+            <p className="text-white/70 mt-2">Create and manage user roles and permissions</p>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-center py-16">
+          <div className="flex flex-col items-center space-y-4">
+            <div className="relative">
+              <div className="animate-spin rounded-full h-12 w-12 border-4 border-purple-400/30 border-t-purple-400"></div>
+              <Shield className="absolute inset-0 m-auto w-6 h-6 text-purple-400 animate-pulse" />
+            </div>
+            <div className="text-center">
+              <span className="text-white font-medium">Loading roles...</span>
+              <p className="text-white/60 text-sm mt-1">Fetching role definitions and permissions</p>
+            </div>
+          </div>
+        </div>
       </div>
     )
   }
@@ -222,15 +349,20 @@ export default function RolesPage() {
           <h1 className="text-3xl font-bold text-white">Role Management</h1>
           <p className="text-white/70 mt-2">Create and manage user roles and permissions</p>
         </div>
-        
-        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-          <DialogTrigger asChild>
-            <GlassButton onClick={resetForm} variant="success">
-              <Plus className="w-4 h-4 mr-2" />
-              Add Role
-            </GlassButton>
-          </DialogTrigger>
-          <DialogContent className="bg-slate-800 border-slate-700 text-white max-w-4xl max-h-[90vh] overflow-y-auto">
+
+        <div className="flex gap-2">
+          <GlassButton variant="primary" onClick={exportRolesReport}>
+            <Download className="w-4 h-4 mr-2" />
+            Export Report
+          </GlassButton>
+          <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+            <DialogTrigger asChild>
+              <GlassButton onClick={resetForm} variant="success">
+                <Plus className="w-4 h-4 mr-2" />
+                Add Role
+              </GlassButton>
+            </DialogTrigger>
+            <DialogContent className="bg-slate-900/95 backdrop-blur-2xl border-white/20 text-white max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Create New Role</DialogTitle>
               <DialogDescription>
@@ -338,21 +470,110 @@ export default function RolesPage() {
           </DialogContent>
         </Dialog>
       </div>
+    </div>
 
-      {/* Search Bar */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 z-10" />
-        <Input
-          placeholder="Search roles..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="pl-10 bg-white/10 backdrop-blur-xl border-white/20 text-white placeholder:text-white/50 rounded-xl transition-all duration-300 hover:bg-white/15 focus:bg-white/15 focus:border-white/30"
-        />
+      {/* System Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <GlassCard variant="primary">
+          <GlassCardContent className="flex items-center justify-between p-4">
+            <div>
+              <p className="text-white/70 text-sm">Total Roles</p>
+              <p className="text-2xl font-bold text-white">{summary.totalRoles}</p>
+              <p className="text-xs text-purple-400">{summary.activeRoles} active</p>
+            </div>
+            <Shield className="w-8 h-8 text-purple-400" />
+          </GlassCardContent>
+        </GlassCard>
+
+        <GlassCard variant="info">
+          <GlassCardContent className="flex items-center justify-between p-4">
+            <div>
+              <p className="text-white/70 text-sm">System Roles</p>
+              <p className="text-2xl font-bold text-white">{summary.systemRoles}</p>
+              <p className="text-xs text-blue-400">Built-in</p>
+            </div>
+            <Crown className="w-8 h-8 text-blue-400" />
+          </GlassCardContent>
+        </GlassCard>
+
+        <GlassCard variant="success">
+          <GlassCardContent className="flex items-center justify-between p-4">
+            <div>
+              <p className="text-white/70 text-sm">Custom Roles</p>
+              <p className="text-2xl font-bold text-white">{summary.customRoles}</p>
+              <p className="text-xs text-green-400">User-defined</p>
+            </div>
+            <Users className="w-8 h-8 text-green-400" />
+          </GlassCardContent>
+        </GlassCard>
+
+        <GlassCard variant="warning">
+          <GlassCardContent className="flex items-center justify-between p-4">
+            <div>
+              <p className="text-white/70 text-sm">Avg Permissions</p>
+              <p className="text-2xl font-bold text-white">{summary.avgPermissionsPerRole}</p>
+              <p className="text-xs text-yellow-400">Per role</p>
+            </div>
+            <TrendingUp className="w-8 h-8 text-yellow-400" />
+          </GlassCardContent>
+        </GlassCard>
       </div>
+
+      {/* Filters and Search */}
+      <GlassCard>
+        <GlassCardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 z-10" />
+              <Input
+                placeholder="Search roles..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 bg-white/10 backdrop-blur-xl border-white/20 text-white placeholder:text-white/50 rounded-xl transition-all duration-300 hover:bg-white/15 focus:bg-white/15 focus:border-white/30"
+              />
+            </div>
+
+            <GlassButtonGroup spacing="sm">
+              <GlassButton
+                variant={viewMode === 'grid' ? 'primary' : 'outline'}
+                size="sm"
+                onClick={() => setViewMode('grid')}
+              >
+                <BarChart3 className="w-4 h-4 mr-2" />
+                Grid
+              </GlassButton>
+              <GlassButton
+                variant={viewMode === 'table' ? 'primary' : 'outline'}
+                size="sm"
+                onClick={() => setViewMode('table')}
+              >
+                <Settings className="w-4 h-4 mr-2" />
+                Table
+              </GlassButton>
+            </GlassButtonGroup>
+
+            <div className="flex gap-2">
+              <Input
+                placeholder="Sort by..."
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as 'name' | 'created' | 'permissions')}
+                className="bg-slate-800 border-slate-700 text-white"
+              />
+              <GlassButton
+                variant="outline"
+                size="sm"
+                onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+              >
+                {sortOrder === 'asc' ? '↑' : '↓'}
+              </GlassButton>
+            </div>
+          </div>
+        </GlassCardContent>
+      </GlassCard>
 
       {/* Roles Grid */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {filteredRoles.map((role) => (
+        {sortedAndFilteredRoles.map((role) => (
           <GlassCard key={role.id} variant="default" animation="fadeIn" className="hover:scale-[1.02]">
             <GlassCardHeader className="pb-3">
               <div className="flex justify-between items-start">
@@ -441,7 +662,7 @@ export default function RolesPage() {
         ))}
       </div>
 
-      {filteredRoles.length === 0 && (
+      {sortedAndFilteredRoles.length === 0 && (
         <GlassCard variant="default">
           <GlassCardContent className="text-center py-8">
             <Shield className="w-12 h-12 text-gray-400 mx-auto mb-4" />
@@ -458,16 +679,29 @@ export default function RolesPage() {
         </GlassCard>
       )}
 
+      {/* Error Display */}
+      {error && (
+        <Alert variant="destructive" className="mb-6">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription className="ml-2">
+            <div className="space-y-2">
+              <p className="font-semibold">Error</p>
+              <p>{error}</p>
+            </div>
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Edit Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="bg-slate-800 border-slate-700 text-white max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="bg-slate-900/95 backdrop-blur-2xl border-white/20 text-white max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Edit Role</DialogTitle>
             <DialogDescription>
               Update the role permissions and details.
             </DialogDescription>
           </DialogHeader>
-          
+
           <form onSubmit={handleEditRole} className="space-y-6">
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -478,7 +712,7 @@ export default function RolesPage() {
                   onChange={(e) => {
                     const displayName = e.target.value
                     setFormData({
-                      ...formData, 
+                      ...formData,
                       display_name: displayName,
                       name: editingRole?.is_system_role ? editingRole.name : generateRoleName(displayName)
                     })
@@ -536,7 +770,7 @@ export default function RolesPage() {
                                 checked={getPermissionValue(resource.key, action.key)}
                                 onCheckedChange={(checked) => updatePermission(resource.key, action.key, checked)}
                               />
-                              <Label 
+                              <Label
                                 htmlFor={`edit-${resource.key}-${action.key}`}
                                 className="text-sm text-gray-300 cursor-pointer"
                                 title={action.description}
@@ -556,7 +790,7 @@ export default function RolesPage() {
             {editingRole?.is_system_role && (
               <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4">
                 <p className="text-yellow-400 text-sm">
-                  <strong>Note:</strong> This is a system role. Only the display name and description can be modified. 
+                  <strong>Note:</strong> This is a system role. Only the display name and description can be modified.
                   Permissions are managed by the system.
                 </p>
               </div>

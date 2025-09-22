@@ -1,18 +1,17 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Button } from '@/components/ui/button'
 import { GlassCard, GlassCardHeader, GlassCardTitle, GlassCardDescription, GlassCardContent } from '@/components/ui/glass-card'
 import { GlassButton } from '@/components/ui/glass-button'
+import { GlassTable, GlassTableHeader, GlassTableBody, GlassTableRow, GlassTableHead, GlassTableCell } from '@/components/ui/glass-table'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
-import { Users, Search, UserPlus, Shield, X } from 'lucide-react'
+import { Users, Search, UserPlus, Shield, X, Download, TrendingUp, Calendar } from 'lucide-react'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { ChurchSelector } from '@/components/church-selector'
 import { Database } from '@/types/database'
 
@@ -197,6 +196,45 @@ export default function UsersPage() {
     }
   }
 
+  const exportUsersReport = () => {
+    try {
+      const csvContent = generateCSVReport(filteredRoles)
+      const blob = new Blob([csvContent], { type: 'text/csv' })
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `users-report-${selectedChurch?.name || 'all'}-${new Date().toISOString().split('T')[0]}.csv`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      window.URL.revokeObjectURL(url)
+    } catch (error) {
+      console.error('Error exporting report:', error)
+      setError('Failed to export report')
+    }
+  }
+
+  const generateCSVReport = (roles: any[]) => {
+    const headers = [
+      'User Name', 'User Email', 'Role', 'Church',
+      'Status', 'Granted By', 'Granted Date', 'Expires', 'Notes'
+    ]
+
+    const rows = roles.map(ucr => [
+      ucr.users?.full_name || 'Unknown',
+      ucr.users?.email || '',
+      ucr.roles?.display_name || '',
+      selectedChurch?.name || '',
+      ucr.is_active ? 'Active' : 'Inactive',
+      ucr.granted_by?.full_name || ucr.granted_by?.email || 'System',
+      new Date(ucr.granted_at).toLocaleDateString(),
+      ucr.expires_at ? new Date(ucr.expires_at).toLocaleDateString() : 'Never',
+      ucr.notes || ''
+    ])
+
+    return [headers, ...rows].map(row => row.join(',')).join('\n')
+  }
+
   const filteredRoles = userChurchRoles.filter(ucr =>
     ucr.users?.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     ucr.users?.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -205,9 +243,26 @@ export default function UsersPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-400"></div>
-        <span className="ml-3 text-white/70">Loading users...</span>
+      <div className="space-y-6">
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold text-white">User Management</h1>
+            <p className="text-white/70 mt-2">Manage user access and permissions</p>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-center py-16">
+          <div className="flex flex-col items-center space-y-4">
+            <div className="relative">
+              <div className="animate-spin rounded-full h-12 w-12 border-4 border-purple-400/30 border-t-purple-400"></div>
+              <Users className="absolute inset-0 m-auto w-6 h-6 text-purple-400 animate-pulse" />
+            </div>
+            <div className="text-center">
+              <span className="text-white font-medium">Loading users...</span>
+              <p className="text-white/60 text-sm mt-1">Fetching user data and permissions</p>
+            </div>
+          </div>
+        </div>
       </div>
     )
   }
@@ -220,14 +275,19 @@ export default function UsersPage() {
           <p className="text-white/70 mt-2">Manage user access and permissions</p>
         </div>
         
-        <Dialog open={isGrantRoleDialogOpen} onOpenChange={setIsGrantRoleDialogOpen}>
-          <DialogTrigger asChild>
-            <GlassButton onClick={resetGrantRoleForm} variant="success">
-              <UserPlus className="w-4 h-4 mr-2" />
-              Grant Role
-            </GlassButton>
-          </DialogTrigger>
-          <DialogContent className="bg-slate-800 border-slate-700 text-white max-w-2xl">
+        <div className="flex gap-2">
+          <GlassButton variant="primary" onClick={exportUsersReport}>
+            <Download className="w-4 h-4 mr-2" />
+            Export Report
+          </GlassButton>
+          <Dialog open={isGrantRoleDialogOpen} onOpenChange={setIsGrantRoleDialogOpen}>
+            <DialogTrigger asChild>
+              <GlassButton onClick={resetGrantRoleForm} variant="success">
+                <UserPlus className="w-4 h-4 mr-2" />
+                Grant Role
+              </GlassButton>
+            </DialogTrigger>
+          <DialogContent className="bg-slate-900/95 backdrop-blur-2xl border-white/20 text-white max-w-2xl">
             <DialogHeader>
               <DialogTitle>Grant User Role</DialogTitle>
               <DialogDescription>
@@ -307,7 +367,8 @@ export default function UsersPage() {
               </div>
             </form>
           </DialogContent>
-        </Dialog>
+          </Dialog>
+        </div>
       </div>
 
       {/* Church Selector */}
@@ -349,22 +410,22 @@ export default function UsersPage() {
               </GlassCardDescription>
             </GlassCardHeader>
             <GlassCardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow className="border-slate-700">
-                    <TableHead className="text-gray-300">User</TableHead>
-                    <TableHead className="text-gray-300">Role</TableHead>
-                    <TableHead className="text-gray-300">Granted By</TableHead>
-                    <TableHead className="text-gray-300">Granted Date</TableHead>
-                    <TableHead className="text-gray-300">Expires</TableHead>
-                    <TableHead className="text-gray-300">Status</TableHead>
-                    <TableHead className="text-gray-300">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
+              <GlassTable>
+                <GlassTableHeader>
+                  <GlassTableRow>
+                    <GlassTableHead>User</GlassTableHead>
+                    <GlassTableHead>Role</GlassTableHead>
+                    <GlassTableHead>Granted By</GlassTableHead>
+                    <GlassTableHead>Granted Date</GlassTableHead>
+                    <GlassTableHead>Expires</GlassTableHead>
+                    <GlassTableHead>Status</GlassTableHead>
+                    <GlassTableHead>Actions</GlassTableHead>
+                  </GlassTableRow>
+                </GlassTableHeader>
+                <GlassTableBody>
                   {filteredRoles.map((ucr) => (
-                    <TableRow key={ucr.id} className="border-slate-700">
-                      <TableCell>
+                    <GlassTableRow key={ucr.id}>
+                      <GlassTableCell>
                         <div>
                           <div className="font-medium text-white">
                             {ucr.users?.full_name || 'Unknown'}
@@ -373,44 +434,57 @@ export default function UsersPage() {
                             {ucr.users?.email}
                           </div>
                         </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={getRoleColor(ucr.roles?.name)}>
+                      </GlassTableCell>
+                      <GlassTableCell>
+                        <Badge className="bg-blue-500/20 text-blue-300 border-blue-500/30">
                           {ucr.roles?.display_name}
                         </Badge>
-                      </TableCell>
-                      <TableCell className="text-gray-300">
+                      </GlassTableCell>
+                      <GlassTableCell className="text-gray-300">
                         {ucr.granted_by?.full_name || ucr.granted_by?.email || 'System'}
-                      </TableCell>
-                      <TableCell className="text-gray-300">
-                        {new Date(ucr.granted_at).toLocaleDateString()}
-                      </TableCell>
-                      <TableCell className="text-gray-300">
-                        {ucr.expires_at ? new Date(ucr.expires_at).toLocaleDateString() : 'Never'}
-                      </TableCell>
-                      <TableCell>
+                      </GlassTableCell>
+                      <GlassTableCell className="text-gray-300">
+                        <div className="flex items-center space-x-1">
+                          <Calendar className="w-3 h-3" />
+                          <span className="text-xs">
+                            {new Date(ucr.granted_at).toLocaleDateString()}
+                          </span>
+                        </div>
+                      </GlassTableCell>
+                      <GlassTableCell className="text-gray-300">
+                        {ucr.expires_at ? (
+                          <div className="flex items-center space-x-1">
+                            <Calendar className="w-3 h-3" />
+                            <span className="text-xs">
+                              {new Date(ucr.expires_at).toLocaleDateString()}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-gray-500">Never</span>
+                        )}
+                      </GlassTableCell>
+                      <GlassTableCell>
                         <Badge variant={ucr.is_active ? "default" : "destructive"}>
                           {ucr.is_active ? 'Active' : 'Inactive'}
                         </Badge>
-                      </TableCell>
-                      <TableCell>
+                      </GlassTableCell>
+                      <GlassTableCell>
                         <div className="flex gap-1">
                           {ucr.is_active && (
-                            <Button
-                              variant="ghost"
+                            <GlassButton
+                              variant="error"
                               size="sm"
                               onClick={() => handleRevokeRole(ucr.id)}
-                              className="text-red-400 hover:text-red-300"
                             >
                               <X className="w-4 h-4" />
-                            </Button>
+                            </GlassButton>
                           )}
                         </div>
-                      </TableCell>
-                    </TableRow>
+                      </GlassTableCell>
+                    </GlassTableRow>
                   ))}
-                </TableBody>
-              </Table>
+                </GlassTableBody>
+              </GlassTable>
 
               {filteredRoles.length === 0 && (
                 <div className="text-center py-8">

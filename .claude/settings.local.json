@@ -35,7 +35,8 @@
       "Bash(\"app/(dashboard)/reports/page.tsx\")",
       "Bash(do)",
       "Bash(echo \"=== $file ===\")",
-      "WebFetch(domain:localhost)"
+      "WebFetch(domain:localhost)",
+      "Bash(npx eslint:*)"
     ],
     "deny": [],
     "ask": []

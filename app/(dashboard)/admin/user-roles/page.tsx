@@ -3,11 +3,11 @@
 import { useState, useEffect, useCallback } from 'react'
 import { GlassCard, GlassCardHeader, GlassCardTitle, GlassCardDescription, GlassCardContent } from '@/components/ui/glass-card'
 import { GlassButton } from '@/components/ui/glass-button'
+import { GlassTable, GlassTableHeader, GlassTableBody, GlassTableRow, GlassTableHead, GlassTableCell } from '@/components/ui/glass-table'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { UserCog, Search, Plus, Trash2, Calendar, User, Building2 } from 'lucide-react'
+import { UserCog, Search, Plus, Trash2, Calendar, User, Building2, Download, TrendingUp, AlertTriangle } from 'lucide-react'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { useChurch } from '@/contexts/ChurchContext'
 
 interface UserRoleWithDetails {
@@ -136,6 +136,46 @@ export default function UserRolesPage() {
     }
   }
 
+  const exportUserRolesReport = () => {
+    try {
+      const csvContent = generateCSVReport(filteredUserRoles)
+      const blob = new Blob([csvContent], { type: 'text/csv' })
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `user-roles-report-${selectedChurch?.name || 'all'}-${new Date().toISOString().split('T')[0]}.csv`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      window.URL.revokeObjectURL(url)
+    } catch (error) {
+      console.error('Error exporting report:', error)
+      setError('Failed to export report')
+    }
+  }
+
+  const generateCSVReport = (roles: UserRoleWithDetails[]) => {
+    const headers = [
+      'User Name', 'User Email', 'Role', 'Church', 'Church Type',
+      'Status', 'Granted By', 'Granted Date', 'Expires', 'Notes'
+    ]
+
+    const rows = roles.map(role => [
+      role.users?.full_name || 'Unknown',
+      role.users?.email || '',
+      role.roles?.display_name || '',
+      role.churches?.name || '',
+      role.churches?.type || '',
+      role.is_active ? 'Active' : 'Inactive',
+      role.granted_by_user?.full_name || role.granted_by_user?.email || 'System',
+      new Date(role.granted_at).toLocaleDateString(),
+      role.expires_at ? new Date(role.expires_at).toLocaleDateString() : 'Never',
+      role.notes || ''
+    ])
+
+    return [headers, ...rows].map(row => row.join(',')).join('\n')
+  }
+
   const filteredUserRoles = userRoles.filter(role =>
     role.users?.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     role.users?.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -154,9 +194,17 @@ export default function UserRolesPage() {
           </div>
         </div>
 
-        <div className="flex items-center justify-center py-12">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-400"></div>
-          <span className="ml-3 text-white/70">Loading churches...</span>
+        <div className="flex items-center justify-center py-16">
+          <div className="flex flex-col items-center space-y-4">
+            <div className="relative">
+              <div className="animate-spin rounded-full h-12 w-12 border-4 border-purple-400/30 border-t-purple-400"></div>
+              <UserCog className="absolute inset-0 m-auto w-6 h-6 text-purple-400 animate-pulse" />
+            </div>
+            <div className="text-center">
+              <span className="text-white font-medium">Loading church context...</span>
+              <p className="text-white/60 text-sm mt-1">Initializing user role management</p>
+            </div>
+          </div>
         </div>
       </div>
     )
@@ -170,13 +218,19 @@ export default function UserRolesPage() {
           <p className="text-white/70 mt-2">View and manage user role assignments across churches</p>
         </div>
         
-        <GlassButton
-          onClick={() => window.location.href = '/admin/users'}
-          variant="success"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Grant New Role
-        </GlassButton>
+        <div className="flex gap-2">
+          <GlassButton variant="primary" onClick={exportUserRolesReport}>
+            <Download className="w-4 h-4 mr-2" />
+            Export Report
+          </GlassButton>
+          <GlassButton
+            onClick={() => window.location.href = '/admin/users'}
+            variant="success"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Grant New Role
+          </GlassButton>
+        </div>
       </div>
 
       {/* Church Selection Info */}
@@ -243,23 +297,23 @@ export default function UserRolesPage() {
                   <span className="ml-3 text-white/70">Loading user roles...</span>
                 </div>
               ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow className="border-slate-700">
-                      <TableHead className="text-gray-300">User</TableHead>
-                      <TableHead className="text-gray-300">Role</TableHead>
-                      <TableHead className="text-gray-300">Church</TableHead>
-                      <TableHead className="text-gray-300">Granted By</TableHead>
-                      <TableHead className="text-gray-300">Granted Date</TableHead>
-                      <TableHead className="text-gray-300">Expires</TableHead>
-                      <TableHead className="text-gray-300">Status</TableHead>
-                      <TableHead className="text-gray-300">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
+                <GlassTable>
+                  <GlassTableHeader>
+                    <GlassTableRow>
+                      <GlassTableHead>User</GlassTableHead>
+                      <GlassTableHead>Role</GlassTableHead>
+                      <GlassTableHead>Church</GlassTableHead>
+                      <GlassTableHead>Granted By</GlassTableHead>
+                      <GlassTableHead>Granted Date</GlassTableHead>
+                      <GlassTableHead>Expires</GlassTableHead>
+                      <GlassTableHead>Status</GlassTableHead>
+                      <GlassTableHead>Actions</GlassTableHead>
+                    </GlassTableRow>
+                  </GlassTableHeader>
+                  <GlassTableBody>
                     {filteredUserRoles.map((role) => (
-                      <TableRow key={role.id} className="border-slate-700">
-                        <TableCell>
+                      <GlassTableRow key={role.id}>
+                        <GlassTableCell>
                           <div className="flex items-center space-x-2">
                             <User className="w-4 h-4 text-gray-400" />
                             <div>
@@ -271,34 +325,34 @@ export default function UserRolesPage() {
                               </div>
                             </div>
                           </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge className={getRoleColor(role.roles?.name)}>
+                        </GlassTableCell>
+                        <GlassTableCell>
+                          <Badge className="bg-blue-500/20 text-blue-300 border-blue-500/30">
                             {role.roles?.display_name}
                           </Badge>
-                        </TableCell>
-                        <TableCell>
+                        </GlassTableCell>
+                        <GlassTableCell>
                           <div className="flex items-center space-x-2">
-                            <Badge className={getChurchTypeColor(role.churches?.type)}>
+                            <Badge className="bg-green-500/20 text-green-300 border-green-500/30">
                               {role.churches?.type}
                             </Badge>
                             <span className="text-white text-sm">
                               {role.churches?.name}
                             </span>
                           </div>
-                        </TableCell>
-                        <TableCell className="text-gray-300">
+                        </GlassTableCell>
+                        <GlassTableCell className="text-gray-300">
                           {role.granted_by_user?.full_name || role.granted_by_user?.email || 'System'}
-                        </TableCell>
-                        <TableCell className="text-gray-300">
+                        </GlassTableCell>
+                        <GlassTableCell className="text-gray-300">
                           <div className="flex items-center space-x-1">
                             <Calendar className="w-3 h-3" />
                             <span className="text-xs">
                               {new Date(role.granted_at).toLocaleDateString()}
                             </span>
                           </div>
-                        </TableCell>
-                        <TableCell className="text-gray-300">
+                        </GlassTableCell>
+                        <GlassTableCell className="text-gray-300">
                           {role.expires_at ? (
                             <div className="flex items-center space-x-1">
                               <Calendar className="w-3 h-3" />
@@ -309,22 +363,18 @@ export default function UserRolesPage() {
                           ) : (
                             <span className="text-xs text-gray-500">Never</span>
                           )}
-                        </TableCell>
-                        <TableCell>
+                        </GlassTableCell>
+                        <GlassTableCell>
                           <Badge variant={role.is_active ? "default" : "destructive"}>
                             {role.is_active ? 'Active' : 'Inactive'}
                           </Badge>
-                        </TableCell>
-                        <TableCell>
+                        </GlassTableCell>
+                        <GlassTableCell>
                           <div className="flex gap-1">
                             <GlassButton
-                              variant="ghost"
+                              variant={role.is_active ? "error" : "success"}
                               size="sm"
                               onClick={() => handleToggleRole(role.id, role.is_active)}
-                              className={role.is_active
-                                ? "text-red-400 hover:text-red-300"
-                                : "text-green-400 hover:text-green-300"
-                              }
                             >
                               {role.is_active ? (
                                 <Trash2 className="w-4 h-4" />
@@ -333,11 +383,11 @@ export default function UserRolesPage() {
                               )}
                             </GlassButton>
                           </div>
-                        </TableCell>
-                      </TableRow>
+                        </GlassTableCell>
+                      </GlassTableRow>
                     ))}
-                  </TableBody>
-                </Table>
+                  </GlassTableBody>
+                </GlassTable>
               )}
 
               {filteredUserRoles.length === 0 && !loading && (
