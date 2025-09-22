@@ -76,7 +76,7 @@ export default function NotificationsClient({ initialData }: NotificationsClient
         .limit(100)
 
       if (data) {
-        setNotifications(data)
+        setNotifications(data as NotificationData[])
       }
     } catch {
       // Silently handle error

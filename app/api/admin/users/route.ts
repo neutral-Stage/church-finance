@@ -3,6 +3,9 @@ import { createServerClient } from '@/lib/supabase-server'
 import { safeSelect } from '@/lib/supabase-helpers'
 import { Database } from '@/types/database'
 
+// Force dynamic rendering since this route uses cookies for authentication
+export const dynamic = 'force-dynamic';
+
 type UserChurchRole = Database['public']['Tables']['user_church_roles']['Row'] & {
   roles?: Database['public']['Tables']['roles']['Row']
   church?: Database['public']['Tables']['churches']['Row']

@@ -1,5 +1,8 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase-server'
+
+// Force dynamic rendering since this route uses cookies for authentication
+export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
@@ -47,7 +50,7 @@ export async function POST(request: NextRequest) {
       .eq('user_id', user.id)
       .eq('is_active', true)
 
-    const isSuperAdmin = userRoles?.some(ur => ur.roles?.name === 'super_admin')
+    const isSuperAdmin = userRoles?.some(ur => (ur as any).roles?.name === 'super_admin')
     
     if (!isSuperAdmin) {
       return NextResponse.json({ error: 'Only super administrators can create roles' }, { status: 403 })
@@ -61,8 +64,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Create the role
-    const { data: role, error } = await supabase
-      .from('roles')
+    const { data: role, error } = await (supabase
+      .from('roles') as any)
       .insert({
         name,
         display_name,

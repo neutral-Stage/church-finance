@@ -28,7 +28,14 @@
       "Bash(wc:*)",
       "Bash(ls:*)",
       "Bash(tail:*)",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Bash(grep:*)",
+      "Bash(__NEW_LINE__ for file in )",
+      "Bash(\"app/(dashboard)/member-contributions/page.tsx\" )",
+      "Bash(\"app/(dashboard)/reports/page.tsx\")",
+      "Bash(do)",
+      "Bash(echo \"=== $file ===\")",
+      "WebFetch(domain:localhost)"
     ],
     "deny": [],
     "ask": []

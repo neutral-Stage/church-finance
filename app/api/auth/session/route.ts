@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase-server'
 
+// Force dynamic rendering since this route uses cookies
+export const dynamic = 'force-dynamic';
+
 // GET /api/auth/session - Get current server-side session for client sync
 export async function GET() {
   try {

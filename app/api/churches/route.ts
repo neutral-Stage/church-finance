@@ -1,43 +1,90 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase-server'
-import { safeSelect } from '@/lib/supabase-helpers'
+import { safeSelect, safeInsert } from '@/lib/supabase-helpers'
+
+// Force dynamic rendering since this route uses cookies for authentication
+export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
+    console.log('Churches API: Starting request...')
     const supabase = await createServerClient()
-    
+
     // Get current user
     const { data: { user }, error: authError } = await supabase.auth.getUser()
+    console.log('Churches API: User auth check:', { user: user?.id, authError })
+
     if (authError || !user) {
+      console.log('Churches API: Unauthorized - no user')
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Get user's church roles
-    const { data: userChurchRoles } = await safeSelect(supabase, 'user_church_roles', {
+    console.log('Churches API: Fetching user church roles for user:', user.id)
+
+    // Get user's church roles with error handling
+    const { data: userChurchRoles, error: rolesError } = await safeSelect(supabase, 'user_church_roles', {
       filter: { column: 'user_id', value: user.id }
     })
 
+    console.log('Churches API: User church roles result:', {
+      data: userChurchRoles,
+      error: rolesError,
+      count: userChurchRoles?.length || 0
+    })
+
+    if (rolesError) {
+      console.error('Churches API: Error fetching user church roles:', rolesError)
+      return NextResponse.json({ error: 'Failed to fetch user roles' }, { status: 500 })
+    }
+
     if (!userChurchRoles || userChurchRoles.length === 0) {
+      console.log('Churches API: No church roles found for user')
       return NextResponse.json({ churches: [] })
     }
 
     // Filter active roles and get church IDs
     const activeRoles = userChurchRoles.filter(role => role.is_active)
+    console.log('Churches API: Active roles:', activeRoles.length)
+
     const churchIds = [...new Set(activeRoles.map(role => role.church_id).filter(Boolean))]
+    console.log('Churches API: Church IDs from roles:', churchIds)
 
     if (churchIds.length === 0) {
+      console.log('Churches API: No church IDs found in active roles')
       return NextResponse.json({ churches: [] })
     }
 
-    // Get churches
-    const { data: allChurches } = await safeSelect(supabase, 'churches')
+    // Get all churches with error handling
+    console.log('Churches API: Fetching all churches...')
+    const { data: allChurches, error: churchesError } = await safeSelect(supabase, 'churches')
+
+    console.log('Churches API: All churches result:', {
+      dataLength: allChurches?.length || 0,
+      error: churchesError
+    })
+
+    if (churchesError) {
+      console.error('Churches API: Error fetching churches:', churchesError)
+      return NextResponse.json({ error: 'Failed to fetch churches' }, { status: 500 })
+    }
+
     const userChurches = allChurches?.filter(church =>
       church.is_active && churchIds.includes(church.id)
     ) || []
 
+    console.log('Churches API: Filtered user churches:', userChurches.length)
+
     // Get roles for user churches
-    const { data: roles } = await safeSelect(supabase, 'roles')
+    console.log('Churches API: Fetching roles...')
+    const { data: roles, error: rolesDataError } = await safeSelect(supabase, 'roles')
+
+    if (rolesDataError) {
+      console.error('Churches API: Error fetching roles:', rolesDataError)
+      return NextResponse.json({ error: 'Failed to fetch roles' }, { status: 500 })
+    }
+
     const rolesMap = new Map((roles || []).map(role => [role.id, role]))
+    console.log('Churches API: Roles map created with', rolesMap.size, 'roles')
 
     // Build church data with role information
     const churchesWithRoles = userChurches.map(church => {
@@ -56,9 +103,10 @@ export async function GET() {
       }
     })
 
+    console.log('Churches API: Final response with', churchesWithRoles.length, 'churches')
     return NextResponse.json({ churches: churchesWithRoles })
   } catch (error) {
-    console.error('Unexpected error in churches API:', error)
+    console.error('Churches API: Unexpected error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
@@ -74,13 +122,24 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if user is super admin
-    const { data: userRoles } = await supabase
-      .from('user_church_roles')
-      .select('roles (name)')
-      .eq('user_id', user.id)
-      .eq('is_active', true)
+    const { data: userRoles, error: userRolesError } = await safeSelect(supabase, 'user_church_roles', {
+      filter: { column: 'user_id', value: user.id }
+    })
 
-    const isSuperAdmin = userRoles?.some(ur => ur.roles?.name === 'super_admin')
+    if (userRolesError) {
+      console.error('Error fetching user roles:', userRolesError)
+      return NextResponse.json({ error: 'Failed to check permissions' }, { status: 500 })
+    }
+
+    // Get roles data to check for super admin
+    const { data: roles } = await safeSelect(supabase, 'roles')
+    const rolesMap = new Map((roles || []).map(role => [role.id, role]))
+
+    const activeUserRoles = userRoles?.filter(ur => ur.is_active === true) || []
+    const isSuperAdmin = activeUserRoles.some(ur => {
+      const roleData = ur.role_id ? rolesMap.get(ur.role_id) : null
+      return roleData?.name === 'super_admin'
+    })
     
     if (!isSuperAdmin) {
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
@@ -94,21 +153,19 @@ export async function POST(request: NextRequest) {
     }
 
     // Create the church
-    const { data: church, error } = await supabase
-      .from('churches')
-      .insert({
-        name,
-        type,
-        description,
-        address,
-        phone,
-        email,
-        website,
-        established_date,
-        created_by: user.id
-      })
-      .select()
-      .single()
+    const { data: churches, error } = await safeInsert(supabase, 'churches', {
+      name,
+      type,
+      description,
+      address,
+      phone,
+      email,
+      website,
+      established_date,
+      created_by: user.id
+    })
+
+    const church = churches?.[0]
 
     if (error) {
       console.error('Error creating church:', error)
@@ -116,22 +173,19 @@ export async function POST(request: NextRequest) {
     }
 
     // Grant the creator admin access to the new church
-    const { data: adminRole } = await supabase
-      .from('roles')
-      .select('id')
-      .eq('name', 'church_admin')
-      .single()
+    const { data: adminRoles, error: roleError } = await safeSelect(supabase, 'roles', {
+      filter: { column: 'name', value: 'church_admin' }
+    })
 
-    if (adminRole) {
-      await supabase
-        .from('user_church_roles')
-        .insert({
-          user_id: user.id,
-          church_id: church.id,
-          role_id: adminRole.id,
-          granted_by: user.id,
-          notes: 'Church creator - automatic admin access'
-        })
+    const adminRole = adminRoles?.[0]
+    if (adminRole && church?.id) {
+      await safeInsert(supabase, 'user_church_roles', {
+        user_id: user.id,
+        church_id: church.id,
+        role_id: adminRole.id,
+        granted_by: user.id,
+        notes: 'Church creator - automatic admin access'
+      })
     }
 
     return NextResponse.json({ church }, { status: 201 })

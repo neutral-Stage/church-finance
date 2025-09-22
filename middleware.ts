@@ -4,7 +4,8 @@ export async function middleware(request: NextRequest) {
   // Define route patterns
   const isAuthPage = request.nextUrl.pathname.startsWith('/auth/')
   const isHomePage = request.nextUrl.pathname === '/'
-  const isProtectedRoute = request.nextUrl.pathname.startsWith('/dashboard') || 
+  const isProtectedRoute = request.nextUrl.pathname.startsWith('/dashboard') ||
+    request.nextUrl.pathname.startsWith('/admin') ||
     ['/transactions', '/bills', '/advances', '/offerings', '/ledger-entries', '/funds', '/members'].some(
       route => request.nextUrl.pathname.startsWith(route)
     )

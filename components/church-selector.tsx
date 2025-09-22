@@ -20,39 +20,57 @@ export function ChurchSelector({ currentChurch, onChurchChange, onLoadingChange 
   const [isOpen, setIsOpen] = useState(false)
 
   const fetchUserChurches = useCallback(async () => {
+    setLoading(true)
+    onLoadingChange?.(true)
+
     try {
+      console.log('ChurchSelector: Fetching churches from API...')
       const response = await fetch('/api/churches')
       const data = await response.json()
+
+      console.log('ChurchSelector: API response status:', response.status)
+      console.log('ChurchSelector: API response data:', data)
 
       if (response.ok) {
         const userChurches = data.churches?.map((church: any) => ({ // eslint-disable-line @typescript-eslint/no-explicit-any
           ...church,
-          role: church.user_church_roles[0]?.roles,
-          user_church_role: church.user_church_roles[0]
+          role: church.user_church_roles?.[0]?.roles,
+          user_church_role: church.user_church_roles?.[0]
         })) || []
 
+        console.log('ChurchSelector: Processed churches:', userChurches)
         setChurches(userChurches)
-
-        // Set first church as current if none selected
-        if (!currentChurch && userChurches.length > 0) {
-          onChurchChange?.(userChurches[0])
-        }
       } else {
-        console.error('Failed to fetch churches:', data.error)
+        console.error('ChurchSelector: Failed to fetch churches:', data.error)
+
+        // Handle unauthorized specifically - this is a valid state
+        if (response.status === 401) {
+          console.log('ChurchSelector: User not authenticated, setting empty churches list')
+        }
+
         setChurches([])
       }
     } catch (error) {
-      console.error('Error fetching user churches:', error)
+      console.error('ChurchSelector: Error fetching user churches:', error)
       setChurches([])
     } finally {
       setLoading(false)
       onLoadingChange?.(false)
+      console.log('ChurchSelector: Loading completed')
     }
-  }, [currentChurch, onChurchChange, onLoadingChange])
+  }, [onLoadingChange]) // Remove currentChurch and onChurchChange dependencies to prevent infinite loops
 
   useEffect(() => {
     fetchUserChurches()
   }, [fetchUserChurches])
+
+  // Separate effect to handle church selection when churches are loaded
+  useEffect(() => {
+    if (!currentChurch && churches.length > 0 && onChurchChange) {
+      console.log('ChurchSelector: Auto-selecting first church:', churches[0])
+      onChurchChange(churches[0])
+    }
+  }, [churches, currentChurch, onChurchChange])
 
   const handleChurchSelect = (church: ChurchWithRole) => {
     onChurchChange?.(church)

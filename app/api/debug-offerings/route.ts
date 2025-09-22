@@ -1,11 +1,13 @@
 import { createServerClient } from '@/lib/supabase-server'
 import { NextResponse } from 'next/server'
+import type { Database } from '@/types/database'
 
 export async function GET() {
   try {
     const supabase = await createServerClient()
     
     // Fetch offerings with member relationships - same query as the main page
+    // Using type assertion to handle complex join types
     const { data: offerings, error } = await supabase
       .from('offerings')
       .select(`
@@ -14,7 +16,14 @@ export async function GET() {
           member:members(*)
         )
       `)
-      .order('service_date', { ascending: false })
+      .order('service_date', { ascending: false }) as {
+        data: Array<Database['public']['Tables']['offerings']['Row'] & {
+          offering_member: Array<{
+            member: Database['public']['Tables']['members']['Row']
+          }> | null
+        }> | null
+        error: any
+      }
     
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 })
@@ -22,8 +31,7 @@ export async function GET() {
     
     
     // Process the data same as main page
-     const processedOfferings = offerings?.map(offering => {
-      
+    const processedOfferings = offerings?.map(offering => {
       // Convert array to single object (same logic as main page)
       const processedOffering = {
         ...offering,
@@ -31,7 +39,7 @@ export async function GET() {
           ? offering.offering_member[0]
           : null
       }
-      
+
       return processedOffering
     }) || []
     

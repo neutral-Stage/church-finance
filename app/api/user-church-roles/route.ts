@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase-server'
 import { safeSelect } from '@/lib/supabase-helpers'
 
+// Force dynamic rendering since this route uses cookies for authentication
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createServerClient()
@@ -21,32 +24,56 @@ export async function GET(request: NextRequest) {
     }
 
     // Check if user has access to this church
-    const { data: userAccess } = await safeSelect(supabase, 'user_church_roles', {
+    const { data: userAccess, error: accessError } = await safeSelect(supabase, 'user_church_roles', {
       filter: { column: 'user_id', value: user.id }
     })
+
+    if (accessError) {
+      console.error('Error checking user access:', accessError)
+      return NextResponse.json({ error: 'Failed to verify permissions' }, { status: 500 })
+    }
 
     const hasAccess = userAccess?.some(role =>
       role.church_id === churchId && role.is_active
     )
 
-    if (!hasAccess) {
+    // Check if user is super admin as fallback
+    const { data: superAdminRoles } = await safeSelect(supabase, 'roles')
+    const superAdminRolesMap = new Map((superAdminRoles || []).map(role => [role.id, role]))
+
+    const isSuperAdmin = userAccess?.some(role => {
+      const roleData = role.role_id ? superAdminRolesMap.get(role.role_id) : null
+      return roleData?.name === 'super_admin' && role.is_active
+    })
+
+    if (!hasAccess && !isSuperAdmin) {
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
     }
 
     // Get user church roles for this church
-    const { data: userChurchRoles } = await safeSelect(supabase, 'user_church_roles', {
+    const { data: userChurchRoles, error: rolesError } = await safeSelect(supabase, 'user_church_roles', {
       filter: { column: 'church_id', value: churchId },
       order: { column: 'created_at', ascending: false }
     })
+
+    if (rolesError) {
+      console.error('Error fetching user church roles:', rolesError)
+      return NextResponse.json({ error: 'Failed to fetch user roles' }, { status: 500 })
+    }
 
     if (!userChurchRoles) {
       return NextResponse.json({ userChurchRoles: [] })
     }
 
     // Get related data separately to avoid join issues
-    const { data: users } = await safeSelect(supabase, 'users')
-    const { data: churches } = await safeSelect(supabase, 'churches')
-    const { data: roles } = await safeSelect(supabase, 'roles')
+    const { data: users, error: usersError } = await safeSelect(supabase, 'users')
+    const { data: churches, error: churchesError } = await safeSelect(supabase, 'churches')
+    const { data: roles, error: rolesDataError } = await safeSelect(supabase, 'roles')
+
+    if (usersError || churchesError || rolesDataError) {
+      console.error('Error fetching related data:', { usersError, churchesError, rolesDataError })
+      return NextResponse.json({ error: 'Failed to fetch related data' }, { status: 500 })
+    }
 
     // Create lookup maps
     const usersMap = new Map((users || []).map(user => [user.id, user]))
@@ -87,21 +114,31 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if current user has admin access to this church
-    const { data: hasAdminAccess } = await supabase
-      .rpc('check_user_permission', {
-        p_user_id: user.id,
-        p_church_id: church_id,
-        p_resource: 'users',
-        p_action: 'create'
-      })
+    const { data: userRoles } = await safeSelect(supabase, 'user_church_roles', {
+      filter: { column: 'user_id', value: user.id }
+    })
+
+    const { data: roles } = await safeSelect(supabase, 'roles')
+    const rolesMap = new Map((roles || []).map(role => [role.id, role]))
+
+    const hasAdminAccess = userRoles?.some(role => {
+      const roleData = role.role_id ? rolesMap.get(role.role_id) : null
+      return (
+        role.church_id === church_id &&
+        role.is_active &&
+        (roleData?.name === 'super_admin' ||
+         roleData?.name === 'church_admin' ||
+         (roleData?.permissions as any)?.users?.create === true)
+      )
+    })
 
     if (!hasAdminAccess) {
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
     }
 
     // Grant role to user
-    const { data: userChurchRole, error } = await supabase
-      .from('user_church_roles')
+    const { data: userChurchRole, error } = await (supabase
+      .from('user_church_roles') as any)
       .insert({
         user_id,
         church_id,
@@ -166,21 +203,31 @@ export async function PUT(request: NextRequest) {
     }
 
     // Check if current user has admin access to this church
-    const { data: hasAdminAccess } = await supabase
-      .rpc('check_user_permission', {
-        p_user_id: user.id,
-        p_church_id: existingRole.church_id,
-        p_resource: 'users',
-        p_action: 'update'
-      })
+    const { data: userRoles } = await safeSelect(supabase, 'user_church_roles', {
+      filter: { column: 'user_id', value: user.id }
+    })
+
+    const { data: roles } = await safeSelect(supabase, 'roles')
+    const rolesMap = new Map((roles || []).map(role => [role.id, role]))
+
+    const hasAdminAccess = userRoles?.some(role => {
+      const roleData = role.role_id ? rolesMap.get(role.role_id) : null
+      return (
+        role.church_id === (existingRole as any).church_id &&
+        role.is_active &&
+        (roleData?.name === 'super_admin' ||
+         roleData?.name === 'church_admin' ||
+         (roleData?.permissions as any)?.users?.update === true)
+      )
+    })
 
     if (!hasAdminAccess) {
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
     }
 
     // Update the user church role
-    const { data: userChurchRole, error } = await supabase
-      .from('user_church_roles')
+    const { data: userChurchRole, error } = await (supabase
+      .from('user_church_roles') as any)
       .update({
         is_active,
         expires_at,

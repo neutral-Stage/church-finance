@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
+import { useChurch } from '@/contexts/ChurchContext'
 import type { AuthUser } from '@/types/database'
 
 import { AnimatedCounter } from '@/components/ui/animated-counter'
@@ -47,6 +48,7 @@ interface DashboardClientProps {
 export function DashboardClient({ initialData, permissions, serverUser }: DashboardClientProps): JSX.Element {
   const [data] = useState<DashboardData>(initialData)
   const { user, setServerUser } = useAuth()
+  const { selectedChurch } = useChurch()
 
   // Initialize client-side auth state with server user data on mount
   // Use useRef to track if we've already set the server user to prevent infinite loops

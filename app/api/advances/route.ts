@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient, createAdminClient } from '@/lib/supabase-server';
 import { typedQuery, extractProperty, extractId, extractAmount } from '@/lib/supabase-type-fix';
-import { safeSelect, safeUpdate, safeDelete, safeRpc } from '@/lib/supabase-helpers';
+
+// Force dynamic rendering since this route uses cookies for authentication
+export const dynamic = 'force-dynamic';
+import { safeSelect, safeUpdate, safeDelete, safeRpc, safeInsert } from '@/lib/supabase-helpers';
 import type { Database } from '@/types/database';
 
 type Advance = Database['public']['Tables']['advances']['Row'];
@@ -17,16 +20,18 @@ export async function GET(request: NextRequest) {
     const recipient = searchParams.get('recipient');
 
     // Fetch all advances and apply filters in memory
-    const { data: allAdvances, error } = await typedQuery<Advance[]>(
-      supabase.from('advances').select('*').order('advance_date', { ascending: false })
-    );
+    const result = await safeSelect(supabase, 'advances', {
+      order: { column: 'advance_date', ascending: false }
+    });
 
-    if (error) {
+    if (result.error) {
       return NextResponse.json(
         { error: 'Failed to fetch advances' },
         { status: 500 }
       );
     }
+
+    const allAdvances = result.data;
 
     // Apply filters in memory
     let advances = allAdvances || [];
@@ -94,62 +99,58 @@ export async function POST(request: NextRequest) {
       }
 
       // Get the advance to update
-      const { data: advance, error: _fetchError } = await typedQuery<Advance[]>(
-        supabase.from('advances').select('*').eq('id', advance_id)
-      );
+      const advanceResult = await safeSelect(supabase, 'advances', {
+        filter: { column: 'id', value: advance_id }
+      });
 
-      if (_fetchError || !advance || advance.length === 0) {
+      if (advanceResult.error || !advanceResult.data || advanceResult.data.length === 0) {
         return NextResponse.json(
           { error: 'Advance not found' },
           { status: 404 }
         );
       }
 
+      const advance = advanceResult.data;
+
       const currentAdvance = advance[0];
       const newRepaidAmount = (extractAmount(currentAdvance) || 0) + parseFloat(repayment_amount);
       const newStatus = newRepaidAmount >= extractAmount(currentAdvance) ? 'repaid' : 'partial';
 
       // Update the advance
-      const { data: updatedAdvance, error: _updateError } = await typedQuery<Advance[]>(
-        adminSupabase
-          .from('advances')
-          .update({
-            amount_returned: newRepaidAmount,
-            status: newStatus
-          })
-          .eq('id', advance_id)
-          .select()
-      );
+      const updateResult = await safeUpdate(adminSupabase, 'advances', {
+        amount_returned: newRepaidAmount,
+        status: newStatus
+      }, { column: 'id', value: advance_id });
 
-      if (_updateError || !updatedAdvance || updatedAdvance.length === 0) {
+      if (updateResult.error || !updateResult.data || updateResult.data.length === 0) {
         return NextResponse.json(
           { error: 'Failed to update advance' },
           { status: 500 }
         );
       }
 
+      const updatedAdvance = updateResult.data;
+
       const updatedAdvanceRecord = updatedAdvance[0];
 
       // Update fund balance (add money back)
       const fundId = extractProperty(currentAdvance, 'fund_id');
       if (fundId) {
-        await adminSupabase.rpc('update_fund_balance', {
+        await safeRpc(adminSupabase, 'update_fund_balance', {
           fund_id: fundId,
           amount_change: parseFloat(repayment_amount)
         });
 
         // Create a transaction record for repayment
-        await typedQuery(
-          adminSupabase.from('transactions').insert({
-            type: 'income',
-            amount: parseFloat(repayment_amount),
-            description: `Advance repayment from ${extractProperty(currentAdvance, 'recipient_name')}${extractProperty(currentAdvance, 'purpose') ? ' - ' + extractProperty(currentAdvance, 'purpose') : ''}`,
-            transaction_date: repayment_date || new Date().toISOString().split('T')[0],
-            fund_id: fundId,
-            category: 'Advance Repayment',
-            payment_method: 'Cash'
-          })
-        );
+        await safeInsert(adminSupabase, 'transactions', {
+          type: 'income',
+          amount: parseFloat(repayment_amount),
+          description: `Advance repayment from ${extractProperty(currentAdvance, 'recipient_name')}${extractProperty(currentAdvance, 'purpose') ? ' - ' + extractProperty(currentAdvance, 'purpose') : ''}`,
+          transaction_date: repayment_date || new Date().toISOString().split('T')[0],
+          fund_id: fundId,
+          category: 'Advance Repayment',
+          payment_method: 'Cash'
+        });
       }
 
       return NextResponse.json({ advance: updatedAdvanceRecord }, { status: 200 });
@@ -164,36 +165,38 @@ export async function POST(request: NextRequest) {
     }
 
     // Create the advance
-    const { data: advance, error: _advanceError } = await typedQuery<Advance[]>(
-      adminSupabase.from('advances').insert({
-        recipient_name,
-        amount: parseFloat(amount),
-        purpose: purpose || null,
-        advance_date,
-        expected_return_date: expected_return_date || null,
-        status,
-        fund_id: fund_id || null,
-        amount_returned: 0,
-        payment_method: 'cash',
-        approved_by: 'system'
-      }).select()
-    );
+    const insertResult = await safeInsert(adminSupabase, 'advances', {
+      recipient_name,
+      amount: parseFloat(amount),
+      purpose: purpose || null,
+      advance_date,
+      expected_return_date: expected_return_date || null,
+      status,
+      fund_id: fund_id || null,
+      amount_returned: 0,
+      payment_method: 'cash',
+      approved_by: 'system'
+    });
 
-    if (_advanceError || !advance || advance.length === 0) {
+    if (insertResult.error || !insertResult.data || insertResult.data.length === 0) {
       return NextResponse.json(
         { error: 'Failed to create advance' },
         { status: 500 }
       );
     }
 
+    const advance = insertResult.data;
+
     const newAdvance = advance[0];
 
     // For outstanding advances, update fund balance and create transaction
     if (status === 'outstanding' && fund_id) {
-      const { error: _fundError } = await adminSupabase.rpc('update_fund_balance', {
+      const fundResult = await safeRpc(adminSupabase, 'update_fund_balance', {
         fund_id: fund_id,
         amount_change: -parseFloat(amount)
       });
+
+      const _fundError = fundResult.error;
 
       if (_fundError) {
         // Rollback the advance creation
@@ -205,17 +208,15 @@ export async function POST(request: NextRequest) {
       }
 
       // Create a transaction record
-      await typedQuery(
-        adminSupabase.from('transactions').insert({
-          type: 'expense',
-          amount: parseFloat(amount),
-          description: `Advance to ${recipient_name}${purpose ? ' - ' + purpose : ''}`,
-          transaction_date: advance_date,
-          fund_id,
-          category: 'Advance',
-          payment_method: 'cash'
-        })
-      );
+      await safeInsert(adminSupabase, 'transactions', {
+        type: 'expense',
+        amount: parseFloat(amount),
+        description: `Advance to ${recipient_name}${purpose ? ' - ' + purpose : ''}`,
+        transaction_date: advance_date,
+        fund_id,
+        category: 'Advance',
+        payment_method: 'cash'
+      });
     }
 
     return NextResponse.json({ advance: newAdvance }, { status: 201 });
@@ -262,38 +263,40 @@ export async function PUT(request: NextRequest) {
     }
 
     // Get the current advance to handle status and fund changes
-    const { data: currentAdvanceData, error: _fetchError } = await typedQuery<Advance[]>(
-      supabase.from('advances').select('*').eq('id', id)
-    );
+    const currentAdvanceResult = await safeSelect(supabase, 'advances', {
+      filter: { column: 'id', value: id }
+    });
 
-    if (_fetchError || !currentAdvanceData || currentAdvanceData.length === 0) {
+    if (currentAdvanceResult.error || !currentAdvanceResult.data || currentAdvanceResult.data.length === 0) {
       return NextResponse.json(
         { error: 'Advance not found' },
         { status: 404 }
       );
     }
 
+    const currentAdvanceData = currentAdvanceResult.data;
+
     const currentAdvance = currentAdvanceData[0];
 
     // Update the advance
-    const { data: advance, error: _updateError } = await typedQuery<Advance[]>(
-      adminSupabase.from('advances').update({
-        recipient_name: recipient_name || extractProperty(currentAdvance, 'recipient_name'),
-        amount: amount !== undefined ? parseFloat(amount) : extractAmount(currentAdvance),
-        purpose: purpose !== undefined ? purpose : extractProperty(currentAdvance, 'purpose'),
-        advance_date: advance_date || extractProperty(currentAdvance, 'advance_date'),
-        expected_return_date: expected_return_date !== undefined ? expected_return_date : extractProperty(currentAdvance, 'expected_return_date'),
-        status: status || extractProperty(currentAdvance, 'status'),
-        fund_id: fund_id !== undefined ? fund_id : extractProperty(currentAdvance, 'fund_id'),
-      }).eq('id', id).select()
-    );
+    const updateAdvanceResult = await safeUpdate(adminSupabase, 'advances', {
+      recipient_name: recipient_name || extractProperty(currentAdvance, 'recipient_name'),
+      amount: amount !== undefined ? parseFloat(amount) : extractAmount(currentAdvance),
+      purpose: purpose !== undefined ? purpose : extractProperty(currentAdvance, 'purpose'),
+      advance_date: advance_date || extractProperty(currentAdvance, 'advance_date'),
+      expected_return_date: expected_return_date !== undefined ? expected_return_date : extractProperty(currentAdvance, 'expected_return_date'),
+      status: status || extractProperty(currentAdvance, 'status'),
+      fund_id: fund_id !== undefined ? fund_id : extractProperty(currentAdvance, 'fund_id'),
+    }, { column: 'id', value: id });
 
-    if (_updateError || !advance || advance.length === 0) {
+    if (updateAdvanceResult.error || !updateAdvanceResult.data || updateAdvanceResult.data.length === 0) {
       return NextResponse.json(
         { error: 'Failed to update advance' },
         { status: 500 }
       );
     }
+
+    const advance = updateAdvanceResult.data;
 
     const updatedAdvance = advance[0];
 

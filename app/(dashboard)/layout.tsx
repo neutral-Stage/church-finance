@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth, withAuth, type UserRole } from "@/contexts/AuthContext";
+import { ChurchProvider } from "@/contexts/ChurchContext";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -41,6 +42,7 @@ import {
 import { cn } from "@/lib/utils";
 import SearchModal from "@/components/SearchModal";
 import NotificationsDropdown from "@/components/NotificationsDropdown";
+import { HeaderChurchSelector } from "@/components/header-church-selector";
 
 const navigation = [
   {
@@ -327,8 +329,9 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
   );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 relative">
-      <div className="flex h-screen">
+    <ChurchProvider>
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 relative">
+        <div className="flex h-screen">
         {/* Desktop Sidebar */}
         <div
           className={cn(
@@ -396,6 +399,9 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
 
               {/* Header actions */}
               <div className="flex items-center space-x-2">
+                {/* Church Selector */}
+                <HeaderChurchSelector className="hidden sm:flex" />
+
                 {/* Search button */}
                 <Button
                   variant="ghost"
@@ -492,8 +498,9 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
 
         {/* Search Modal */}
         <SearchModal isOpen={searchOpen} onClose={() => setSearchOpen(false)} />
+        </div>
       </div>
-    </div>
+    </ChurchProvider>
   );
 }
 

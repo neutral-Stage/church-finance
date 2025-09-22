@@ -18,6 +18,7 @@ import { toast } from 'sonner'
 import { Plus, FileText, CreditCard, MoreHorizontal, AlertTriangle, Clock, Receipt, CheckCircle, ChevronDown, ChevronRight, FolderOpen, Folder } from 'lucide-react'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { useAuth } from '@/contexts/AuthContext'
+import { useChurch } from '@/contexts/ChurchContext'
 import { Database } from '@/types/database'
 
 type Bill = Database['public']['Tables']['bills']['Row'] & {
@@ -60,6 +61,7 @@ interface PettyCashForm {
 
 export default function BillsPage(): JSX.Element {
   const { hasRole } = useAuth()
+  const { selectedChurch } = useChurch()
   const [bills, setBills] = useState<Bill[]>([])
   const [ledgerEntries, setLedgerEntries] = useState<LedgerEntry[]>([])
   const [ledgerSubgroups, setLedgerSubgroups] = useState<LedgerSubgroup[]>([])

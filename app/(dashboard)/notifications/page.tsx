@@ -1,6 +1,9 @@
 import { getNotificationsData } from '@/lib/server-data'
 import NotificationsClient from '@/components/notifications-client'
 
+// Force dynamic rendering since this page requires server-side authentication
+export const dynamic = 'force-dynamic';
+
 export default async function NotificationsPage() {
   const notificationsData = await getNotificationsData()
   

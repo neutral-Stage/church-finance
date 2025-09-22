@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase-server'
 import { Database } from '@/types/database'
 
+// Force dynamic rendering since this route uses cookies for authentication
+export const dynamic = 'force-dynamic';
+
 type RoleUpdate = Partial<Database['public']['Tables']['roles']['Update']>
 
 export async function GET(
@@ -59,7 +62,7 @@ export async function PUT(
       .eq('user_id', user.id)
       .eq('is_active', true)
 
-    const isSuperAdmin = userRoles?.some(ur => ur.roles?.name === 'super_admin')
+    const isSuperAdmin = userRoles?.some(ur => (ur as any).roles?.name === 'super_admin')
     
     if (!isSuperAdmin) {
       return NextResponse.json({ error: 'Only super administrators can edit roles' }, { status: 403 })
@@ -91,14 +94,14 @@ export async function PUT(
     }
 
     // For custom roles, allow name and permissions updates
-    if (!existingRole.is_system_role) {
+    if (!(existingRole as any).is_system_role) {
       updateData.name = name
       updateData.permissions = permissions
     }
 
     // Update the role
-    const { data: role, error } = await supabase
-      .from('roles')
+    const { data: role, error } = await (supabase
+      .from('roles') as any)
       .update(updateData)
       .eq('id', roleId)
       .select()
@@ -136,7 +139,7 @@ export async function DELETE(
       .eq('user_id', user.id)
       .eq('is_active', true)
 
-    const isSuperAdmin = userRoles?.some(ur => ur.roles?.name === 'super_admin')
+    const isSuperAdmin = userRoles?.some(ur => (ur as any).roles?.name === 'super_admin')
     
     if (!isSuperAdmin) {
       return NextResponse.json({ error: 'Only super administrators can delete roles' }, { status: 403 })
@@ -155,7 +158,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Role not found' }, { status: 404 })
     }
 
-    if (existingRole.is_system_role) {
+    if ((existingRole as any).is_system_role) {
       return NextResponse.json({ error: 'System roles cannot be deleted' }, { status: 400 })
     }
 
@@ -179,8 +182,8 @@ export async function DELETE(
     }
 
     // Soft delete - just deactivate the role
-    const { error } = await supabase
-      .from('roles')
+    const { error } = await (supabase
+      .from('roles') as any)
       .update({ is_active: false })
       .eq('id', roleId)
 

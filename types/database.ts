@@ -1281,16 +1281,17 @@ export type AuthUser = Database["public"]["Tables"]["users"]["Row"] & {
   role?: string
 }
 
-export type UserRole = "super_admin" | "church_admin" | "treasurer" | "member" | "viewer" | "admin"
+export type UserRole = "super_admin" | "church_admin" | "treasurer" | "member" | "viewer" | "admin" | "finance_viewer"
 
 export type Fund = Database["public"]["Tables"]["funds"]["Row"]
 
-export type FundSummary = Fund & {
-  current_balance: number
-  transaction_count: number
-  total_income?: number
-  total_expenses?: number
-  total_offerings?: number
+// Use the actual view type instead of extending Fund type
+export type FundSummary = Database['public']['Views']['fund_summary']['Row']
+
+// Enhanced fund summary with computed fields
+export type EnhancedFundSummary = FundSummary & {
+  transaction_count?: number
+  utilization_percentage?: number
 }
 
 export type TransactionWithFund = Database["public"]["Tables"]["transactions"]["Row"] & {
@@ -1300,6 +1301,7 @@ export type TransactionWithFund = Database["public"]["Tables"]["transactions"]["
 
 export type BillWithFund = Database["public"]["Tables"]["bills"]["Row"] & {
   funds?: Fund
+  fund?: Fund
 }
 
 export type AdvanceWithFund = Database["public"]["Tables"]["advances"]["Row"] & {
@@ -1316,10 +1318,60 @@ export type ChurchWithRole = Database["public"]["Tables"]["churches"]["Row"] & {
   user_church_roles?: Database["public"]["Tables"]["user_church_roles"]["Row"][]
   role?: Database["public"]["Tables"]["roles"]["Row"]
   user_church_role?: Database["public"]["Tables"]["user_church_roles"]["Row"]
+  permissions?: Json
+  role_name?: string
+  role_display_name?: string
 }
 
 export type CashBreakdownData = Database["public"]["Tables"]["cash_breakdown"]["Row"]
 
 export type OfferingWithCount = Database["public"]["Tables"]["offerings"]["Row"] & {
   contributors_count?: number
+  church?: Database["public"]["Tables"]["churches"]["Row"]
+}
+
+// Enhanced offering type with detailed allocations
+export type OfferingWithAllocations = OfferingWithCount & {
+  fund_details?: Array<{
+    fund_id: string
+    fund_name: string
+    amount: number
+  }>
+}
+
+// Church context types for multi-church system
+export type UserChurchContext = {
+  church_id: string
+  church_name: string
+  church_type: string
+  role_name: string
+  role_display_name: string
+  permissions: Json
+}
+
+// API Response types for consistent error handling
+export type ApiResponse<T = any> = {
+  data?: T
+  error?: string
+  message?: string
+}
+
+// Enhanced transaction types
+export type TransactionWithDetails = TransactionWithFund & {
+  church?: Database["public"]["Tables"]["churches"]["Row"]
+  created_by_user?: Database["public"]["Tables"]["users"]["Row"]
+}
+
+// Enhanced advance types
+export type AdvanceWithDetails = AdvanceWithFund & {
+  church?: Database["public"]["Tables"]["churches"]["Row"]
+  approved_by_user?: Database["public"]["Tables"]["users"]["Row"]
+}
+
+// Bill with complete details
+export type BillWithDetails = BillWithFund & {
+  church?: Database["public"]["Tables"]["churches"]["Row"]
+  ledger_entry?: LedgerEntry
+  ledger_subgroup?: LedgerSubgroup
+  approved_by_user?: Database["public"]["Tables"]["users"]["Row"]
 }

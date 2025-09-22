@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient, createAdminClient } from '@/lib/supabase-server';
 
+// Force dynamic rendering since this route uses cookies for authentication
+export const dynamic = 'force-dynamic';
 // GET - Fetch all petty cash transactions
 export async function GET(request: NextRequest) {
   try {
@@ -64,20 +66,29 @@ export async function POST(request: NextRequest) {
     }
     
     const body = await request.json();
-    const { 
-      type, 
-      amount, 
-      description, 
-      date, 
-      category, 
+    const {
+      type,
+      amount,
+      description,
+      date,
+      category,
       recipient,
-      fund_id 
+      fund_id,
+      church_id
     } = body;
 
     // Validate required fields
     if (!type || !amount || !description || !date) {
       return NextResponse.json(
         { error: 'Type, amount, description, and date are required' },
+        { status: 400 }
+      );
+    }
+
+    // Validate church_id is provided
+    if (!church_id) {
+      return NextResponse.json(
+        { error: 'Church context is required. Please select a church.' },
         { status: 400 }
       );
     }
@@ -91,8 +102,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Create the petty cash transaction
-    const { data: pettyCashTransaction, error: pettyCashError } = await adminSupabase
-      .from('petty_cash')
+    const { data: pettyCashTransaction, error: pettyCashError } = await (adminSupabase
+      .from('petty_cash') as any)
       .insert({
         type,
         amount: parseFloat(amount),
@@ -116,14 +127,14 @@ export async function POST(request: NextRequest) {
     if (fund_id) {
       const amountChange = type === 'expense' ? -parseFloat(amount) : parseFloat(amount);
       
-      const { error: fundError } = await adminSupabase.rpc('update_fund_balance', {
+      const { error: fundError } = await (adminSupabase as any).rpc('update_fund_balance', {
         fund_id: fund_id,
         amount_change: amountChange
       });
 
       if (fundError) {
         // Rollback the petty cash transaction creation
-        await adminSupabase.from('petty_cash').delete().eq('id', pettyCashTransaction.id);
+        await adminSupabase.from('petty_cash').delete().eq('id', (pettyCashTransaction as any).id);
         return NextResponse.json(
           { error: 'Failed to update fund balance' },
           { status: 500 }
@@ -136,16 +147,17 @@ export async function POST(request: NextRequest) {
         ? `Petty cash expense: ${description}${recipient ? ' - ' + recipient : ''}`
         : `Petty cash replenishment: ${description}`;
 
-      const { error: transactionError } = await adminSupabase
-        .from('transactions')
+      const { error: transactionError } = await (adminSupabase
+        .from('transactions') as any)
         .insert({
           type: transactionType,
           amount: parseFloat(amount),
           description: transactionDescription,
           date,
           fund_id,
+          church_id: church_id,
           reference_type: 'petty_cash',
-          reference_id: pettyCashTransaction.id,
+          reference_id: (pettyCashTransaction as any).id,
         });
 
       if (transactionError) {
@@ -219,16 +231,16 @@ export async function PUT(request: NextRequest) {
     }
 
     // Update the petty cash transaction
-    const { data: pettyCashTransaction, error: updateError } = await adminSupabase
-      .from('petty_cash')
+    const { data: pettyCashTransaction, error: updateError } = await (adminSupabase
+      .from('petty_cash') as any)
       .update({
-        type: type || currentTransaction.type,
-        amount: amount !== undefined ? parseFloat(amount) : currentTransaction.amount,
-        description: description || currentTransaction.description,
-        date: date || currentTransaction.date,
-        category: category !== undefined ? category : currentTransaction.category,
-        recipient: recipient !== undefined ? recipient : currentTransaction.recipient,
-        fund_id: fund_id !== undefined ? fund_id : currentTransaction.fund_id,
+        type: type || (currentTransaction as any).type,
+        amount: amount !== undefined ? parseFloat(amount) : (currentTransaction as any).amount,
+        description: description || (currentTransaction as any).description,
+        date: date || (currentTransaction as any).date,
+        category: category !== undefined ? category : (currentTransaction as any).category,
+        recipient: recipient !== undefined ? recipient : (currentTransaction as any).recipient,
+        fund_id: fund_id !== undefined ? fund_id : (currentTransaction as any).fund_id,
       })
       .eq('id', id)
       .select()
@@ -243,17 +255,17 @@ export async function PUT(request: NextRequest) {
 
     // Handle fund balance changes if amount, type, or fund changed
     if (amount !== undefined || type !== undefined || fund_id !== undefined) {
-      const oldType = currentTransaction.type;
-      const newType = type || currentTransaction.type;
-      const oldAmount = currentTransaction.amount;
-      const newAmount = parseFloat(amount || currentTransaction.amount);
-      const oldFundId = currentTransaction.fund_id;
-      const newFundId = fund_id !== undefined ? fund_id : currentTransaction.fund_id;
+      const oldType = (currentTransaction as any).type;
+      const newType = type || (currentTransaction as any).type;
+      const oldAmount = (currentTransaction as any).amount;
+      const newAmount = parseFloat(amount || (currentTransaction as any).amount);
+      const oldFundId = (currentTransaction as any).fund_id;
+      const newFundId = fund_id !== undefined ? fund_id : (currentTransaction as any).fund_id;
 
       // Revert old fund balance if there was a fund
       if (oldFundId) {
         const oldAmountChange = oldType === 'expense' ? oldAmount : -oldAmount;
-        await adminSupabase.rpc('update_fund_balance', {
+        await (adminSupabase as any).rpc('update_fund_balance', {
           fund_id: oldFundId,
           amount_change: oldAmountChange
         });
@@ -262,7 +274,7 @@ export async function PUT(request: NextRequest) {
       // Apply new fund balance if there is a fund
       if (newFundId) {
         const newAmountChange = newType === 'expense' ? -newAmount : newAmount;
-        await adminSupabase.rpc('update_fund_balance', {
+        await (adminSupabase as any).rpc('update_fund_balance', {
           fund_id: newFundId,
           amount_change: newAmountChange
         });
@@ -274,8 +286,8 @@ export async function PUT(request: NextRequest) {
         ? `Petty cash expense: ${pettyCashTransaction.description}${pettyCashTransaction.recipient ? ' - ' + pettyCashTransaction.recipient : ''}`
         : `Petty cash replenishment: ${pettyCashTransaction.description}`;
 
-      await adminSupabase
-        .from('transactions')
+      await (adminSupabase
+        .from('transactions') as any)
         .update({
           type: transactionType,
           amount: newAmount,
@@ -349,13 +361,13 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Revert fund balance if there was a fund
-    if (pettyCashTransaction.fund_id) {
-      const amountChange = pettyCashTransaction.type === 'expense' 
-        ? pettyCashTransaction.amount 
-        : -pettyCashTransaction.amount;
+    if ((pettyCashTransaction as any).fund_id) {
+      const amountChange = (pettyCashTransaction as any).type === 'expense'
+        ? (pettyCashTransaction as any).amount
+        : -(pettyCashTransaction as any).amount;
       
-      await adminSupabase.rpc('update_fund_balance', {
-        fund_id: pettyCashTransaction.fund_id,
+      await (adminSupabase as any).rpc('update_fund_balance', {
+        fund_id: (pettyCashTransaction as any).fund_id,
         amount_change: amountChange
       });
 

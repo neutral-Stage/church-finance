@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient, createAdminClient } from '@/lib/supabase-server';
 
+// Force dynamic rendering since this route uses cookies for authentication
+export const dynamic = 'force-dynamic';
 // GET - Fetch ledger subgroups
 export async function GET(request: NextRequest) {
   try {
@@ -105,8 +107,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Create the ledger subgroup
-    const { data: subgroup, error: subgroupError } = await adminSupabase
-      .from('ledger_subgroups')
+    const { data: subgroup, error: subgroupError } = await (adminSupabase
+      .from('ledger_subgroups') as any)
       .insert({
         ledger_entry_id,
         title,
@@ -198,23 +200,23 @@ export async function PUT(request: NextRequest) {
 
     // Prepare update data
     const updateData: Record<string, unknown> = {
-      title: title || currentSubgroup.title,
-      description: description !== undefined ? description : currentSubgroup.description,
-      purpose: purpose !== undefined ? purpose : currentSubgroup.purpose,
-      status: status || currentSubgroup.status,
-      default_due_date: default_due_date || currentSubgroup.default_due_date,
-      default_fund_id: default_fund_id !== undefined ? default_fund_id : currentSubgroup.default_fund_id,
-      responsible_parties: responsible_parties !== undefined ? responsible_parties : currentSubgroup.responsible_parties,
-      allocation_percentage: allocation_percentage !== undefined ? allocation_percentage : currentSubgroup.allocation_percentage,
-      priority: priority || currentSubgroup.priority,
-      sort_order: sort_order !== undefined ? sort_order : currentSubgroup.sort_order,
-      notes: notes !== undefined ? notes : currentSubgroup.notes,
-      metadata: metadata !== undefined ? metadata : currentSubgroup.metadata,
+      title: title || (currentSubgroup as any).title,
+      description: description !== undefined ? description : (currentSubgroup as any).description,
+      purpose: purpose !== undefined ? purpose : (currentSubgroup as any).purpose,
+      status: status || (currentSubgroup as any).status,
+      default_due_date: default_due_date || (currentSubgroup as any).default_due_date,
+      default_fund_id: default_fund_id !== undefined ? default_fund_id : (currentSubgroup as any).default_fund_id,
+      responsible_parties: responsible_parties !== undefined ? responsible_parties : (currentSubgroup as any).responsible_parties,
+      allocation_percentage: allocation_percentage !== undefined ? allocation_percentage : (currentSubgroup as any).allocation_percentage,
+      priority: priority || (currentSubgroup as any).priority,
+      sort_order: sort_order !== undefined ? sort_order : (currentSubgroup as any).sort_order,
+      notes: notes !== undefined ? notes : (currentSubgroup as any).notes,
+      metadata: metadata !== undefined ? metadata : (currentSubgroup as any).metadata,
       updated_at: new Date().toISOString(),
     };
 
-    const { data: subgroup, error: updateError } = await adminSupabase
-      .from('ledger_subgroups')
+    const { data: subgroup, error: updateError } = await (adminSupabase
+      .from('ledger_subgroups') as any)
       .update(updateData)
       .eq('id', id)
       .select()

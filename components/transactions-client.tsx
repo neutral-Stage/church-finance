@@ -55,6 +55,7 @@ import { Fund, TransactionWithFund } from '@/types/database'
 import { formatCurrency, formatDate, formatDateForInput } from '@/lib/utils'
 import { toast } from 'sonner'
 import type { TransactionsData } from '@/lib/server-data'
+import { useChurchApi } from '@/contexts/ChurchContext'
 
 interface TransactionFormData {
   type: 'income' | 'expense'
@@ -101,6 +102,7 @@ interface TransactionsClientProps {
 }
 
 export function TransactionsClient({ initialData, permissions }: TransactionsClientProps) {
+  const { api, hasChurchSelected, selectedChurch } = useChurchApi()
   const [transactions, setTransactions] = useState<TransactionWithFund[]>(initialData.transactions)
   const [funds] = useState<Fund[]>(initialData.funds) // Funds rarely change, so no real-time needed
   const [error, setError] = useState('')
@@ -122,28 +124,25 @@ export function TransactionsClient({ initialData, permissions }: TransactionsCli
   const [submitting, setSubmitting] = useState(false)
 
   const fetchTransactions = useCallback(async () => {
+    if (!hasChurchSelected) {
+      setError('Please select a church to view transactions')
+      return
+    }
+
     try {
-      const response = await fetch('/api/transactions', {
-        method: 'GET',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      })
-      
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to fetch transactions')
+      const response = await api.get('/api/transactions')
+
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to fetch transactions')
       }
-      
-      const data = await response.json()
-      setTransactions(data.transactions || [])
+
+      setTransactions(response.data.transactions || [])
       setError('') // Clear any previous errors
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load transactions'
       setError(errorMessage)
     }
-  }, [])
+  }, [api, hasChurchSelected])
 
 
   // Set up periodic refresh since we're not using realtime subscriptions
@@ -159,6 +158,11 @@ export function TransactionsClient({ initialData, permissions }: TransactionsCli
       return
     }
 
+    if (!hasChurchSelected) {
+      toast.error('Please select a church first')
+      return
+    }
+
     try {
       setSubmitting(true)
       
@@ -170,24 +174,19 @@ export function TransactionsClient({ initialData, permissions }: TransactionsCli
         category: formData.category,
         payment_method: formData.payment_method,
         transaction_date: formData.transaction_date,
-        receipt_number: formData.receipt_number || null
+        receipt_number: formData.receipt_number || null,
+        church_id: selectedChurch?.id
       }
 
-      const url = editingTransaction ? `/api/transactions/${editingTransaction.id}` : '/api/transactions'
-      const method = editingTransaction ? 'PUT' : 'POST'
+      let response
+      if (editingTransaction) {
+        response = await api.put(`/api/transactions/${editingTransaction.id}`, transactionData)
+      } else {
+        response = await api.post('/api/transactions', transactionData)
+      }
 
-      const response = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(transactionData),
-        credentials: 'include'
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to save transaction')
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to save transaction')
       }
 
       toast.success(editingTransaction ? 'Transaction updated successfully' : 'Transaction added successfully')
@@ -210,12 +209,12 @@ export function TransactionsClient({ initialData, permissions }: TransactionsCli
 
     setEditingTransaction(transaction)
     setFormData({
-      type: transaction.type,
+      type: transaction.type as 'income' | 'expense',
       fund_id: transaction.fund_id,
       amount: transaction.amount.toString(),
       description: transaction.description,
       category: transaction.category,
-      payment_method: transaction.payment_method,
+      payment_method: transaction.payment_method as 'cash' | 'bank',
       transaction_date: transaction.transaction_date,
       receipt_number: transaction.receipt_number || ''
     })

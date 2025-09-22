@@ -48,7 +48,7 @@ export function MemberCombobox({
       const { data, error } = await query
 
       if (error) throw error
-      setMembers(data || [])
+      setMembers((data || []) as Member[])
     } catch {
       setMembers([])
     } finally {
@@ -75,7 +75,7 @@ export function MemberCombobox({
           .eq('id', value)
           .single()
           .then(({ data }) => {
-            if (data) setSelectedMember(data)
+            if (data) setSelectedMember(data as Member)
           })
       }
     } else {

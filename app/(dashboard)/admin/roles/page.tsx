@@ -1,8 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
+import { GlassCard, GlassCardContent, GlassCardDescription, GlassCardHeader, GlassCardTitle } from '@/components/ui/glass-card'
+import { GlassButton } from '@/components/ui/glass-button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -225,10 +225,10 @@ export default function RolesPage() {
         
         <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
           <DialogTrigger asChild>
-            <Button onClick={resetForm} className="bg-green-600 hover:bg-green-700">
+            <GlassButton onClick={resetForm} variant="success">
               <Plus className="w-4 h-4 mr-2" />
               Add Role
-            </Button>
+            </GlassButton>
           </DialogTrigger>
           <DialogContent className="bg-slate-800 border-slate-700 text-white max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
@@ -288,14 +288,14 @@ export default function RolesPage() {
                 <h3 className="text-lg font-semibold text-white mb-4">Permissions</h3>
                 <div className="space-y-4">
                   {PERMISSION_RESOURCES.map((resource) => (
-                    <Card key={resource.key} className="bg-slate-700 border-slate-600">
-                      <CardHeader className="pb-3">
-                        <CardTitle className="text-sm text-white">{resource.label}</CardTitle>
-                        <CardDescription className="text-xs text-gray-300">
+                    <GlassCard key={resource.key} variant="default">
+                      <GlassCardHeader className="pb-3">
+                        <GlassCardTitle className="text-sm">{resource.label}</GlassCardTitle>
+                        <GlassCardDescription className="text-xs">
                           {resource.description}
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent>
+                        </GlassCardDescription>
+                      </GlassCardHeader>
+                      <GlassCardContent>
                         <div className="grid grid-cols-4 gap-4">
                           {PERMISSION_ACTIONS.map((action) => (
                             <div key={action.key} className="flex items-center space-x-2">
@@ -314,8 +314,8 @@ export default function RolesPage() {
                             </div>
                           ))}
                         </div>
-                      </CardContent>
-                    </Card>
+                      </GlassCardContent>
+                    </GlassCard>
                   ))}
                 </div>
               </div>
@@ -327,12 +327,12 @@ export default function RolesPage() {
               )}
 
               <div className="flex gap-2 pt-4">
-                <Button type="submit" className="bg-green-600 hover:bg-green-700">
+                <GlassButton type="submit" variant="success">
                   Create Role
-                </Button>
-                <Button type="button" variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
+                </GlassButton>
+                <GlassButton type="button" variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
                   Cancel
-                </Button>
+                </GlassButton>
               </div>
             </form>
           </DialogContent>
@@ -341,23 +341,23 @@ export default function RolesPage() {
 
       {/* Search Bar */}
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 z-10" />
         <Input
           placeholder="Search roles..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="pl-10 bg-slate-800 border-slate-700 text-white"
+          className="pl-10 bg-white/10 backdrop-blur-xl border-white/20 text-white placeholder:text-white/50 rounded-xl transition-all duration-300 hover:bg-white/15 focus:bg-white/15 focus:border-white/30"
         />
       </div>
 
       {/* Roles Grid */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {filteredRoles.map((role) => (
-          <Card key={role.id} className="bg-slate-800 border-slate-700 hover:bg-slate-750 transition-colors">
-            <CardHeader className="pb-3">
+          <GlassCard key={role.id} variant="default" animation="fadeIn" className="hover:scale-[1.02]">
+            <GlassCardHeader className="pb-3">
               <div className="flex justify-between items-start">
                 <div className="space-y-1">
-                  <CardTitle className="text-white text-lg">{role.display_name}</CardTitle>
+                  <GlassCardTitle className="text-lg">{role.display_name}</GlassCardTitle>
                   <div className="flex gap-2">
                     {role.is_system_role && (
                       <Badge variant="secondary" className="text-xs">System Role</Badge>
@@ -369,33 +369,33 @@ export default function RolesPage() {
                 </div>
                 {!role.is_system_role && (
                   <div className="flex gap-1">
-                    <Button
+                    <GlassButton
                       variant="ghost"
                       size="sm"
                       onClick={() => openEditDialog(role)}
                       className="text-gray-400 hover:text-white"
                     >
                       <Edit className="w-4 h-4" />
-                    </Button>
-                    <Button
+                    </GlassButton>
+                    <GlassButton
                       variant="ghost"
                       size="sm"
                       onClick={() => handleDeleteRole(role.id, role.display_name)}
                       className="text-gray-400 hover:text-red-400"
                     >
                       <Trash2 className="w-4 h-4" />
-                    </Button>
+                    </GlassButton>
                   </div>
                 )}
               </div>
               {role.description && (
-                <CardDescription className="text-gray-300">
+                <GlassCardDescription>
                   {role.description}
-                </CardDescription>
+                </GlassCardDescription>
               )}
-            </CardHeader>
-            
-            <CardContent className="space-y-3">
+            </GlassCardHeader>
+
+            <GlassCardContent className="space-y-3">
               <div className="text-sm text-gray-400">
                 <strong>System Name:</strong> {role.name}
               </div>
@@ -428,22 +428,22 @@ export default function RolesPage() {
                   Created {role.created_at ? new Date(role.created_at).toLocaleDateString() : 'Unknown'}
                 </span>
                 <div className="flex gap-1">
-                  <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white">
+                  <GlassButton variant="ghost" size="sm" className="text-gray-400 hover:text-white">
                     <Users className="w-4 h-4" />
-                  </Button>
-                  <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white">
+                  </GlassButton>
+                  <GlassButton variant="ghost" size="sm" className="text-gray-400 hover:text-white">
                     <Settings className="w-4 h-4" />
-                  </Button>
+                  </GlassButton>
                 </div>
               </div>
-            </CardContent>
-          </Card>
+            </GlassCardContent>
+          </GlassCard>
         ))}
       </div>
 
       {filteredRoles.length === 0 && (
-        <Card className="bg-slate-800 border-slate-700">
-          <CardContent className="text-center py-8">
+        <GlassCard variant="default">
+          <GlassCardContent className="text-center py-8">
             <Shield className="w-12 h-12 text-gray-400 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-white mb-2">
               {searchTerm ? 'No roles found' : 'No roles yet'}
@@ -454,8 +454,8 @@ export default function RolesPage() {
                 : 'Create your first role to get started'
               }
             </p>
-          </CardContent>
-        </Card>
+          </GlassCardContent>
+        </GlassCard>
       )}
 
       {/* Edit Dialog */}
@@ -520,14 +520,14 @@ export default function RolesPage() {
                 <h3 className="text-lg font-semibold text-white mb-4">Permissions</h3>
                 <div className="space-y-4">
                   {PERMISSION_RESOURCES.map((resource) => (
-                    <Card key={resource.key} className="bg-slate-700 border-slate-600">
-                      <CardHeader className="pb-3">
-                        <CardTitle className="text-sm text-white">{resource.label}</CardTitle>
-                        <CardDescription className="text-xs text-gray-300">
+                    <GlassCard key={resource.key} variant="default">
+                      <GlassCardHeader className="pb-3">
+                        <GlassCardTitle className="text-sm">{resource.label}</GlassCardTitle>
+                        <GlassCardDescription className="text-xs">
                           {resource.description}
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent>
+                        </GlassCardDescription>
+                      </GlassCardHeader>
+                      <GlassCardContent>
                         <div className="grid grid-cols-4 gap-4">
                           {PERMISSION_ACTIONS.map((action) => (
                             <div key={action.key} className="flex items-center space-x-2">
@@ -546,8 +546,8 @@ export default function RolesPage() {
                             </div>
                           ))}
                         </div>
-                      </CardContent>
-                    </Card>
+                      </GlassCardContent>
+                    </GlassCard>
                   ))}
                 </div>
               </div>
@@ -569,12 +569,12 @@ export default function RolesPage() {
             )}
 
             <div className="flex gap-2 pt-4">
-              <Button type="submit" className="bg-blue-600 hover:bg-blue-700">
+              <GlassButton type="submit" variant="primary">
                 Update Role
-              </Button>
-              <Button 
-                type="button" 
-                variant="outline" 
+              </GlassButton>
+              <GlassButton
+                type="button"
+                variant="outline"
                 onClick={() => {
                   setIsEditDialogOpen(false)
                   setEditingRole(null)
@@ -582,7 +582,7 @@ export default function RolesPage() {
                 }}
               >
                 Cancel
-              </Button>
+              </GlassButton>
             </div>
           </form>
         </DialogContent>

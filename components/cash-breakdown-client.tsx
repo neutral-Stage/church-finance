@@ -122,7 +122,7 @@ export default function CashBreakdownClient({ initialData }: CashBreakdownClient
           })
         })
 
-        data.forEach((item: CashBreakdownData) => {
+        data.forEach((item: any) => {
           if (newFundData[item.fund_type]) {
             newFundData[item.fund_type][item.denomination] = item.count
           }

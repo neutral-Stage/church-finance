@@ -1,50 +1,55 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient, createAdminClient } from '@/lib/supabase-server';
+import { safeSelect, safeInsert, safeUpdate, safeDelete, safeRpc } from '@/lib/supabase-helpers';
+
+// Force dynamic rendering since this route uses cookies for authentication
+export const dynamic = 'force-dynamic';
 
 // GET - Fetch all bills
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createServerClient();
     const { searchParams } = new URL(request.url);
-    const startDate = searchParams.get('startDate');
-    const endDate = searchParams.get('endDate');
-    const status = searchParams.get('status');
-    const category = searchParams.get('category');
 
-    let query = supabase
-      .from('bills')
-      .select(`
-        *,
-        ledger_entries(*),
-        ledger_subgroups(*)
-      `)
-      .order('due_date', { ascending: true });
+    // Get all bills and filter in memory if needed
+    const result = await safeSelect(supabase, 'bills', {
+      order: { column: 'due_date', ascending: false }
+    });
 
-    // Apply filters if provided
-    if (startDate) {
-      query = query.gte('due_date', startDate);
-    }
-    if (endDate) {
-      query = query.lte('due_date', endDate);
-    }
-    if (status) {
-      query = query.eq('status', status);
-    }
-    if (category) {
-      query = query.eq('category', category);
-    }
-
-    const { data: bills, error } = await query;
-
-    if (error) {
+    if (result.error) {
       return NextResponse.json(
         { error: 'Failed to fetch bills' },
         { status: 500 }
       );
     }
 
-    return NextResponse.json({ bills });
-  } catch {
+    let bills = result.data || [];
+
+    // Apply filters
+    const status = searchParams.get('status');
+    const category = searchParams.get('category');
+    const startDate = searchParams.get('startDate');
+    const endDate = searchParams.get('endDate');
+
+    if (status) {
+      bills = bills.filter((bill: any) => bill.status === status);
+    }
+    if (category) {
+      bills = bills.filter((bill: any) => bill.category === category);
+    }
+    if (startDate) {
+      bills = bills.filter((bill: any) => bill.due_date >= startDate);
+    }
+    if (endDate) {
+      bills = bills.filter((bill: any) => bill.due_date <= endDate);
+    }
+
+    return NextResponse.json({
+      bills,
+      success: true
+    });
+  } catch (error) {
+    console.error('Bills API error:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -57,7 +62,7 @@ export async function POST(request: NextRequest) {
   try {
     const supabase = await createServerClient();
     const adminSupabase = createAdminClient();
-    
+
     // Check authentication
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     if (authError || !user) {
@@ -66,128 +71,58 @@ export async function POST(request: NextRequest) {
         { status: 401 }
       )
     }
-    
+
     const body = await request.json();
-    const { 
-      vendor, 
-      amount, 
-      description, 
-      due_date, 
-      category, 
+    const {
+      vendor_name,
+      vendor, // Support legacy field name
+      amount,
+      category,
+      due_date,
       status = 'pending',
       fund_id,
-      ledger_entry_id,
-      ledger_subgroup_id,
-      responsible_parties,
-      allocation_percentage,
-      priority = 'medium',
-      approval_status = 'pending',
-      sort_order = 0,
       notes,
-      metadata = {},
-      document_url,
-      document_name,
-      document_size,
-      document_type,
-      document_uploaded_at
+      frequency = 'one-time'
     } = body;
 
+    // Handle legacy vendor field
+    const finalVendorName = vendor_name || vendor;
+
     // Validate required fields
-    if (!vendor || !amount || !due_date) {
+    if (!finalVendorName || !amount || !due_date) {
       return NextResponse.json(
-        { error: 'Vendor, amount, and due date are required' },
+        { error: 'Vendor name, amount, and due date are required' },
         { status: 400 }
       );
     }
 
-    // Validate that bill is associated with either ledger entry or subgroup
-    if (!ledger_entry_id && !ledger_subgroup_id) {
-      return NextResponse.json(
-        { error: 'Bill must be associated with either a ledger entry or subgroup' },
-        { status: 400 }
-      );
-    }
+    // Create the bill using safe insert
+    const billData = {
+      vendor_name: finalVendorName,
+      amount: parseFloat(amount),
+      category: category || 'General',
+      due_date,
+      status,
+      fund_id: fund_id || null,
+      notes: notes || null,
+      frequency
+    };
 
-    // Validate that bill is not associated with both
-    if (ledger_entry_id && ledger_subgroup_id) {
-      return NextResponse.json(
-        { error: 'Bill cannot be associated with both ledger entry and subgroup' },
-        { status: 400 }
-      );
-    }
+    const result = await safeInsert(adminSupabase, 'bills', billData);
 
-    // Create the bill
-    const { data: bill, error: billError } = await adminSupabase
-      .from('bills')
-      .insert({
-        vendor,
-        amount: parseFloat(amount),
-        description: description || null,
-        due_date,
-        category: category || null,
-        status,
-        fund_id: fund_id || null,
-        ledger_entry_id: ledger_entry_id || null,
-        ledger_subgroup_id: ledger_subgroup_id || null,
-        responsible_parties: responsible_parties || null,
-        allocation_percentage: allocation_percentage || null,
-        priority,
-        approval_status,
-        sort_order,
-        notes: notes || null,
-        metadata,
-        document_url: document_url || null,
-        document_name: document_name || null,
-        document_size: document_size || null,
-        document_type: document_type || null,
-        document_uploaded_at: document_uploaded_at || null,
-        created_at: new Date().toISOString(),
-      })
-      .select()
-      .single();
-
-    if (billError) {
+    if (result.error) {
       return NextResponse.json(
         { error: 'Failed to create bill' },
         { status: 500 }
       );
     }
 
-    // If status is 'paid' and fund_id is provided, update fund balance and create transaction
-    if (status === 'paid' && fund_id) {
-      const { error: fundError } = await adminSupabase.rpc('update_fund_balance', {
-        fund_id: fund_id,
-        amount_change: -parseFloat(amount)
-      });
+    const bill = result.data?.[0];
 
-      if (fundError) {
-        // Rollback the bill creation
-        await supabase.from('bills').delete().eq('id', bill.id);
-        return NextResponse.json(
-          { error: 'Failed to update fund balance' },
-          { status: 500 }
-        );
-      }
-
-      // Create a transaction record
-      const { error: transactionError } = await adminSupabase
-        .from('transactions')
-        .insert({
-          type: 'expense',
-          amount: parseFloat(amount),
-          description: `Bill payment: ${vendor}${description ? ' - ' + description : ''}`,
-          date: new Date().toISOString().split('T')[0],
-          fund_id,
-          reference_type: 'bill',
-          reference_id: bill.id,
-        });
-
-      if (transactionError) {
-        // Note: We don't rollback here as the bill and fund update are valid
-      }
-    }
-
-    return NextResponse.json({ bill }, { status: 201 });
+    return NextResponse.json({
+      bill,
+      success: true
+    }, { status: 201 });
   } catch {
     return NextResponse.json(
       { error: 'Internal server error' },
@@ -201,7 +136,7 @@ export async function PUT(request: NextRequest) {
   try {
     const supabase = await createServerClient();
     const adminSupabase = createAdminClient();
-    
+
     // Check authentication
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     if (authError || !user) {
@@ -210,32 +145,18 @@ export async function PUT(request: NextRequest) {
         { status: 401 }
       )
     }
-    
+
     const body = await request.json();
-    const { 
-      id, 
-      vendor, 
-      amount, 
-      description, 
-      due_date, 
-      category, 
-      status, 
+    const {
+      id,
+      vendor_name,
+      vendor,
+      amount,
+      category,
+      due_date,
+      status,
       fund_id,
-      paid_date,
-      ledger_entry_id,
-      ledger_subgroup_id,
-      responsible_parties,
-      allocation_percentage,
-      priority,
-      approval_status,
-      sort_order,
-      notes,
-      metadata,
-      document_url,
-      document_name,
-      document_size,
-      document_type,
-      document_uploaded_at
+      notes
     } = body;
 
     if (!id) {
@@ -245,138 +166,45 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    // Get the current bill to handle status and fund changes
-    const { data: currentBill, error: fetchError } = await supabase
-      .from('bills')
-      .select('*')
-      .eq('id', id)
-      .single();
+    // Get the current bill
+    const currentBillResult = await safeSelect(supabase, 'bills', {
+      filter: { column: 'id', value: id }
+    });
 
-    if (fetchError || !currentBill) {
+    if (currentBillResult.error || !currentBillResult.data || currentBillResult.data.length === 0) {
       return NextResponse.json(
         { error: 'Bill not found' },
         { status: 404 }
       );
     }
 
-    // Update the bill
-    const updateData: Record<string, unknown> = {
-      vendor: vendor || currentBill.vendor,
-      amount: amount !== undefined ? parseFloat(amount) : currentBill.amount,
-      description: description !== undefined ? description : currentBill.description,
-      due_date: due_date || currentBill.due_date,
-      category: category !== undefined ? category : currentBill.category,
-      status: status || currentBill.status,
-      fund_id: fund_id !== undefined ? fund_id : currentBill.fund_id,
-    };
+    const currentBill = currentBillResult.data[0];
 
-    if (ledger_entry_id !== undefined) updateData.ledger_entry_id = ledger_entry_id;
-    if (ledger_subgroup_id !== undefined) updateData.ledger_subgroup_id = ledger_subgroup_id;
-    if (responsible_parties !== undefined) updateData.responsible_parties = responsible_parties;
-    if (allocation_percentage !== undefined) updateData.allocation_percentage = allocation_percentage;
-    if (priority !== undefined) updateData.priority = priority;
-    if (approval_status !== undefined) updateData.approval_status = approval_status;
-    if (sort_order !== undefined) updateData.sort_order = sort_order;
+    // Prepare update data
+    const updateData: any = {};
+
+    if (vendor_name !== undefined) updateData.vendor_name = vendor_name;
+    if (vendor !== undefined && !vendor_name) updateData.vendor_name = vendor; // Legacy support
+    if (amount !== undefined) updateData.amount = parseFloat(amount);
+    if (category !== undefined) updateData.category = category;
+    if (due_date !== undefined) updateData.due_date = due_date;
+    if (status !== undefined) updateData.status = status;
+    if (fund_id !== undefined) updateData.fund_id = fund_id;
     if (notes !== undefined) updateData.notes = notes;
-    if (document_url !== undefined) updateData.document_url = document_url;
-    if (document_name !== undefined) updateData.document_name = document_name;
-    if (document_size !== undefined) updateData.document_size = document_size;
-    if (document_type !== undefined) updateData.document_type = document_type;
-    if (document_uploaded_at !== undefined) updateData.document_uploaded_at = document_uploaded_at;
-    if (metadata !== undefined) updateData.metadata = metadata;
 
-    // Set paid_date if status is changing to paid
-    if (status === 'paid' && currentBill.status !== 'paid') {
-      updateData.paid_date = paid_date || new Date().toISOString().split('T')[0];
-    } else if (status !== 'paid') {
-      updateData.paid_date = null;
-    }
+    const result = await safeUpdate(adminSupabase, 'bills', updateData, {
+      column: 'id',
+      value: id
+    });
 
-    const { data: bill, error: updateError } = await adminSupabase
-      .from('bills')
-      .update(updateData)
-      .eq('id', id)
-      .select()
-      .single();
-
-    if (updateError) {
+    if (result.error) {
       return NextResponse.json(
         { error: 'Failed to update bill' },
         { status: 500 }
       );
     }
 
-    // Handle fund balance changes based on status changes
-    const oldStatus = currentBill.status;
-    const newStatus = status || currentBill.status;
-    const oldAmount = currentBill.amount;
-    const newAmount = parseFloat(amount || currentBill.amount);
-    const oldFundId = currentBill.fund_id;
-    const newFundId = fund_id !== undefined ? fund_id : currentBill.fund_id;
-
-    // If status changed from paid to unpaid, revert the fund balance
-    if (oldStatus === 'paid' && newStatus !== 'paid' && oldFundId) {
-      await adminSupabase.rpc('update_fund_balance', {
-        fund_id: oldFundId,
-        amount_change: oldAmount
-      });
-
-      // Delete the transaction
-      await adminSupabase
-        .from('transactions')
-        .delete()
-        .eq('reference_type', 'bill')
-        .eq('reference_id', id);
-    }
-    // If status changed from unpaid to paid, deduct from fund balance
-    else if (oldStatus !== 'paid' && newStatus === 'paid' && newFundId) {
-      await adminSupabase.rpc('update_fund_balance', {
-        fund_id: newFundId,
-        amount_change: -newAmount
-      });
-
-      // Create a transaction
-      await adminSupabase
-        .from('transactions')
-        .insert({
-          type: 'expense',
-          amount: newAmount,
-          description: `Bill payment: ${bill.vendor}${bill.description ? ' - ' + bill.description : ''}`,
-          date: bill.paid_date || new Date().toISOString().split('T')[0],
-          fund_id: newFundId,
-          reference_type: 'bill',
-          reference_id: id,
-        });
-    }
-    // If bill is paid and amount or fund changed, update accordingly
-    else if (newStatus === 'paid' && (amount !== undefined || fund_id !== undefined)) {
-      // Revert old fund balance
-      if (oldFundId) {
-        await adminSupabase.rpc('update_fund_balance', {
-          fund_id: oldFundId,
-          amount_change: oldAmount
-        });
-      }
-
-      // Apply new fund balance
-      if (newFundId) {
-        await adminSupabase.rpc('update_fund_balance', {
-          fund_id: newFundId,
-          amount_change: -newAmount
-        });
-      }
-
-      // Update the transaction
-      await adminSupabase
-        .from('transactions')
-        .update({
-          amount: newAmount,
-          description: `Bill payment: ${bill.vendor}${bill.description ? ' - ' + bill.description : ''}`,
-          fund_id: newFundId,
-        })
-        .eq('reference_type', 'bill')
-        .eq('reference_id', id);
-    }
+    const bill = result.data?.[0];
 
     return NextResponse.json({ bill });
   } catch {
@@ -392,7 +220,7 @@ export async function DELETE(request: Request) {
   try {
     const supabase = await createServerClient()
     const adminSupabase = createAdminClient()
-    
+
     // Check authentication
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     if (authError || !user) {
@@ -401,7 +229,7 @@ export async function DELETE(request: Request) {
         { status: 401 }
       )
     }
-    
+
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
 
@@ -412,46 +240,17 @@ export async function DELETE(request: Request) {
       );
     }
 
-    // Get the bill to revert fund balance if it was paid
-    const { data: bill, error: fetchError } = await supabase
-      .from('bills')
-      .select('*')
-      .eq('id', id)
-      .single();
-
-    if (fetchError || !bill) {
-      return NextResponse.json(
-        { error: 'Bill not found' },
-        { status: 404 }
-      );
-    }
-
     // Delete the bill
-    const { error: deleteError } = await adminSupabase
-      .from('bills')
-      .delete()
-      .eq('id', id);
+    const result = await safeDelete(adminSupabase, 'bills', {
+      column: 'id',
+      value: id
+    });
 
-    if (deleteError) {
+    if (result.error) {
       return NextResponse.json(
         { error: 'Failed to delete bill' },
         { status: 500 }
       );
-    }
-
-    // If the bill was paid, revert the fund balance
-    if (bill.status === 'paid' && bill.fund_id) {
-      await adminSupabase.rpc('update_fund_balance', {
-        fund_id: bill.fund_id,
-        amount_change: bill.amount
-      });
-
-      // Delete related transaction
-      await adminSupabase
-        .from('transactions')
-        .delete()
-        .eq('reference_type', 'bill')
-        .eq('reference_id', id);
     }
 
     return NextResponse.json({ message: 'Bill deleted successfully' });

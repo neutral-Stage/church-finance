@@ -2,14 +2,13 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { GlassCard, GlassCardHeader, GlassCardTitle, GlassCardDescription, GlassCardContent } from '@/components/ui/glass-card'
-import { Button } from '@/components/ui/button'
+import { GlassButton } from '@/components/ui/glass-button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { UserCog, Search, Plus, Trash2, Calendar, User } from 'lucide-react'
+import { UserCog, Search, Plus, Trash2, Calendar, User, Building2 } from 'lucide-react'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { ChurchSelector } from '@/components/church-selector'
-import { ChurchWithRole } from '@/types/database'
+import { useChurch } from '@/contexts/ChurchContext'
 
 interface UserRoleWithDetails {
   id: string
@@ -43,28 +42,43 @@ interface UserRoleWithDetails {
 }
 
 export default function UserRolesPage() {
+  const { selectedChurch, isLoading: churchLoading } = useChurch()
   const [userRoles, setUserRoles] = useState<UserRoleWithDetails[]>([])
-  const [selectedChurch, setSelectedChurch] = useState<ChurchWithRole | undefined>(undefined)
   const [loading, setLoading] = useState(false)
-  const [churchSelectorLoading, setChurchSelectorLoading] = useState(true)
   const [error, setError] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
 
   const fetchUserRoles = useCallback(async () => {
-    if (!selectedChurch) return
+    if (!selectedChurch) {
+      console.log('UserRolesPage: No church selected, clearing user roles')
+      setUserRoles([])
+      return
+    }
 
+    console.log('UserRolesPage: Fetching user roles for church:', selectedChurch.id, selectedChurch.name)
     setLoading(true)
+    setError('')
+
     try {
-      const response = await fetch(`/api/user-church-roles?church_id=${selectedChurch.id}&include_details=true`)
+      const url = `/api/user-church-roles?church_id=${selectedChurch.id}&include_details=true`
+      console.log('UserRolesPage: Making request to:', url)
+
+      const response = await fetch(url)
       const data = await response.json()
 
+      console.log('UserRolesPage: API response:', { status: response.status, data })
+
       if (response.ok) {
-        setUserRoles(data.userChurchRoles || [])
+        const roles = data.userChurchRoles || []
+        console.log('UserRolesPage: Setting user roles:', roles.length, 'roles')
+        setUserRoles(roles)
       } else {
-        setError(data.error || 'Failed to fetch user roles')
+        const errorMsg = data.error || 'Failed to fetch user roles'
+        console.error('UserRolesPage: API error:', errorMsg)
+        setError(errorMsg)
       }
     } catch (error) {
-      console.error('Error fetching user roles:', error)
+      console.error('UserRolesPage: Fetch error:', error)
       setError('Failed to fetch user roles')
     } finally {
       setLoading(false)
@@ -72,10 +86,9 @@ export default function UserRolesPage() {
   }, [selectedChurch])
 
   useEffect(() => {
-    if (selectedChurch) {
-      fetchUserRoles()
-    }
-  }, [selectedChurch, fetchUserRoles])
+    console.log('UserRolesPage: Selected church changed, triggering fetch')
+    fetchUserRoles()
+  }, [fetchUserRoles])
 
   const handleToggleRole = async (roleId: string, currentStatus: boolean) => {
     try {
@@ -130,11 +143,21 @@ export default function UserRolesPage() {
     role.churches?.name?.toLowerCase().includes(searchTerm.toLowerCase())
   )
 
-  if (churchSelectorLoading) {
+  // Show loading only while church context is actually loading
+  if (churchLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-400"></div>
-        <span className="ml-3 text-white/70">Loading churches...</span>
+      <div className="space-y-6">
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold text-white">User Role Management</h1>
+            <p className="text-white/70 mt-2">View and manage user role assignments across churches</p>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-center py-12">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-400"></div>
+          <span className="ml-3 text-white/70">Loading churches...</span>
+        </div>
       </div>
     )
   }
@@ -147,27 +170,39 @@ export default function UserRolesPage() {
           <p className="text-white/70 mt-2">View and manage user role assignments across churches</p>
         </div>
         
-        <Button 
+        <GlassButton
           onClick={() => window.location.href = '/admin/users'}
-          className="bg-green-600 hover:bg-green-700"
+          variant="success"
         >
           <Plus className="w-4 h-4 mr-2" />
           Grant New Role
-        </Button>
+        </GlassButton>
       </div>
 
-      {/* Church Selector */}
+      {/* Church Selection Info */}
       <GlassCard variant="default">
         <GlassCardHeader>
-          <GlassCardTitle>Select Church</GlassCardTitle>
-          <GlassCardDescription>Choose a church to view user role assignments</GlassCardDescription>
+          <GlassCardTitle>Current Church</GlassCardTitle>
+          <GlassCardDescription>User role assignments for the selected church (use header selector to change)</GlassCardDescription>
         </GlassCardHeader>
         <GlassCardContent>
-          <ChurchSelector
-            currentChurch={selectedChurch}
-            onChurchChange={setSelectedChurch}
-            onLoadingChange={(loading) => setChurchSelectorLoading(loading)}
-          />
+          {selectedChurch ? (
+            <div className="flex items-center space-x-3 px-3 py-2 bg-slate-800 rounded-md">
+              <Building2 className="w-5 h-5 text-blue-400" />
+              <div className="flex-1 min-w-0">
+                <div className="text-white font-medium truncate">{selectedChurch.name}</div>
+                <div className="flex items-center space-x-2 mt-1">
+                  <Badge className="bg-blue-100 text-blue-800">{selectedChurch.type}</Badge>
+                  <Badge className="bg-green-100 text-green-800">{selectedChurch.role?.display_name || 'No Role'}</Badge>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center space-x-2 px-3 py-2 bg-slate-800 rounded-md">
+              <Building2 className="w-4 h-4 text-gray-400" />
+              <span className="text-white/70 text-sm">No church selected - use the header selector to choose a church</span>
+            </div>
+          )}
         </GlassCardContent>
       </GlassCard>
 
@@ -175,12 +210,12 @@ export default function UserRolesPage() {
         <>
           {/* Search Bar */}
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 z-10" />
             <Input
               placeholder="Search by user, role, or church..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 bg-slate-800 border-slate-700 text-white"
+              className="pl-10 bg-white/10 backdrop-blur-xl border-white/20 text-white placeholder:text-white/50 rounded-xl transition-all duration-300 hover:bg-white/15 focus:bg-white/15 focus:border-white/30"
             />
           </div>
 
@@ -282,12 +317,12 @@ export default function UserRolesPage() {
                         </TableCell>
                         <TableCell>
                           <div className="flex gap-1">
-                            <Button
+                            <GlassButton
                               variant="ghost"
                               size="sm"
                               onClick={() => handleToggleRole(role.id, role.is_active)}
-                              className={role.is_active 
-                                ? "text-red-400 hover:text-red-300" 
+                              className={role.is_active
+                                ? "text-red-400 hover:text-red-300"
                                 : "text-green-400 hover:text-green-300"
                               }
                             >
@@ -296,7 +331,7 @@ export default function UserRolesPage() {
                               ) : (
                                 <Plus className="w-4 h-4" />
                               )}
-                            </Button>
+                            </GlassButton>
                           </div>
                         </TableCell>
                       </TableRow>
@@ -327,17 +362,10 @@ export default function UserRolesPage() {
           <GlassCardContent>
             <div className="text-center py-12">
               <UserCog className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-xl font-medium text-white mb-2">No Church Available</h3>
+              <h3 className="text-xl font-medium text-white mb-2">Select a Church</h3>
               <p className="text-gray-400 mb-4">
-                You don&apos;t have access to any churches yet. Contact your system administrator to be granted access.
+                Please select a church from the selector above to view and manage user role assignments.
               </p>
-              <Button
-                onClick={() => window.location.reload()}
-                variant="outline"
-                className="text-blue-400 border-blue-400 hover:bg-blue-400 hover:text-white"
-              >
-                Refresh Page
-              </Button>
             </div>
           </GlassCardContent>
         </GlassCard>

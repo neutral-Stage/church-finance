@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
+import { useChurch } from '@/contexts/ChurchContext'
 import { Button } from '@/components/ui/button'
 import { GlassButton } from '@/components/ui/glass-button'
 import { Input } from '@/components/ui/input'
@@ -56,6 +57,7 @@ interface FundsClientProps {
 
 export default function FundsClient({ initialData }: FundsClientProps) {
   const { hasRole } = useAuth()
+  const { selectedChurch } = useChurch()
   const [funds, setFunds] = useState<Fund[]>(initialData.funds)
   const [recentTransactions, setRecentTransactions] = useState<TransactionWithFund[]>(initialData.recentTransactions)
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -256,7 +258,10 @@ export default function FundsClient({ initialData }: FundsClientProps) {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(transferForm)
+        body: JSON.stringify({
+          ...transferForm,
+          church_id: selectedChurch?.id
+        })
       })
       
       if (!response.ok) {

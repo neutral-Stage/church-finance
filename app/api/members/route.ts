@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient, createAdminClient } from '@/lib/supabase-server'
 import type { Database } from '@/types/database'
 
+// Force dynamic rendering since this route uses cookies for authentication
+export const dynamic = 'force-dynamic';
+
 type MemberInsert = Database['public']['Tables']['members']['Insert']
 type MemberUpdate = Database['public']['Tables']['members']['Update']
 
@@ -48,7 +51,7 @@ export async function POST(request: NextRequest) {
     
     const body = await request.json()
     
-    const { name, phone, fellowship_name, job, location }: MemberInsert = body
+    const { name, phone, fellowship_name, job, location, church_id } = body
     
     if (!name?.trim()) {
       return NextResponse.json(
@@ -56,15 +59,24 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
+
+    // Validate church_id is provided
+    if (!church_id) {
+      return NextResponse.json(
+        { error: 'Church context is required. Please select a church.' },
+        { status: 400 }
+      )
+    }
     
-    const { data: member, error } = await adminSupabase
-      .from('members')
+    const { data: member, error } = await (adminSupabase
+      .from('members') as any)
       .insert({
         name: name.trim(),
         phone: phone?.trim() || null,
         fellowship_name: fellowship_name?.trim() || null,
         job: job?.trim() || null,
         location: location?.trim() || null,
+        church_id: church_id,
         created_at: new Date().toISOString()
       })
       .select()
@@ -127,8 +139,8 @@ export async function PUT(request: NextRequest) {
     }
     
     // Update member
-    const { data: member, error: updateError } = await adminSupabase
-      .from('members')
+    const { data: member, error: updateError } = await (adminSupabase
+      .from('members') as any)
       .update({
         ...updates,
         updated_at: new Date().toISOString()

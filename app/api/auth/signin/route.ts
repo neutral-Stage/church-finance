@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase-server'
+import { safeSelect } from '@/lib/supabase-helpers'
+
+// Force dynamic rendering since this route uses cookies for authentication
+export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
   console.log('\n=== NEW SIGNIN ATTEMPT ===')
@@ -47,16 +51,15 @@ export async function POST(request: NextRequest) {
     // Fetch user role from database to include in response
     let userRole = 'viewer' // fallback
     try {
-      const { data: userData, error: userError } = await supabase
-        .from("users")
-        .select("role, full_name")
-        .eq("id", data.user.id)
-        .single()
+      const userDataResult = await safeSelect(supabase, "users", {
+        columns: "role, full_name",
+        filter: { column: "id", value: data.user.id }
+      });
 
-      if (userError) {
-        console.error('Error fetching user role during signin:', userError.message)
-      } else if (userData) {
-        userRole = userData.role
+      if (userDataResult.error) {
+        console.error('Error fetching user role during signin:', userDataResult.error.message)
+      } else if (userDataResult.data && userDataResult.data.length > 0) {
+        userRole = userDataResult.data[0].role || 'viewer'
         console.log('User role fetched during signin:', userRole)
       }
     } catch (error) {

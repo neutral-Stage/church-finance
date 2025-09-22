@@ -5,6 +5,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
+import { useChurch } from '@/contexts/ChurchContext'
 import { Button } from '@/components/ui/button'
 import { GlassButton } from '@/components/ui/glass-button'
 import { Input } from '@/components/ui/input'
@@ -20,7 +21,7 @@ import { FullScreenLoader } from '@/components/ui/loader'
 import { useConfirmationDialog } from '@/components/ui/confirmation-dialog'
 
 import { formatCurrency, formatDate, formatDateForInput } from '@/lib/utils'
-import { Plus, MoreHorizontal, Edit, Trash2, Calendar, Users, DollarSign, TrendingUp } from 'lucide-react'
+import { Plus, MoreHorizontal, Edit, Trash2, Calendar, Users, DollarSign, TrendingUp, Building2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { retrySupabaseQuery, logNetworkError, isNetworkError } from '@/lib/retry-utils'
 import type { Database } from '@/types/database'
@@ -55,6 +56,7 @@ const OFFERING_TYPES = [
 
 export default function OfferingsPage() {
   const { hasRole } = useAuth()
+  const { selectedChurch } = useChurch()
   const [offerings, setOfferings] = useState<OfferingWithFund[]>([])
   const [funds, setFunds] = useState<Fund[]>([])
   const [loading, setLoading] = useState(true)
@@ -92,6 +94,11 @@ export default function OfferingsPage() {
   }
 
   const fetchData = useCallback(async (retryCount = 0) => {
+    if (!selectedChurch) {
+      setLoading(false)
+      return
+    }
+
     try {
       setLoading(true)
 
@@ -106,6 +113,7 @@ export default function OfferingsPage() {
                 member:members(*)
               )
             `)
+            .eq('church_id', selectedChurch.id)
             .order('service_date', { ascending: false })
           return { data: result.data, error: result.error }
         },
@@ -132,12 +140,13 @@ export default function OfferingsPage() {
         member: offering.offering_member?.member || null
       })) || []
 
-      // Fetch funds
+      // Fetch funds for the selected church
       const { data: fundsData, error: fundsError } = await retrySupabaseQuery<Fund[]>(
         async () => {
           const result = await supabase
             .from('funds')
             .select('*')
+            .eq('church_id', selectedChurch.id)
             .order('name')
           return { data: result.data, error: result.error }
         },
@@ -170,7 +179,7 @@ export default function OfferingsPage() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [selectedChurch])
 
   useEffect(() => {
     fetchData()
@@ -216,7 +225,8 @@ export default function OfferingsPage() {
         amount: amount,
         fund_allocations: fundAllocations,
         notes: form.notes || null,
-        member_id: form.selected_member && form.selected_member !== 'none' ? form.selected_member : null
+        member_id: form.selected_member && form.selected_member !== 'none' ? form.selected_member : null,
+        church_id: selectedChurch?.id
       }
 
       if (editingOffering) {
@@ -232,7 +242,8 @@ export default function OfferingsPage() {
             type: requestData.type,
             amount: requestData.amount,
             fund_allocations: requestData.fund_allocations,
-            notes: requestData.notes
+            notes: requestData.notes,
+            church_id: requestData.church_id
           })
           .eq('id', editingOffering.id)
 
@@ -310,7 +321,8 @@ export default function OfferingsPage() {
             type: requestData.type,
             amount: requestData.amount,
             fund_allocations: requestData.fund_allocations,
-            notes: requestData.notes
+            notes: requestData.notes,
+            church_id: requestData.church_id
           })
           .select()
           .single()
@@ -534,6 +546,24 @@ export default function OfferingsPage() {
 
   if (loading) {
     return <FullScreenLoader message="Loading offerings..." />
+  }
+
+  if (!selectedChurch) {
+    return (
+      <div className="min-h-screen relative overflow-hidden">
+        <div className="absolute inset-0 overflow-hidden">
+          <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-gradient-to-r from-purple-400/30 to-pink-400/30 rounded-full blur-3xl animate-pulse"></div>
+          <div className="absolute top-3/4 right-1/4 w-96 h-96 bg-gradient-to-r from-blue-400/20 to-purple-400/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }}></div>
+        </div>
+        <div className="relative z-10 container mx-auto p-6 flex items-center justify-center min-h-screen">
+          <div className="glass-card p-8 text-center max-w-md">
+            <Building2 className="h-16 w-16 text-white/50 mx-auto mb-4" />
+            <h2 className="text-xl font-semibold text-white mb-2">No Church Selected</h2>
+            <p className="text-white/70">Please select a church from the header to view offerings and tithes.</p>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (

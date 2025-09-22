@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient, createAdminClient } from '@/lib/supabase-server'
+import { createServices } from '@/lib/type-safe-api'
 import type { Database } from '@/types/database'
+
+// Force dynamic rendering since this route uses cookies for authentication
+export const dynamic = 'force-dynamic';
 
 type TransactionInsert = Database['public']['Tables']['transactions']['Insert']
 type TransactionUpdate = Database['public']['Tables']['transactions']['Update']
@@ -9,54 +13,66 @@ type TransactionUpdate = Database['public']['Tables']['transactions']['Update']
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createServerClient()
+    const services = createServices(supabase as any)
     const { searchParams } = new URL(request.url)
-    
-    const fundId = searchParams.get('fund_id')
-    const type = searchParams.get('type')
-    const startDate = searchParams.get('start_date')
-    const endDate = searchParams.get('end_date')
-    const limit = searchParams.get('limit')
-    
-    let query = supabase
-      .from('transactions')
-      .select(`
-        *,
-        funds(name)
-      `)
-      .order('created_at', { ascending: false })
-    
-    // Apply filters
-    if (fundId) {
-      query = query.eq('fund_id', fundId)
-    }
-    
-    if (type) {
-      query = query.eq('type', type)
-    }
-    
-    if (startDate) {
-      query = query.gte('created_at', startDate)
-    }
-    
-    if (endDate) {
-      query = query.lte('created_at', endDate)
-    }
-    
-    if (limit) {
-      query = query.limit(parseInt(limit))
-    }
-    
-    const { data: transactions, error } = await query
-    
-    if (error) {
+
+    // Get church_id from query params (automatically added by church-aware API client)
+    const churchId = searchParams.get('church_id')
+    if (!churchId) {
       return NextResponse.json(
-        { error: 'Failed to fetch transactions' },
+        { error: 'Church context is required. Please select a church.' },
+        { status: 400 }
+      )
+    }
+
+    // Validate user has access to this church
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) {
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      )
+    }
+
+    // Check if user has access to the specified church
+    const { data: userChurch, error: churchError } = await supabase
+      .from('user_church_roles')
+      .select('church_id')
+      .eq('user_id', user.id)
+      .eq('church_id', churchId)
+      .single()
+
+    if (churchError || !userChurch) {
+      return NextResponse.json(
+        { error: 'You do not have access to this church' },
+        { status: 403 }
+      )
+    }
+
+    const options = {
+      fundId: searchParams.get('fund_id') || undefined,
+      churchId: churchId,
+      type: searchParams.get('type') || undefined,
+      startDate: searchParams.get('start_date') || undefined,
+      endDate: searchParams.get('end_date') || undefined,
+      limit: searchParams.get('limit') ? parseInt(searchParams.get('limit')!) : undefined,
+    }
+
+    const result = await services.transactions.getTransactions(options)
+
+    if (!result.success) {
+      return NextResponse.json(
+        { error: result.error },
         { status: 500 }
       )
     }
-    
-    return NextResponse.json({ transactions })
-  } catch {
+
+    return NextResponse.json({
+      transactions: result.data,
+      success: true
+    })
+  } catch (error) {
+    console.error('Transactions API error:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -67,111 +83,74 @@ export async function GET(request: NextRequest) {
 // POST /api/transactions - Create a new transaction
 export async function POST(request: NextRequest) {
   try {
-    const adminSupabase = createAdminClient()
-    
-    // Check authentication using custom cookie system
-    const authCookie = request.cookies.get('church-auth-minimal')
-    if (!authCookie?.value) {
+    const supabase = await createServerClient()
+    const services = createServices(supabase as any)
+
+    const body = await request.json()
+
+    // Get church_id from body (automatically added by church-aware API client)
+    const churchId = body.church_id
+    if (!churchId) {
       return NextResponse.json(
-        { error: 'Unauthorized' },
+        { error: 'Church context is required. Please select a church.' },
+        { status: 400 }
+      )
+    }
+
+    // Validate user has access to this church
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) {
+      return NextResponse.json(
+        { error: 'Authentication required' },
         { status: 401 }
       )
     }
 
-    let userId: string
-    try {
-      const authData = JSON.parse(authCookie.value)
-      if (!authData.user_id || authData.expires_at <= Math.floor(Date.now() / 1000)) {
-        return NextResponse.json(
-          { error: 'Unauthorized' },
-          { status: 401 }
-        )
-      }
-      userId = authData.user_id
-    } catch {
-      return NextResponse.json(
-        { error: 'Invalid authentication' },
-        { status: 401 }
-      )
-    }
-    
-    const body = await request.json()
-    
-    const { 
-      type, 
-      amount, 
-      description, 
-      fund_id, 
-      category,
-      payment_method,
-      transaction_date,
-      receipt_number
-    }: TransactionInsert = body
-    
-    if (!type || !amount || !fund_id || !description || !category || !payment_method || !transaction_date) {
-      return NextResponse.json(
-        { error: 'Type, amount, fund_id, description, category, payment_method, and transaction_date are required' },
-        { status: 400 }
-      )
-    }
-    
-    if (amount <= 0) {
-      return NextResponse.json(
-        { error: 'Amount must be greater than 0' },
-        { status: 400 }
-      )
-    }
-    
-    // Verify fund exists
-    const { data: fund, error: fundError } = await adminSupabase
-      .from('funds')
-      .select('id, current_balance')
-      .eq('id', fund_id)
+    // Check if user has access to the specified church
+    const { data: userChurch, error: churchError } = await supabase
+      .from('user_church_roles')
+      .select('church_id, roles(name)')
+      .eq('user_id', user.id)
+      .eq('church_id', churchId)
       .single()
-    
-    if (fundError || !fund) {
+
+    if (churchError || !userChurch) {
       return NextResponse.json(
-        { error: 'Fund not found' },
-        { status: 404 }
+        { error: 'You do not have access to this church' },
+        { status: 403 }
       )
     }
-    
-    // For expense transactions, check if fund has sufficient balance
-    if (type === 'expense' && fund.current_balance < amount) {
+
+    const transactionData = {
+      type: body.type,
+      amount: body.amount,
+      description: body.description,
+      fund_id: body.fund_id,
+      category: body.category,
+      payment_method: body.payment_method,
+      transaction_date: body.transaction_date,
+      receipt_number: body.receipt_number || null,
+      church_id: churchId
+    }
+
+    const result = await services.transactions.createTransaction(transactionData)
+
+    if (!result.success) {
+      const status = result.error?.includes('Unauthorized') ? 401 :
+                    result.error?.includes('Insufficient') ? 400 :
+                    result.error?.includes('not found') ? 404 : 500
       return NextResponse.json(
-        { error: 'Insufficient funds' },
-        { status: 400 }
+        { error: result.error },
+        { status }
       )
     }
-    
-    // Create transaction
-    const { data: transaction, error: transactionError } = await adminSupabase
-      .from('transactions')
-      .insert({
-        type,
-        amount,
-        description,
-        fund_id,
-        category,
-        payment_method,
-        transaction_date,
-        receipt_number,
-        created_by: userId
-      })
-      .select()
-      .single()
-    
-    if (transactionError) {
-      console.error('Transaction creation error:', transactionError)
-      return NextResponse.json(
-        { error: 'Failed to create transaction', details: transactionError.message },
-        { status: 500 }
-      )
-    }
-    
-    // Fund balance is automatically updated by database trigger
-    return NextResponse.json({ transaction }, { status: 201 })
-  } catch {
+
+    return NextResponse.json({
+      transaction: result.data,
+      success: true
+    }, { status: 201 })
+  } catch (error) {
+    console.error('Transaction creation error:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -220,8 +199,8 @@ export async function PATCH(request: NextRequest) {
     }
     
     // Update transaction
-    const { data: transaction, error: updateError } = await adminSupabase
-      .from('transactions')
+    const { data: transaction, error: updateError } = await (adminSupabase
+      .from('transactions') as any)
       .update(updates)
       .eq('id', id)
       .select()
@@ -239,7 +218,7 @@ export async function PATCH(request: NextRequest) {
       const { data: fund, error: fundError } = await supabase
         .from('funds')
         .select('current_balance')
-        .eq('id', currentTransaction.fund_id)
+        .eq('id', (currentTransaction as any).fund_id)
         .single()
       
       if (fundError || !fund) {
@@ -250,21 +229,21 @@ export async function PATCH(request: NextRequest) {
       }
       
       // Reverse old transaction effect
-      const oldBalanceChange = currentTransaction.type === 'income' 
-        ? -currentTransaction.amount 
-        : currentTransaction.amount
-      
-      // Apply new transaction effect
-      const newType = updates.type || currentTransaction.type
-      const newAmount = updates.amount || currentTransaction.amount
-      const newBalanceChange = newType === 'income' ? newAmount : -newAmount
-      
-      const finalBalance = fund.current_balance + oldBalanceChange + newBalanceChange
+      const oldBalanceChange = (currentTransaction as any).type === 'income'
+        ? -(currentTransaction as any).amount
+        : (currentTransaction as any).amount
 
-      const { error: balanceUpdateError } = await adminSupabase
-        .from('funds')
+      // Apply new transaction effect
+      const newType = updates.type || (currentTransaction as any).type
+      const newAmount = updates.amount || (currentTransaction as any).amount
+      const newBalanceChange = newType === 'income' ? newAmount : -newAmount
+
+      const finalBalance = (fund as any).current_balance + oldBalanceChange + newBalanceChange
+
+      const { error: balanceUpdateError } = await (adminSupabase
+        .from('funds') as any)
         .update({ current_balance: finalBalance })
-        .eq('id', currentTransaction.fund_id)
+        .eq('id', (currentTransaction as any).fund_id)
       
       if (balanceUpdateError) {
         return NextResponse.json(
@@ -339,7 +318,7 @@ export async function DELETE(request: NextRequest) {
     const { data: fund, error: fundError } = await supabase
       .from('funds')
       .select('current_balance')
-      .eq('id', transaction.fund_id)
+      .eq('id', (transaction as any).fund_id)
       .single()
     
     if (fundError || !fund) {
@@ -349,14 +328,14 @@ export async function DELETE(request: NextRequest) {
       )
     }
     
-    const balanceChange = transaction.type === 'income' 
-      ? -transaction.amount 
-      : transaction.amount
-    
-    const { error: balanceUpdateError } = await adminSupabase
-      .from('funds')
-      .update({ current_balance: fund.current_balance + balanceChange })
-      .eq('id', transaction.fund_id)
+    const balanceChange = (transaction as any).type === 'income'
+      ? -(transaction as any).amount
+      : (transaction as any).amount
+
+    const { error: balanceUpdateError } = await (adminSupabase
+      .from('funds') as any)
+      .update({ current_balance: (fund as any).current_balance + balanceChange })
+      .eq('id', (transaction as any).fund_id)
     
     if (balanceUpdateError) {
       return NextResponse.json(

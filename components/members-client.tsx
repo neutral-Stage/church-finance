@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { createAuthenticatedClient } from '@/lib/supabase'
+import { useChurch } from '@/contexts/ChurchContext'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -34,6 +35,7 @@ interface MembersClientProps {
 }
 
 export function MembersClient({ initialData, permissions }: MembersClientProps) {
+  const { selectedChurch } = useChurch()
   const [members, setMembers] = useState<Member[]>(initialData)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingMember, setEditingMember] = useState<Member | null>(null)
@@ -135,7 +137,10 @@ export function MembersClient({ initialData, permissions }: MembersClientProps) 
           headers: {
             'Content-Type': 'application/json'
           },
-          body: JSON.stringify(formData)
+          body: JSON.stringify({
+            ...formData,
+            church_id: selectedChurch?.id
+          })
         })
         
         if (!response.ok) {

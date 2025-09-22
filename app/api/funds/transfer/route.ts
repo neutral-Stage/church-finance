@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient, createAdminClient } from '@/lib/supabase-server'
 
+// Force dynamic rendering since this route uses cookies for authentication
+export const dynamic = 'force-dynamic';
+
 // POST /api/funds/transfer - Transfer funds between funds
 export async function POST(request: NextRequest) {
   try {
@@ -17,12 +20,20 @@ export async function POST(request: NextRequest) {
     }
     
     const body = await request.json()
-    const { from_fund_id, to_fund_id, amount, description } = body
+    const { from_fund_id, to_fund_id, amount, description, church_id } = body
     
     // Validate required fields
     if (!from_fund_id || !to_fund_id || !amount || !description) {
       return NextResponse.json(
         { error: 'All fields are required: from_fund_id, to_fund_id, amount, description' },
+        { status: 400 }
+      )
+    }
+
+    // Validate church_id is provided
+    if (!church_id) {
+      return NextResponse.json(
+        { error: 'Church context is required. Please select a church.' },
         { status: 400 }
       )
     }
@@ -69,7 +80,7 @@ export async function POST(request: NextRequest) {
     }
     
     // Check if source fund has sufficient balance
-    if (fromFund.current_balance < amount) {
+    if ((fromFund as any).current_balance < amount) {
       return NextResponse.json(
         { error: 'Insufficient balance in source fund' },
         { status: 400 }
@@ -77,10 +88,10 @@ export async function POST(request: NextRequest) {
     }
     
     // Update both funds
-    const { error: updateFromFundError } = await adminSupabase
-      .from('funds')
-      .update({ 
-        current_balance: fromFund.current_balance - amount 
+    const { error: updateFromFundError } = await (adminSupabase
+      .from('funds') as any)
+      .update({
+        current_balance: (fromFund as any).current_balance - amount
       })
       .eq('id', from_fund_id)
     
@@ -91,19 +102,19 @@ export async function POST(request: NextRequest) {
       )
     }
     
-    const { error: updateToFundError } = await adminSupabase
-      .from('funds')
-      .update({ 
-        current_balance: toFund.current_balance + amount 
+    const { error: updateToFundError } = await (adminSupabase
+      .from('funds') as any)
+      .update({
+        current_balance: (toFund as any).current_balance + amount
       })
       .eq('id', to_fund_id)
     
     if (updateToFundError) {
       // Rollback the first update
-      await adminSupabase
-        .from('funds')
-        .update({ 
-          current_balance: fromFund.current_balance 
+      await (adminSupabase
+        .from('funds') as any)
+        .update({
+          current_balance: (fromFund as any).current_balance
         })
         .eq('id', from_fund_id)
       
@@ -117,18 +128,19 @@ export async function POST(request: NextRequest) {
     const currentDate = new Date().toISOString()
     
     // Create expense transaction for source fund
-    const { error: expenseTransactionError } = await adminSupabase
-      .from('transactions')
+    const { error: expenseTransactionError } = await (adminSupabase
+      .from('transactions') as any)
       .insert({
         type: 'expense',
         amount: amount,
-        description: `Transfer to ${toFund.name}: ${description}`,
+        description: `Transfer to ${(toFund as any).name}: ${description}`,
         category: 'Fund Transfer',
         payment_method: 'bank',
         fund_id: from_fund_id,
         transaction_date: currentDate,
         created_by: user.id,
-        receipt_number: `TRANSFER-${Date.now()}-OUT`
+        receipt_number: `TRANSFER-${Date.now()}-OUT`,
+        church_id: church_id
       })
     
     if (expenseTransactionError) {
@@ -136,29 +148,30 @@ export async function POST(request: NextRequest) {
     }
     
     // Create income transaction for destination fund
-    const { error: incomeTransactionError } = await adminSupabase
-      .from('transactions')
+    const { error: incomeTransactionError } = await (adminSupabase
+      .from('transactions') as any)
       .insert({
         type: 'income',
         amount: amount,
-        description: `Transfer from ${fromFund.name}: ${description}`,
+        description: `Transfer from ${(fromFund as any).name}: ${description}`,
         category: 'Fund Transfer',
         payment_method: 'bank',
         fund_id: to_fund_id,
         transaction_date: currentDate,
         created_by: user.id,
-        receipt_number: `TRANSFER-${Date.now()}-IN`
+        receipt_number: `TRANSFER-${Date.now()}-IN`,
+        church_id: church_id
       })
     
     if (incomeTransactionError) {
       console.error('Failed to create income transaction:', incomeTransactionError)
     }
     
-    return NextResponse.json({ 
+    return NextResponse.json({
       message: 'Fund transfer completed successfully',
       transfer: {
-        from_fund: fromFund.name,
-        to_fund: toFund.name,
+        from_fund: (fromFund as any).name,
+        to_fund: (toFund as any).name,
         amount,
         description
       }

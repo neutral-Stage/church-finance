@@ -3,6 +3,9 @@ import { getMembersData, checkUserPermissions } from '@/lib/server-data'
 import { MembersClient } from '@/components/members-client'
 import { FullScreenLoader } from '@/components/ui/loader'
 
+// Force dynamic rendering since this page requires server-side authentication
+export const dynamic = 'force-dynamic';
+
 // This is now a Server Component
 export default async function MembersPage() {
   // All data fetching happens on the server

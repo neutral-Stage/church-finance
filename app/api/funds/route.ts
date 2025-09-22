@@ -1,28 +1,44 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient, createAdminClient } from '@/lib/supabase-server'
+import { createServerClient } from '@/lib/supabase-server'
+import { createServices, type ApiResult } from '@/lib/type-safe-api'
 import type { Database } from '@/types/database'
+
+// Force dynamic rendering since this route uses cookies for authentication
+export const dynamic = 'force-dynamic';
 
 type FundInsert = Database['public']['Tables']['funds']['Insert']
 
 // GET /api/funds - Get all funds
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const supabase = await createServerClient()
-    
-    const { data: funds, error } = await supabase
-      .from('funds')
-      .select('*')
-      .order('name')
-    
-    if (error) {
+    const services = createServices(supabase as any)
+
+    const { searchParams } = new URL(request.url)
+    const churchId = searchParams.get('church_id')
+    const useSummary = searchParams.get('summary') === 'true'
+
+    let result: ApiResult<any>
+
+    if (useSummary) {
+      result = await services.funds.getFundSummaries(churchId || undefined)
+    } else {
+      result = await services.funds.getFunds(churchId || undefined)
+    }
+
+    if (!result.success) {
       return NextResponse.json(
-        { error: 'Failed to fetch funds' },
+        { error: result.error },
         { status: 500 }
       )
     }
-    
-    return NextResponse.json({ funds })
-  } catch {
+
+    return NextResponse.json({
+      funds: result.data,
+      success: true
+    })
+  } catch (error) {
+    console.error('Funds API error:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -34,50 +50,43 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createServerClient()
-    const adminSupabase = createAdminClient()
-    
-    // Check authentication
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    if (authError || !user) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
-    }
-    
+    const services = createServices(supabase as any)
+
     const body = await request.json()
-    
-    const { name, description, target_amount, fund_type, current_balance = 0 }: FundInsert & { description?: string; target_amount?: number; fund_type?: string } = body
-    
-    if (!name) {
+
+    const fundData: FundInsert = {
+      name: body.name,
+      description: body.description || null,
+      target_amount: body.target_amount || null,
+      fund_type: body.fund_type || null,
+      current_balance: body.current_balance || 0,
+      church_id: body.church_id || null, // Will be auto-set by service if null
+      is_active: true
+    }
+
+    if (!fundData.name) {
       return NextResponse.json(
         { error: 'Fund name is required' },
         { status: 400 }
       )
     }
-    
-    const { data, error } = await adminSupabase
-      .from('funds')
-      .insert({
-        name,
-        description: description || null,
-        target_amount: target_amount || null,
-        fund_type: fund_type || null,
-        current_balance,
-        created_by: user.id
-      })
-      .select()
-      .single()
-    
-    if (error) {
+
+    const result = await services.funds.createFund(fundData)
+
+    if (!result.success) {
+      const status = result.error?.includes('Unauthorized') ? 401 : 500
       return NextResponse.json(
-        { error: 'Failed to create fund' },
-        { status: 500 }
+        { error: result.error },
+        { status }
       )
     }
-    
-    return NextResponse.json({ fund: data }, { status: 201 })
-  } catch {
+
+    return NextResponse.json({
+      fund: result.data,
+      success: true
+    }, { status: 201 })
+  } catch (error) {
+    console.error('Fund creation error:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

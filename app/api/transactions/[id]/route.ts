@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase-server'
 import type { Database } from '@/types/database'
 
+// Force dynamic rendering since this route uses cookies for authentication
+export const dynamic = 'force-dynamic';
+
 type TransactionUpdate = Database['public']['Tables']['transactions']['Update']
 
 // PUT /api/transactions/[id] - Update a transaction
@@ -65,8 +68,8 @@ export async function PUT(
     }
     
     // Update transaction
-    const { data: transaction, error: updateError } = await adminSupabase
-      .from('transactions')
+    const { data: transaction, error: updateError } = await (adminSupabase
+      .from('transactions') as any)
       .update(transactionData)
       .eq('id', id)
       .select()

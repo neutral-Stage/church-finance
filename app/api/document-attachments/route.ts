@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient, createAdminClient } from '@/lib/supabase-server';
+import type { Database } from '@/types/database';
 
 const adminSupabase = createAdminClient();
 
@@ -108,31 +109,35 @@ export async function POST(request: NextRequest) {
     }
 
     // Create the document attachment
-    const { data: attachment, error: attachmentError } = await adminSupabase
-      .from('document_attachments')
-      .insert({
-        bill_id: bill_id || null,
-        ledger_entry_id: ledger_entry_id || null,
-        ledger_subgroup_id: ledger_subgroup_id || null,
-        file_name,
-        file_size: parseInt(file_size),
-        file_type: file_type || null,
-        mime_type: mime_type || null,
-        storage_path,
-        storage_bucket,
-        title: title || file_name,
-        description: description || null,
-        category,
-        is_primary,
-        is_confidential,
-        tags,
-        version,
-        metadata,
-        uploaded_by: user.id,
-        created_at: new Date().toISOString(),
-      })
+    const insertData = {
+      bill_id: bill_id || null,
+      ledger_entry_id: ledger_entry_id || null,
+      ledger_subgroup_id: ledger_subgroup_id || null,
+      file_name,
+      file_size: parseInt(file_size),
+      file_type: file_type || null,
+      mime_type: mime_type || null,
+      storage_path,
+      storage_bucket,
+      title: title || file_name,
+      description: description || null,
+      category,
+      is_primary,
+      is_confidential,
+      tags,
+      version,
+      metadata,
+      uploaded_by: user.id,
+      created_at: new Date().toISOString(),
+    } as Database['public']['Tables']['document_attachments']['Insert'];
+
+    const { data: attachmentResult, error: attachmentError } = await (adminSupabase
+      .from('document_attachments') as any)
+      .insert(insertData)
       .select()
       .single();
+
+    const attachment = attachmentResult;
 
     if (attachmentError) {
       console.error('Error creating document attachment:', attachmentError);
@@ -181,22 +186,24 @@ export async function PUT(request: NextRequest) {
     }
 
     // Update the document attachment
-    const updateData: Record<string, unknown> = {};
+    const updateData: Database['public']['Tables']['document_attachments']['Update'] = {};
     if (title !== undefined) updateData.title = title;
     if (description !== undefined) updateData.description = description;
     if (category !== undefined) updateData.category = category;
     if (is_primary !== undefined) updateData.is_primary = is_primary;
     if (is_confidential !== undefined) updateData.is_confidential = is_confidential;
     if (tags !== undefined) updateData.tags = tags;
-    if (metadata !== undefined) updateData.metadata = metadata;
+    if (metadata !== undefined) (updateData as any).metadata = metadata;
     updateData.updated_at = new Date().toISOString();
 
-    const { data: attachment, error: updateError } = await adminSupabase
-      .from('document_attachments')
+    const { data: attachmentResult, error: updateError } = await (adminSupabase
+      .from('document_attachments') as any)
       .update(updateData)
       .eq('id', id)
       .select()
       .single();
+
+    const attachment = attachmentResult;
 
     if (updateError) {
       console.error('Error updating document attachment:', updateError);
@@ -236,8 +243,8 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Check if attachment exists
-    const { data: existingAttachment, error: fetchError } = await adminSupabase
-      .from('document_attachments')
+    const { data: existingAttachment, error: fetchError } = await (adminSupabase
+      .from('document_attachments') as any)
       .select('*')
       .eq('id', id)
       .single();

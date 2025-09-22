@@ -130,7 +130,7 @@ export default function ReportsClient({ initialData, initialDateRange }: Reports
       .reduce((sum, a) => sum + a.amount, 0)
 
     const fundBalances = reportData.funds.reduce((acc, fund) => {
-      acc[fund.name] = fund.current_balance
+      acc[fund.name] = fund.current_balance || 0
       return acc
     }, {} as { [key: string]: number })
 
@@ -213,7 +213,7 @@ export default function ReportsClient({ initialData, initialDateRange }: Reports
           offering.type,
           offering.amount.toString(),
           fund?.name || 'Multiple Funds',
-          (offering.contributors_count || 0).toString(),
+          '0', // Contributors count not available
           offering.notes || ''
         ])
       })
@@ -233,7 +233,7 @@ export default function ReportsClient({ initialData, initialDateRange }: Reports
           bill.category,
           bill.amount.toString(),
           formatDate(bill.due_date),
-          bill.status,
+          bill.status || 'pending',
           bill.frequency || 'No',
           fund?.name || 'Unknown'
         ])
@@ -250,13 +250,13 @@ export default function ReportsClient({ initialData, initialDateRange }: Reports
       reportData.advances.forEach(advance => {
         const fund = reportData.funds.find(f => f.id === advance.fund_id)
         advancesData.push([
-          formatDate(advance.created_at),
+          formatDate(advance.created_at || ''),
           advance.recipient_name,
           advance.purpose,
           advance.amount.toString(),
-          advance.amount_returned.toString(),
-          (advance.amount - advance.amount_returned).toString(),
-          advance.status,
+          (advance.amount_returned || 0).toString(),
+          (advance.amount - (advance.amount_returned || 0)).toString(),
+          advance.status || 'unknown',
           formatDate(advance.expected_return_date),
           fund?.name || 'Unknown'
         ])
@@ -446,10 +446,10 @@ export default function ReportsClient({ initialData, initialDateRange }: Reports
                   </div>
                   <div className="text-right">
                     <div className="text-lg font-bold text-white/90">
-                      <AnimatedCounter value={fund.current_balance} prefix="৳" />
+                      <AnimatedCounter value={fund.current_balance || 0} prefix="৳" />
                     </div>
-                    <Badge variant={fund.current_balance >= 0 ? 'success' : 'destructive'} className="bg-white/10 backdrop-blur-sm border-white/20">
-                      {fund.current_balance >= 0 ? 'Positive' : 'Negative'}
+                    <Badge variant={(fund.current_balance || 0) >= 0 ? 'success' : 'destructive'} className="bg-white/10 backdrop-blur-sm border-white/20">
+                      {(fund.current_balance || 0) >= 0 ? 'Positive' : 'Negative'}
                     </Badge>
                   </div>
                 </div>
@@ -524,7 +524,7 @@ export default function ReportsClient({ initialData, initialDateRange }: Reports
                       <div>
                         <div className="font-medium text-white/90">{offering.type}</div>
                         <div className="text-sm text-white/60">
-                          {fund?.name || 'Multiple Funds'} • <AnimatedCounter value={offering.contributors_count || 0} className="text-white/80" /> contributors
+                          {fund?.name || 'Multiple Funds'} • <AnimatedCounter value={(offering as any).contributors_count || 0} className="text-white/80" /> contributors
                         </div>
                       </div>
                       <div className="text-right">

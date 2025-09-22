@@ -68,16 +68,16 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
       // Search members
       const { data: members } = await supabase
         .from('members')
-        .select('id, full_name, email, phone')
-        .or(`full_name.ilike.%${searchQuery}%,email.ilike.%${searchQuery}%,phone.ilike.%${searchQuery}%`)
+        .select('id, name, phone')
+        .or(`name.ilike.%${searchQuery}%,phone.ilike.%${searchQuery}%`)
         .limit(5)
 
       if (members) {
-        members.forEach(member => {
+        members.forEach((member: any) => {
           searchResults.push({
             id: member.id,
-            title: member.full_name,
-            description: `${member.email} - ${member.phone}`,
+            title: member.name,
+            description: `Phone: ${member.phone || 'N/A'}`,
             type: 'member',
             url: `/members/${member.id}`,
             metadata: member
@@ -109,17 +109,17 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
       // Search offerings
       const { data: offerings } = await supabase
         .from('offerings')
-        .select('id, offering_type, amount, offering_date, notes')
-        .or(`offering_type.ilike.%${searchQuery}%,notes.ilike.%${searchQuery}%`)
-        .order('offering_date', { ascending: false })
+        .select('id, type, amount, service_date, notes')
+        .or(`type.ilike.%${searchQuery}%,notes.ilike.%${searchQuery}%`)
+        .order('service_date', { ascending: false })
         .limit(5)
 
       if (offerings) {
-        offerings.forEach(offering => {
+        offerings.forEach((offering: any) => {
           searchResults.push({
             id: offering.id,
-            title: offering.offering_type,
-            description: `$${offering.amount} - ${new Date(offering.offering_date).toLocaleDateString()}`,
+            title: offering.type,
+            description: `$${offering.amount} - ${new Date(offering.service_date).toLocaleDateString()}`,
             type: 'offering',
             url: `/offerings/${offering.id}`,
             metadata: offering
@@ -136,7 +136,7 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
         .limit(5)
 
       if (bills) {
-        bills.forEach(bill => {
+        (bills as any).forEach((bill: any) => {
           searchResults.push({
             id: bill.id,
             title: bill.description,
@@ -157,7 +157,7 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
         .limit(5)
 
       if (advances) {
-        advances.forEach(advance => {
+        (advances as any).forEach((advance: any) => {
           searchResults.push({
             id: advance.id,
             title: advance.description,

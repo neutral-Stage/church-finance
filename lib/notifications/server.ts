@@ -106,8 +106,8 @@ export class ServerNotificationService {
    */
   static async markAsRead(notificationId: string): Promise<void> {
     try {
-      const { error } = await this.supabase
-        .from('notifications')
+      const { error } = await (this.supabase
+        .from('notifications') as any)
         .update({ read: true, updated_at: new Date().toISOString() })
         .eq('id', notificationId)
 
@@ -124,8 +124,8 @@ export class ServerNotificationService {
    */
   static async markAllAsRead(userId: string): Promise<void> {
     try {
-      const { error } = await this.supabase
-        .from('notifications')
+      const { error } = await (this.supabase
+        .from('notifications') as any)
         .update({ read: true, updated_at: new Date().toISOString() })
         .eq('user_id', userId)
         .eq('read', false)
@@ -198,8 +198,8 @@ export class ServerNotificationService {
     metadata?: Record<string, unknown>
   }): Promise<Notification> {
     try {
-      const { data, error } = await this.supabase
-        .from('notifications')
+      const { data, error } = await (this.supabase
+        .from('notifications') as any)
         .insert({
           user_id: userId,
           title,
@@ -256,8 +256,8 @@ export class ServerNotificationService {
         created_at: new Date().toISOString()
       }))
 
-      const { data, error } = await this.supabase
-        .from('notifications')
+      const { data, error } = await (this.supabase
+        .from('notifications') as any)
         .insert(notifications)
         .select()
 

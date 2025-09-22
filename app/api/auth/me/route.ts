@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase-server";
+import { safeSelect } from "@/lib/supabase-helpers";
+
+// Force dynamic rendering since this route uses cookies
+export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   try {
@@ -28,10 +32,9 @@ export async function GET(request: NextRequest) {
       let userWithRole = null;
       try {
         const supabase = await createServerClient();
-        const { data: userData, error: userError } = await supabase
-          .from("users")
-          .select("*")
-          .eq("id", authenticatedUser.id);
+        const { data: userData, error: userError } = await safeSelect(supabase, "users", {
+          filter: { column: "id", value: authenticatedUser.id }
+        });
 
         if (userError) {
           console.error("Database error fetching user role:", userError.message);
@@ -63,13 +66,14 @@ export async function GET(request: NextRequest) {
         userWithRole = {
           id: user.id,
           email: user.email,
-          role: user.role,
-          full_name: user.full_name,
-          phone: user.phone,
-          address: user.address,
-          bio: user.bio,
-          avatar_url: user.avatar_url,
+          role: user.role || 'viewer',
+          full_name: user.full_name || '',
+          phone: user.phone || '',
+          address: user.address || '',
+          bio: user.bio || '',
+          avatar_url: user.avatar_url || '',
           created_at: user.created_at,
+          updated_at: user.updated_at
         };
 
         console.log(`User data fetched successfully for ${user.email} with role: ${user.role}`);

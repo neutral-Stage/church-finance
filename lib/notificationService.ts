@@ -101,8 +101,8 @@ export class NotificationService {
    */
   static async markAsRead(notificationId: string) {
     try {
-      const { error } = await supabase
-        .from('notifications')
+      const { error } = await (supabase
+        .from('notifications') as any)
         .update({ read: true, updated_at: new Date().toISOString() })
         .eq('id', notificationId)
 
@@ -117,8 +117,8 @@ export class NotificationService {
    */
   static async markAllAsRead(userId: string) {
     try {
-      const { error } = await supabase
-        .from('notifications')
+      const { error } = await (supabase
+        .from('notifications') as any)
         .update({ read: true, updated_at: new Date().toISOString() })
         .eq('user_id', userId)
         .eq('read', false)
@@ -185,9 +185,9 @@ export class NotificationService {
     metadata?: Record<string, unknown>
   }) {
     try {
-      const { data, error } = await supabase
-        .from('notifications')
-        .insert({
+      const { data, error } = await (supabase
+        .from('notifications') as any)
+        .insert([{
           user_id: userId,
           title,
           message,
@@ -197,7 +197,7 @@ export class NotificationService {
           metadata,
           read: false,
           created_at: new Date().toISOString()
-        })
+        }])
         .select()
         .single()
 

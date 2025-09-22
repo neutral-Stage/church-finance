@@ -298,12 +298,12 @@ export default function UsersPage() {
               )}
 
               <div className="flex gap-2 pt-4">
-                <Button type="submit" className="bg-green-600 hover:bg-green-700">
+                <GlassButton type="submit" variant="success">
                   Grant Role
-                </Button>
-                <Button type="button" variant="outline" onClick={() => setIsGrantRoleDialogOpen(false)}>
+                </GlassButton>
+                <GlassButton type="button" variant="outline" onClick={() => setIsGrantRoleDialogOpen(false)}>
                   Cancel
-                </Button>
+                </GlassButton>
               </div>
             </form>
           </DialogContent>
@@ -328,12 +328,12 @@ export default function UsersPage() {
         <>
           {/* Search Bar */}
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 z-10" />
             <Input
               placeholder="Search users..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 bg-slate-800 border-slate-700 text-white"
+              className="pl-10 bg-white/10 backdrop-blur-xl border-white/20 text-white placeholder:text-white/50 rounded-xl transition-all duration-300 hover:bg-white/15 focus:bg-white/15 focus:border-white/30"
             />
           </div>
 

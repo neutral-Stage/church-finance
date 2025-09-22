@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient, createAdminClient } from '@/lib/supabase-server';
 import { retrySupabaseQuery, logNetworkError } from '@/lib/retry-utils';
 
+// Force dynamic rendering since this route uses cookies for authentication
+export const dynamic = 'force-dynamic';
+
 // GET - Fetch all offerings
 export async function GET(request: NextRequest) {
   try {
@@ -79,7 +82,7 @@ export async function POST(request: NextRequest) {
     const supabase = await createServerClient();
     const adminSupabase = createAdminClient();
     const body = await request.json();
-    const { amount, type, notes, service_date, fund_allocations, member_id } = body;
+    const { amount, type, notes, service_date, fund_allocations, member_id, church_id } = body;
 
     // Check user authentication first
     const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -87,6 +90,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: 'Authentication required' },
         { status: 401 }
+      );
+    }
+
+    // Validate church_id is provided
+    if (!church_id) {
+      return NextResponse.json(
+        { error: 'Church context is required. Please select a church.' },
+        { status: 400 }
       );
     }
 
@@ -136,23 +147,24 @@ export async function POST(request: NextRequest) {
 
         // Create fund_allocations object with fund names as keys
         for (const fund of funds || []) {
-          const allocation = fund_allocations[fund.id];
+          const allocation = fund_allocations[(fund as any).id];
           if (typeof allocation === 'number' && allocation > 0) {
-            processedFundAllocations[fund.name] = allocation;
+            processedFundAllocations[(fund as any).name] = allocation;
           }
         }
       }
     }
 
     // Create the offering record using admin client to bypass RLS
-    const { data: offering, error: offeringError } = await adminSupabase
-      .from('offerings')
+    const { data: offering, error: offeringError } = await (adminSupabase
+      .from('offerings') as any)
       .insert({
         amount: parseFloat(amount),
         type,
         notes: notes || null,
         service_date,
         fund_allocations: processedFundAllocations,
+        church_id: church_id,
       })
       .select()
       .single();
@@ -166,10 +178,10 @@ export async function POST(request: NextRequest) {
 
     // Create member relationship (now required)
     // The unique constraint on offering_id ensures only one member per offering
-    const { error: memberError } = await adminSupabase
-      .from('offering_member')
+    const { error: memberError } = await (adminSupabase
+      .from('offering_member') as any)
       .insert({
-        offering_id: offering.id,
+        offering_id: (offering as any).id,
         member_id: member_id
       });
 
@@ -198,20 +210,21 @@ export async function POST(request: NextRequest) {
           .in('id', fundIds);
 
         for (const fund of funds || []) {
-          const allocation = fund_allocations[fund.id];
+          const allocation = fund_allocations[(fund as any).id];
           if (typeof allocation === 'number' && allocation > 0) {
             try {
               // Create transaction record
-              await adminSupabase
-                .from('transactions')
+              await (adminSupabase
+                .from('transactions') as any)
                 .insert({
                   type: 'income',
                   amount: allocation,
                   description: `Offering: ${type}${notes ? ' - ' + notes : ''}`,
                   category: 'Offering',
                   payment_method: 'cash',
-                  fund_id: fund.id,
-                  transaction_date: service_date
+                  fund_id: (fund as any).id,
+                  transaction_date: service_date,
+                  church_id: church_id
                 });
             } catch {
               // Transaction creation failed, but continue
@@ -270,14 +283,14 @@ export async function PUT(request: NextRequest) {
     }
 
     // Update the offering using admin client
-    const { data: offering, error: updateError } = await adminSupabase
-      .from('offerings')
+    const { data: offering, error: updateError } = await (adminSupabase
+      .from('offerings') as any)
       .update({
-        amount: amount !== undefined ? parseFloat(amount) : currentOffering.amount,
-        type: type || currentOffering.type,
-        notes: notes !== undefined ? notes : currentOffering.notes,
-        service_date: service_date || currentOffering.service_date,
-        fund_allocations: fund_allocations !== undefined ? fund_allocations : currentOffering.fund_allocations,
+        amount: amount !== undefined ? parseFloat(amount) : (currentOffering as any).amount,
+        type: type || (currentOffering as any).type,
+        notes: notes !== undefined ? notes : (currentOffering as any).notes,
+        service_date: service_date || (currentOffering as any).service_date,
+        fund_allocations: fund_allocations !== undefined ? fund_allocations : (currentOffering as any).fund_allocations,
       })
       .eq('id', id)
       .select()
@@ -307,8 +320,8 @@ export async function PUT(request: NextRequest) {
 
       // Create new relationship
       // The unique constraint on offering_id ensures only one member per offering
-      const { error: memberError } = await adminSupabase
-        .from('offering_member')
+      const { error: memberError } = await (adminSupabase
+        .from('offering_member') as any)
         .insert({
           offering_id: id,
           member_id: member_id
@@ -386,12 +399,12 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Revert fund balances based on allocations
-    const fundAllocations = offering.fund_allocations as Record<string, number>;
+    const fundAllocations = (offering as any).fund_allocations as Record<string, number>;
     if (fundAllocations && typeof fundAllocations === 'object') {
       for (const [fundId, allocation] of Object.entries(fundAllocations)) {
         if (typeof allocation === 'number' && allocation > 0) {
           try {
-            await supabase.rpc('update_fund_balance', {
+            await (supabase as any).rpc('update_fund_balance', {
               fund_id: fundId,
               amount_change: -allocation
             });
@@ -401,7 +414,7 @@ export async function DELETE(request: NextRequest) {
               .from('transactions')
               .delete()
               .eq('fund_id', fundId)
-              .eq('transaction_date', offering.service_date)
+              .eq('transaction_date', (offering as any).service_date)
               .eq('amount', allocation)
               .eq('category', 'Offering');
           } catch {

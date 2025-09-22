@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase-server'
+import { safeSelect, safeUpdate, safeRpc } from '@/lib/supabase-helpers'
+
+// Force dynamic rendering since this route uses cookies for authentication
+export const dynamic = 'force-dynamic';
 
 export async function GET(
   request: NextRequest,
@@ -17,7 +21,8 @@ export async function GET(
     const churchId = params.id
 
     // Get church details with user's role
-    const { data: church, error } = await supabase
+    // Note: Complex joins with filters need direct query for now
+    const { data: churchResult, error } = await supabase
       .from('churches')
       .select(`
         *,
@@ -37,6 +42,8 @@ export async function GET(
       .eq('user_church_roles.is_active', true)
       .eq('is_active', true)
       .single()
+
+    const church = churchResult
 
     if (error) {
       console.error('Error fetching church:', error)
@@ -66,13 +73,17 @@ export async function PUT(
     const churchId = params.id
 
     // Check user permissions
-    const { data: hasPermission } = await supabase
-      .rpc('check_user_permission', {
-        p_user_id: user.id,
-        p_church_id: churchId,
-        p_resource: 'churches',
-        p_action: 'update'
-      })
+    const { data: hasPermission, error: permissionError } = await safeRpc(supabase, 'check_user_permission', {
+      p_user_id: user.id,
+      p_church_id: churchId,
+      p_resource: 'churches',
+      p_action: 'update'
+    })
+
+    if (permissionError) {
+      console.error('Error checking permissions:', permissionError)
+      return NextResponse.json({ error: 'Failed to check permissions' }, { status: 500 })
+    }
 
     if (!hasPermission) {
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
@@ -82,23 +93,20 @@ export async function PUT(
     const { name, type, description, address, phone, email, website, established_date, is_active, settings } = body
 
     // Update church
-    const { data: church, error } = await supabase
-      .from('churches')
-      .update({
-        name,
-        type,
-        description,
-        address,
-        phone,
-        email,
-        website,
-        established_date,
-        is_active,
-        settings
-      })
-      .eq('id', churchId)
-      .select()
-      .single()
+    const { data: churches, error } = await safeUpdate(supabase, 'churches', {
+      name,
+      type,
+      description,
+      address,
+      phone,
+      email,
+      website,
+      established_date,
+      is_active,
+      settings
+    }, { column: 'id', value: churchId })
+
+    const church = churches?.[0]
 
     if (error) {
       console.error('Error updating church:', error)
@@ -127,24 +135,46 @@ export async function DELETE(
 
     const churchId = params.id
 
-    // Check if user is super admin (only super admins can delete churches)
-    const { data: userRoles } = await supabase
-      .from('user_church_roles')
-      .select('roles (name)')
-      .eq('user_id', user.id)
-      .eq('is_active', true)
+    // Check if this is the main church (oldest/first church in the system - cannot be deleted)
+    const { data: oldestChurch, error: oldestError } = await supabase
+      .from('churches')
+      .select('id, created_at')
+      .order('created_at', { ascending: true })
+      .limit(1)
+      .single()
 
-    const isSuperAdmin = userRoles?.some(ur => ur.roles?.name === 'super_admin')
+    if (oldestError) {
+      console.error('Error fetching oldest church:', oldestError)
+      return NextResponse.json({ error: 'Failed to verify church status' }, { status: 500 })
+    }
+
+    // Check if this is the main church (first created church)
+    if (oldestChurch && (oldestChurch as any).id === churchId) {
+      return NextResponse.json({
+        error: 'Cannot delete the main church. This is the primary church in the system and contains essential data.'
+      }, { status: 403 })
+    }
+
+    // Check if user is super admin (only super admins can delete churches)
+    const { data: userRoles, error: userRolesError } = await safeSelect(supabase, 'user_church_roles', {
+      columns: 'roles (name)',
+      filter: { column: 'user_id', value: user.id }
+    })
+
+    if (userRolesError) {
+      console.error('Error fetching user roles:', userRolesError)
+      return NextResponse.json({ error: 'Failed to check permissions' }, { status: 500 })
+    }
+
+    const activeUserRoles = userRoles?.filter(ur => (ur as any).is_active === true) || []
+    const isSuperAdmin = activeUserRoles.some(ur => (ur as any).roles?.name === 'super_admin')
     
     if (!isSuperAdmin) {
       return NextResponse.json({ error: 'Only super administrators can delete churches' }, { status: 403 })
     }
 
     // Soft delete - just deactivate
-    const { error } = await supabase
-      .from('churches')
-      .update({ is_active: false })
-      .eq('id', churchId)
+    const { error } = await safeUpdate(supabase, 'churches', { is_active: false }, { column: 'id', value: churchId })
 
     if (error) {
       console.error('Error deleting church:', error)

@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient, createAdminClient } from '@/lib/supabase-server'
 import type { Database } from '@/types/database'
 
+// Force dynamic rendering since this route uses cookies for authentication
+export const dynamic = 'force-dynamic';
+
 type FundUpdate = Database['public']['Tables']['funds']['Update']
 
 // PUT /api/funds/[id] - Update a specific fund
@@ -46,15 +49,17 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     }
     
     // Update fund
-    const { data: fund, error: updateError } = await adminSupabase
-      .from('funds')
-      .update({
-        name: updates.name || existingFund.name,
-        description: updates.description !== undefined ? updates.description : existingFund.description,
-        target_amount: updates.target_amount !== undefined ? updates.target_amount : (existingFund as Database['public']['Tables']['funds']['Row'] & { target_amount?: number }).target_amount,
-        fund_type: updates.fund_type !== undefined ? updates.fund_type : (existingFund as Database['public']['Tables']['funds']['Row'] & { fund_type?: string }).fund_type,
-        current_balance: updates.current_balance !== undefined ? updates.current_balance : existingFund.current_balance
-      })
+    const updateData = {
+      name: updates.name || (existingFund as any).name,
+      description: updates.description !== undefined ? updates.description : (existingFund as any).description,
+      target_amount: updates.target_amount !== undefined ? updates.target_amount : (existingFund as any).target_amount,
+      fund_type: updates.fund_type !== undefined ? updates.fund_type : (existingFund as any).fund_type,
+      current_balance: updates.current_balance !== undefined ? updates.current_balance : (existingFund as any).current_balance
+    };
+
+    const { data: fund, error: updateError } = await (adminSupabase
+      .from('funds') as any)
+      .update(updateData)
       .eq('id', id)
       .select()
       .single()

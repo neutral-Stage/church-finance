@@ -46,20 +46,26 @@ export const getServerUser = cache(async (): Promise<AuthUser | null> => {
         email: user.email || "",
         role: userMetadata.role || "viewer",
         full_name: userMetadata.full_name || "",
-        created_at: user.created_at,
+        created_at: user.created_at || "",
+        address: null,
+        avatar_url: null,
+        bio: null,
+        phone: null,
+        updated_at: user.updated_at || user.created_at,
       };
     }
 
     return {
       id: userData.id,
-      email: userData.email,
-      role: userData.role,
+      email: userData.email || "",
+      role: userData.role || "viewer",
       full_name: userData.full_name || "",
-      phone: userData.phone || "",
-      address: userData.address || "",
-      bio: userData.bio || "",
-      avatar_url: userData.avatar_url || "",
+      phone: userData.phone,
+      address: userData.address,
+      bio: userData.bio,
+      avatar_url: userData.avatar_url,
       created_at: userData.created_at,
+      updated_at: userData.updated_at,
     };
   } catch (error) {
     console.error("Server auth error:", error);
@@ -96,8 +102,8 @@ export const getDashboardData = cache(async (): Promise<DashboardData> => {
   // Now we can safely assume user is authenticated
   const supabase = await createServerClient();
 
-  // Fetch fund summaries using safe method
-  const fundsResult = await safeSelect(supabase, "fund_summary", {
+  // Fetch fund summaries from the view
+  const fundsResult = await safeSelect(supabase, "funds", {
     order: { column: "name", ascending: true }
   });
 
@@ -208,8 +214,27 @@ export const getDashboardData = cache(async (): Promise<DashboardData> => {
     monthlyExpensesResult.data?.reduce((sum, t) => sum + Number(t.amount), 0) ||
     0;
 
+  // Transform fund data to match FundSummary type
+  const transformedFunds: FundSummary[] = (fundsResult.data || []).map((fund: any) => ({
+    id: fund.id || "",
+    name: fund.name || "",
+    church_id: fund.church_id,
+    created_at: fund.created_at,
+    created_by: fund.created_by,
+    current_balance: fund.current_balance || 0,
+    description: fund.description,
+    fund_type: fund.fund_type,
+    is_active: fund.is_active ?? true,
+    target_amount: fund.target_amount,
+    updated_at: fund.updated_at,
+    transaction_count: 0,
+    total_income: fund.total_income,
+    total_expenses: fund.total_expenses,
+    total_offerings: fund.total_offerings,
+  }));
+
   return {
-    funds: fundsResult.data || [],
+    funds: transformedFunds,
     recentTransactions,
     upcomingBills,
     outstandingAdvances,
@@ -601,17 +626,17 @@ export const getMemberContributionsData = cache(
       throw new Error(`Failed to fetch funds: ${fundsError.message}`);
 
     const fundsMap = new Map(
-      fundsData?.map((fund) => [fund.id, fund.name]) || []
+      (fundsData || []).map((fund: any) => [fund.id, fund.name])
     );
 
     // Process and group contributions by member
     const memberMap = new Map<string, MemberContribution>();
 
-    offeringsData?.forEach((offering) => {
+    (offeringsData || []).forEach((offering: any) => {
       const offeringMember = offering.offering_member;
       if (!offeringMember) return;
 
-      const member = (offeringMember as unknown as { member: Database['public']['Tables']['members']['Row'] }).member;
+      const member = (offeringMember as any)?.member;
       if (!member) return;
 
       if (!memberMap.has(member.id)) {
@@ -642,7 +667,8 @@ export const getMemberContributionsData = cache(
       let fundName = "Unknown";
       if (
         offering.fund_allocations &&
-        typeof offering.fund_allocations === "object"
+        typeof offering.fund_allocations === "object" &&
+        offering.fund_allocations !== null
       ) {
         const fundAllocations = offering.fund_allocations as Record<
           string,
@@ -655,22 +681,22 @@ export const getMemberContributionsData = cache(
       }
 
       memberContrib.contributions.push({
-        id: offering.id,
-        service_date: offering.service_date,
-        type: offering.type,
-        amount: offering.amount,
+        id: offering.id || "",
+        service_date: offering.service_date || "",
+        type: offering.type || "",
+        amount: offering.amount || 0,
         fund_name: fundName,
-        notes: offering.notes,
+        notes: offering.notes || undefined,
       });
 
-      memberContrib.total_amount += offering.amount;
+      memberContrib.total_amount += (offering.amount || 0);
       memberContrib.contribution_count += 1;
 
       if (
         !memberContrib.last_contribution_date ||
-        offering.service_date > memberContrib.last_contribution_date
+        (offering.service_date && offering.service_date > memberContrib.last_contribution_date)
       ) {
-        memberContrib.last_contribution_date = offering.service_date;
+        memberContrib.last_contribution_date = offering.service_date || "";
       }
     });
 

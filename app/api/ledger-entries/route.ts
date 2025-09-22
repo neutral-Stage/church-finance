@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient, createAdminClient } from '@/lib/supabase-server';
 
+// Force dynamic rendering since this route uses cookies for authentication
+export const dynamic = 'force-dynamic';
 // GET - Fetch all ledger entries
 export async function GET(request: NextRequest) {
   try {
@@ -93,8 +95,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Create the ledger entry
-    const { data: ledgerEntry, error: ledgerError } = await adminSupabase
-      .from('ledger_entries')
+    const { data: ledgerEntry, error: ledgerError } = await (adminSupabase
+      .from('ledger_entries') as any)
       .insert({
         title,
         description: description || null,
@@ -181,21 +183,21 @@ export async function PUT(request: NextRequest) {
 
     // Prepare update data
     const updateData: Record<string, unknown> = {
-      title: title || currentEntry.title,
-      description: description !== undefined ? description : currentEntry.description,
-      status: status || currentEntry.status,
-      default_due_date: default_due_date || currentEntry.default_due_date,
-      default_fund_id: default_fund_id !== undefined ? default_fund_id : currentEntry.default_fund_id,
-      responsible_parties: responsible_parties !== undefined ? responsible_parties : currentEntry.responsible_parties,
-      priority: priority || currentEntry.priority,
-      approval_status: approval_status || currentEntry.approval_status,
-      notes: notes !== undefined ? notes : currentEntry.notes,
-      metadata: metadata !== undefined ? metadata : currentEntry.metadata,
+      title: title || (currentEntry as any).title,
+      description: description !== undefined ? description : (currentEntry as any).description,
+      status: status || (currentEntry as any).status,
+      default_due_date: default_due_date || (currentEntry as any).default_due_date,
+      default_fund_id: default_fund_id !== undefined ? default_fund_id : (currentEntry as any).default_fund_id,
+      responsible_parties: responsible_parties !== undefined ? responsible_parties : (currentEntry as any).responsible_parties,
+      priority: priority || (currentEntry as any).priority,
+      approval_status: approval_status || (currentEntry as any).approval_status,
+      notes: notes !== undefined ? notes : (currentEntry as any).notes,
+      metadata: metadata !== undefined ? metadata : (currentEntry as any).metadata,
       updated_at: new Date().toISOString(),
     };
 
     // Handle approval status changes
-    if (approval_status === 'approved' && currentEntry.approval_status !== 'approved') {
+    if (approval_status === 'approved' && (currentEntry as any).approval_status !== 'approved') {
       updateData.approved_by = user.id;
       updateData.approved_at = new Date().toISOString();
     } else if (approval_status !== 'approved') {
@@ -203,8 +205,8 @@ export async function PUT(request: NextRequest) {
       updateData.approved_at = null;
     }
 
-    const { data: ledgerEntry, error: updateError } = await adminSupabase
-      .from('ledger_entries')
+    const { data: ledgerEntry, error: updateError } = await (adminSupabase
+      .from('ledger_entries') as any)
       .update(updateData)
       .eq('id', id)
       .select()
