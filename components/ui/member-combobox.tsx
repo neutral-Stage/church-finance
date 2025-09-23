@@ -1,9 +1,10 @@
 "use client"
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Check, ChevronDown, Search, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { supabase } from '@/lib/supabase'
+import { useChurch } from '@/contexts/ChurchContext'
 
 interface Member {
   id: string
@@ -18,12 +19,13 @@ interface MemberComboboxProps {
   className?: string
 }
 
-export function MemberCombobox({ 
-  value, 
-  onValueChange, 
+export function MemberCombobox({
+  value,
+  onValueChange,
   placeholder = "Search members...",
-  className 
+  className
 }: MemberComboboxProps) {
+  const { selectedChurch } = useChurch()
   const [open, setOpen] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [members, setMembers] = useState<Member[]>([])
@@ -31,13 +33,20 @@ export function MemberCombobox({
   const [selectedMember, setSelectedMember] = useState<Member | null>(null)
 
   // Fetch members based on search term
-  const fetchMembers = async (search: string = '') => {
+  const fetchMembers = useCallback(async (search: string = '') => {
+    setLoading(true)
+
     try {
-      setLoading(true)
-      
+      // Only fetch members if a church is selected
+      if (!selectedChurch) {
+        setMembers([])
+        return
+      }
+
       let query = supabase
         .from('members')
         .select('id, name, fellowship_name')
+        .eq('church_id', selectedChurch.id)
         .limit(20)
         .order('name')
 
@@ -54,34 +63,41 @@ export function MemberCombobox({
     } finally {
       setLoading(false)
     }
-  }
+  }, [selectedChurch])
 
   // Fetch initial members and search results
   useEffect(() => {
     fetchMembers(searchTerm)
-  }, [searchTerm])
+  }, [searchTerm, selectedChurch, fetchMembers])
 
   // Find selected member when value changes
   useEffect(() => {
-    if (value && value !== 'none') {
+    if (value && value !== 'none' && selectedChurch) {
       const member = members.find(m => m.id === value)
       if (member) {
         setSelectedMember(member)
       } else {
-        // Fetch the specific member if not in current list
-        supabase
-          .from('members')
-          .select('id, name, fellowship_name')
-          .eq('id', value)
-          .single()
-          .then(({ data }) => {
+        // Fetch the specific member if not in current list, but only for current church
+        (async () => {
+          try {
+            const { data } = await supabase
+              .from('members')
+              .select('id, name, fellowship_name')
+              .eq('id', value)
+              .eq('church_id', selectedChurch.id)
+              .single()
             if (data) setSelectedMember(data as Member)
-          })
+          } catch {
+            // Member not found in current church, clear selection
+            setSelectedMember(null)
+            onValueChange('')
+          }
+        })()
       }
     } else {
       setSelectedMember(null)
     }
-  }, [value, members])
+  }, [value, members, selectedChurch, onValueChange])
 
   const handleSelect = (member: Member) => {
     setSelectedMember(member)

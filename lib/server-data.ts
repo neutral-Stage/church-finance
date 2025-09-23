@@ -333,6 +333,7 @@ export interface Member {
   fellowship_name?: string;
   job?: string;
   location?: string;
+  church_id: string;
   created_at: string;
   updated_at: string;
 }

@@ -343,7 +343,16 @@ export default function OfferingsPage() {
           if (memberError) {
             // If member association fails, we should clean up the offering
             await supabase.from('offerings').delete().eq('id', newOffering.id)
-            throw new Error('Failed to associate member with offering')
+            console.error('Member association error:', memberError)
+
+            // Provide specific error messages based on error type
+            if (memberError.code === '23503') {
+              throw new Error('Selected member is invalid or does not belong to this church. Please select a valid member.')
+            } else if (memberError.code === '23505') {
+              throw new Error('This offering already has a member assigned. Each offering can only have one member.')
+            } else {
+              throw new Error('Failed to associate member with offering. Please try again.')
+            }
           }
         }
 

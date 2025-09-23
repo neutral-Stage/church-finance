@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import Image from 'next/image'
 import { createAuthenticatedClient } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
+import { useChurch } from '@/contexts/ChurchContext'
 
 // Initialize supabase client for storage operations
 const getSupabaseClient = () => createAuthenticatedClient()
@@ -199,6 +200,7 @@ export function ComprehensiveLedgerDialog({
   onSave
 }: ComprehensiveLedgerDialogProps) {
   const { user } = useAuth()
+  const { selectedChurch } = useChurch()
   const [loading, setLoading] = useState(false)
   const [funds, setFunds] = useState<Fund[]>([])
   const [responsiblePartyInput, setResponsiblePartyInput] = useState('')
@@ -694,6 +696,11 @@ export function ComprehensiveLedgerDialog({
       return
     }
 
+    if (!selectedChurch) {
+      toast.error('Please select a church before creating ledger entries')
+      return
+    }
+
     try {
       setLoading(true)
       const supabase = await getSupabaseClient()
@@ -831,6 +838,7 @@ export function ComprehensiveLedgerDialog({
               sort_order: billIndex,
               notes: bill.notes || null,
               metadata: {},
+              church_id: selectedChurch.id,
               document_url: documentPath,
               document_name: documentPath ? (bill.document?.name || null) : null,
               document_size: documentPath ? (bill.document?.size || null) : null,
@@ -902,6 +910,7 @@ export function ComprehensiveLedgerDialog({
             sort_order: index,
             notes: bill.notes || null,
             metadata: {},
+            church_id: selectedChurch.id,
             document_url: documentPath,
             document_name: documentPath ? (bill.document?.name || null) : null,
             document_size: documentPath ? (bill.document?.size || null) : null,

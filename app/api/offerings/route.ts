@@ -127,6 +127,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Validate that the member exists and belongs to the current church
+    const { data: memberExists, error: memberCheckError } = await supabase
+      .from('members')
+      .select('id')
+      .eq('id', member_id)
+      .eq('church_id', church_id)
+      .single();
+
+    if (memberCheckError || !memberExists) {
+      return NextResponse.json(
+        { error: 'Selected member does not exist or does not belong to this church' },
+        { status: 400 }
+      );
+    }
+
     // Convert fund IDs to fund names for fund_allocations
     const processedFundAllocations: Record<string, number> = {};
     if (fund_allocations && typeof fund_allocations === 'object') {
@@ -186,11 +201,19 @@ export async function POST(request: NextRequest) {
       });
 
     if (memberError) {
+      console.error('Member relationship creation error:', memberError);
       // Check if it's a unique constraint violation
       if (memberError.code === '23505') {
         return NextResponse.json(
           { error: 'This offering already has a member assigned. Each offering can only have one member.' },
           { status: 409 }
+        );
+      }
+      // Check if it's a foreign key constraint violation
+      if (memberError.code === '23503') {
+        return NextResponse.json(
+          { error: 'Invalid member selection. Please select a valid member from the current church.' },
+          { status: 400 }
         );
       }
       return NextResponse.json(
@@ -305,9 +328,24 @@ export async function PUT(request: NextRequest) {
 
     // Update member relationship (now required)
     if (member_id !== undefined) {
-      if (!member_id) {
+      if (!member_id || member_id === 'none') {
         return NextResponse.json(
           { error: 'Member ID is required' },
+          { status: 400 }
+        );
+      }
+
+      // Validate that the member exists and belongs to the current church
+      const { data: memberExists, error: memberCheckError } = await supabase
+        .from('members')
+        .select('id')
+        .eq('id', member_id)
+        .eq('church_id', (currentOffering as any).church_id)
+        .single();
+
+      if (memberCheckError || !memberExists) {
+        return NextResponse.json(
+          { error: 'Selected member does not exist or does not belong to this church' },
           { status: 400 }
         );
       }

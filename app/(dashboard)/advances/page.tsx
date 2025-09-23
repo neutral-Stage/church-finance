@@ -92,6 +92,7 @@ interface RepaymentForm {
 
 export default function AdvancesPage() {
   const { user, hasRole } = useAuth()
+  const { selectedChurch } = useChurch()
   const [advances, setAdvances] = useState<Advance[]>([])
   const [funds, setFunds] = useState<Fund[]>([])
   const [loading, setLoading] = useState(true)
@@ -150,7 +151,7 @@ export default function AdvancesPage() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [selectedChurch])
 
   useEffect(() => {
     fetchData()
@@ -161,6 +162,11 @@ export default function AdvancesPage() {
 
     if (!advanceForm.recipient_name || !advanceForm.amount || !advanceForm.purpose || !advanceForm.fund_id || !advanceForm.expected_return_date) {
       toast.error('Please fill in all required fields')
+      return
+    }
+
+    if (!selectedChurch) {
+      toast.error('Please select a church before creating advances')
       return
     }
 
@@ -210,7 +216,8 @@ export default function AdvancesPage() {
           notes: advanceForm.notes,
           amount_returned: 0,
           payment_method: 'bank',
-          approved_by: user?.email || 'Unknown'
+          approved_by: user?.email || 'Unknown',
+          church_id: selectedChurch.id
         }
 
         const { error } = await supabase
@@ -279,7 +286,8 @@ export default function AdvancesPage() {
           payment_method: repaymentForm.payment_method,
           fund_id: selectedAdvanceForRepayment.fund_id,
           transaction_date: new Date().toISOString().split('T')[0],
-          created_by: user?.id
+          created_by: user?.id,
+          church_id: selectedChurch?.id
         }])
 
       if (transactionError) throw transactionError

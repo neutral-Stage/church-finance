@@ -9,14 +9,34 @@ type MemberInsert = Database['public']['Tables']['members']['Insert']
 type MemberUpdate = Database['public']['Tables']['members']['Update']
 
 // GET /api/members - Get all members
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const supabase = await createServerClient()
-    
-    const { data: members, error } = await supabase
+
+    // Check authentication
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      )
+    }
+
+    // Get church_id from query parameters
+    const { searchParams } = new URL(request.url)
+    const church_id = searchParams.get('church_id')
+
+    let query = supabase
       .from('members')
       .select('*')
       .order('name')
+
+    // Filter by church if provided
+    if (church_id) {
+      query = query.eq('church_id', church_id)
+    }
+
+    const { data: members, error } = await query
     
     if (error) {
       return NextResponse.json(
@@ -52,7 +72,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     
     const { name, phone, fellowship_name, job, location, church_id } = body
-    
+
     if (!name?.trim()) {
       return NextResponse.json(
         { error: 'Member name is required' },
@@ -81,10 +101,18 @@ export async function POST(request: NextRequest) {
       })
       .select()
       .single()
-    
+
     if (error) {
+      console.error('Member creation error:', error)
+      // Check for specific database constraint errors
+      if (error.code === '23503') {
+        return NextResponse.json(
+          { error: 'Invalid church selection. Please select a valid church.' },
+          { status: 400 }
+        )
+      }
       return NextResponse.json(
-        { error: 'Failed to create member' },
+        { error: 'Failed to create member', details: error.message },
         { status: 500 }
       )
     }
@@ -150,8 +178,9 @@ export async function PUT(request: NextRequest) {
       .single()
     
     if (updateError) {
+      console.error('Member update error:', updateError)
       return NextResponse.json(
-        { error: 'Failed to update member' },
+        { error: 'Failed to update member', details: updateError.message },
         { status: 500 }
       )
     }
@@ -211,8 +240,9 @@ export async function DELETE(request: NextRequest) {
       .eq('id', id)
     
     if (deleteError) {
+      console.error('Member deletion error:', deleteError)
       return NextResponse.json(
-        { error: 'Failed to delete member' },
+        { error: 'Failed to delete member', details: deleteError.message },
         { status: 500 }
       )
     }

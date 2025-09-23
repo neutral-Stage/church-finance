@@ -36,7 +36,8 @@
       "Bash(do)",
       "Bash(echo \"=== $file ===\")",
       "WebFetch(domain:localhost)",
-      "Bash(npx eslint:*)"
+      "Bash(npx eslint:*)",
+      "Bash(psql:*)"
     ],
     "deny": [],
     "ask": []

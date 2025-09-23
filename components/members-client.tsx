@@ -51,7 +51,10 @@ export function MembersClient({ initialData, permissions }: MembersClientProps) 
 
   const fetchMembers = useCallback(async () => {
     try {
-      const response = await fetch('/api/members', {
+      // Build URL with church_id if available
+      const url = selectedChurch ? `/api/members?church_id=${selectedChurch.id}` : '/api/members'
+
+      const response = await fetch(url, {
         method: 'GET',
         credentials: 'include',
         headers: {
@@ -69,7 +72,7 @@ export function MembersClient({ initialData, permissions }: MembersClientProps) 
     } catch {
       toast.error('Failed to load members')
     }
-  }, [])
+  }, [selectedChurch])
 
   // Set up real-time subscription only for updates
   useEffect(() => {
@@ -108,6 +111,12 @@ export function MembersClient({ initialData, permissions }: MembersClientProps) 
       return
     }
 
+    // Check if church is selected for new member creation
+    if (!editingMember && !selectedChurch) {
+      toast.error('Please select a church before adding a member')
+      return
+    }
+
     try {
       setSubmitting(true)
 
@@ -139,7 +148,7 @@ export function MembersClient({ initialData, permissions }: MembersClientProps) 
           },
           body: JSON.stringify({
             ...formData,
-            church_id: selectedChurch?.id
+            church_id: selectedChurch!.id
           })
         })
         
