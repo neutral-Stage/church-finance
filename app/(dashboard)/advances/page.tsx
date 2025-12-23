@@ -124,21 +124,28 @@ export default function AdvancesPage() {
   })
 
   const fetchData = useCallback(async () => {
+    if (!selectedChurch) {
+      setLoading(false)
+      return
+    }
+
     try {
       setLoading(true)
 
-      // Fetch advances
+      // Fetch advances - filter by church_id
       const { data: advancesData, error: advancesError } = await supabase
         .from('advances')
         .select('*')
+        .eq('church_id', selectedChurch.id)
         .order('created_at', { ascending: false })
 
       if (advancesError) throw advancesError
 
-      // Fetch funds
+      // Fetch funds - filter by church_id
       const { data: fundsData, error: fundsError } = await supabase
         .from('funds')
         .select('*')
+        .eq('church_id', selectedChurch.id)
         .order('name')
 
       if (fundsError) throw fundsError

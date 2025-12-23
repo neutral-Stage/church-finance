@@ -180,39 +180,69 @@ export default function AdvancedReportsClient({ initialData, initialDateRange }:
       // Calculate previous period dates
       const currentStart = new Date(dateRange.startDate)
       const currentEnd = new Date(dateRange.endDate)
+
+      // Validate dates
+      if (isNaN(currentStart.getTime()) || isNaN(currentEnd.getTime())) {
+        console.error('Invalid date range provided for comparison data')
+        return
+      }
+
       const periodLength = currentEnd.getTime() - currentStart.getTime()
 
-      const previousEnd = new Date(currentStart.getTime() - 1)
+      // Calculate previous period end (one day before current start)
+      const previousEnd = new Date(currentStart)
+      previousEnd.setDate(previousEnd.getDate() - 1)
+
+      // Calculate previous period start
       const previousStart = new Date(previousEnd.getTime() - periodLength)
+
+      // Validate calculated dates
+      if (isNaN(previousStart.getTime()) || isNaN(previousEnd.getTime())) {
+        console.error('Invalid previous period dates calculated')
+        return
+      }
+
+      // Helper function to safely format date for database
+      const formatDateForDB = (date: Date): string => {
+        try {
+          return date.toISOString().split('T')[0]
+        } catch (error) {
+          console.error('Error formatting date:', error)
+          return new Date().toISOString().split('T')[0] // fallback to today
+        }
+      }
+
+      const previousStartStr = formatDateForDB(previousStart)
+      const previousEndStr = formatDateForDB(previousEnd)
 
       const [transactionsResult, offeringsResult, billsResult, advancesResult] = await Promise.all([
         supabase
           .from('transactions')
           .select(`*`)
           .eq('church_id', selectedChurch.id)
-          .gte('transaction_date', previousStart.toISOString().split('T')[0])
-          .lte('transaction_date', previousEnd.toISOString().split('T')[0]),
+          .gte('transaction_date', previousStartStr)
+          .lte('transaction_date', previousEndStr),
 
         supabase
           .from('offerings')
           .select('*')
           .eq('church_id', selectedChurch.id)
-          .gte('service_date', previousStart.toISOString().split('T')[0])
-          .lte('service_date', previousEnd.toISOString().split('T')[0]),
+          .gte('service_date', previousStartStr)
+          .lte('service_date', previousEndStr),
 
         supabase
           .from('bills')
           .select('*')
           .eq('church_id', selectedChurch.id)
-          .gte('due_date', previousStart.toISOString().split('T')[0])
-          .lte('due_date', previousEnd.toISOString().split('T')[0]),
+          .gte('due_date', previousStartStr)
+          .lte('due_date', previousEndStr),
 
         supabase
           .from('advances')
           .select('*')
           .eq('church_id', selectedChurch.id)
-          .gte('created_at', previousStart.toISOString().split('T')[0])
-          .lte('created_at', previousEnd.toISOString().split('T')[0])
+          .gte('created_at', previousStartStr)
+          .lte('created_at', previousEndStr)
       ])
 
       if (!transactionsResult.error && !offeringsResult.error && !billsResult.error && !advancesResult.error) {

@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Clear and Test Church Sync</title>
+    <style>
+        body { font-family: monospace; padding: 20px; background: #1a1a1a; color: #00ff00; }
+        button { padding: 10px 20px; margin: 10px; font-size: 16px; cursor: pointer; }
+        pre { background: #000; padding: 10px; border: 1px solid #00ff00; overflow-x: auto; }
+        .step { margin: 20px 0; padding: 10px; border-left: 3px solid #00ff00; }
+    </style>
+</head>
+<body>
+    <h1>🔧 Church Sync Debugging Tool</h1>
+
+    <div class="step">
+        <h2>Step 1: Clear All Storage</h2>
+        <button onclick="clearAll()">Clear Everything</button>
+        <pre id="clear-status"></pre>
+    </div>
+
+    <div class="step">
+        <h2>Step 2: Check Current State</h2>
+        <button onclick="checkState()">Check State</button>
+        <pre id="state-output"></pre>
+    </div>
+
+    <div class="step">
+        <h2>Step 3: Manual Sync Test</h2>
+        <button onclick="manualSync()">Force Sync Now</button>
+        <pre id="sync-output"></pre>
+    </div>
+
+    <script>
+        function clearAll() {
+            const output = document.getElementById('clear-status');
+            output.textContent = 'Clearing...\n';
+
+            // Clear localStorage
+            localStorage.clear();
+            output.textContent += '✓ localStorage cleared\n';
+
+            // Clear sessionStorage
+            sessionStorage.clear();
+            output.textContent += '✓ sessionStorage cleared\n';
+
+            // Clear cookies
+            document.cookie.split(";").forEach(c => {
+                document.cookie = c.trim().split("=")[0] + '=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/';
+            });
+            output.textContent += '✓ Cookies cleared\n';
+
+            output.textContent += '\n✅ All storage cleared! Refresh the page to start fresh.';
+        }
+
+        async function checkState() {
+            const output = document.getElementById('state-output');
+            output.textContent = 'Checking state...\n\n';
+
+            // Check localStorage
+            const stored = localStorage.getItem('selectedChurch');
+            output.textContent += '📦 localStorage:\n';
+            if (stored) {
+                const church = JSON.parse(stored);
+                output.textContent += `   ✓ Church found: ${church.name} (${church.id})\n\n`;
+            } else {
+                output.textContent += '   ✗ No church in localStorage\n\n';
+            }
+
+            // Check sessionStorage flags
+            output.textContent += '🔖 sessionStorage flags:\n';
+            const syncAttempted = sessionStorage.getItem('churchSyncAttempted');
+            const syncCompleted = sessionStorage.getItem('churchSyncCompleted');
+            output.textContent += `   churchSyncAttempted: ${syncAttempted || 'not set'}\n`;
+            output.textContent += `   churchSyncCompleted: ${syncCompleted || 'not set'}\n\n`;
+
+            // Check browser cookies
+            output.textContent += '🍪 Browser cookies:\n';
+            const cookies = document.cookie;
+            const hasChurchCookie = cookies.includes('selectedChurch=');
+            output.textContent += `   selectedChurch cookie: ${hasChurchCookie ? 'EXISTS' : 'NOT FOUND'}\n\n`;
+
+            // Check server
+            output.textContent += '🖥️  Server cookie check:\n';
+            try {
+                const response = await fetch('/api/church-selection', {
+                    method: 'GET',
+                    credentials: 'include',
+                    cache: 'no-store'
+                });
+                const data = await response.json();
+                output.textContent += `   Status: ${response.status}\n`;
+                output.textContent += `   Has church: ${data.church ? 'YES' : 'NO'}\n`;
+                if (data.church) {
+                    output.textContent += `   Church: ${data.church.name} (${data.church.id})\n`;
+                }
+            } catch (error) {
+                output.textContent += `   ✗ Error: ${error.message}\n`;
+            }
+        }
+
+        async function manualSync() {
+            const output = document.getElementById('sync-output');
+            output.textContent = 'Starting manual sync...\n\n';
+
+            // Get church from localStorage
+            const stored = localStorage.getItem('selectedChurch');
+            if (!stored) {
+                output.textContent += '✗ No church in localStorage to sync!\n';
+                output.textContent += 'Please select a church first.\n';
+                return;
+            }
+
+            const church = JSON.parse(stored);
+            output.textContent += `📤 Syncing church: ${church.name} (${church.id})\n\n`;
+
+            try {
+                // Clear the sync flags first
+                sessionStorage.removeItem('churchSyncAttempted');
+                sessionStorage.removeItem('churchSyncCompleted');
+                output.textContent += '🔖 Cleared sessionStorage flags\n\n';
+
+                // Attempt sync
+                output.textContent += '📡 Sending POST to /api/church-selection...\n';
+                const response = await fetch('/api/church-selection', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ church })
+                });
+
+                output.textContent += `   Status: ${response.status} ${response.statusText}\n`;
+
+                const data = await response.json();
+                output.textContent += `   Response: ${JSON.stringify(data, null, 2)}\n\n`;
+
+                if (response.ok) {
+                    output.textContent += '✅ Sync successful!\n\n';
+
+                    // Check if cookie is now set
+                    output.textContent += '🔍 Verifying cookie was set...\n';
+                    const verifyResponse = await fetch('/api/church-selection', {
+                        method: 'GET',
+                        credentials: 'include',
+                        cache: 'no-store'
+                    });
+                    const verifyData = await verifyResponse.json();
+
+                    if (verifyData.church) {
+                        output.textContent += `✅ Cookie verified! Church: ${verifyData.church.name}\n\n`;
+                        output.textContent += '🔄 Reloading page in 2 seconds...\n';
+                        setTimeout(() => window.location.href = '/', 2000);
+                    } else {
+                        output.textContent += '⚠️  Cookie sync reported success but cookie not found!\n';
+                        output.textContent += 'This indicates a server-side issue.\n';
+                    }
+                } else {
+                    output.textContent += `✗ Sync failed: ${data.error || data.message}\n`;
+                }
+            } catch (error) {
+                output.textContent += `\n✗ Error: ${error.message}\n`;
+            }
+        }
+
+        // Auto-check state on load
+        window.addEventListener('load', checkState);
+    </script>
+</body>
+</html>

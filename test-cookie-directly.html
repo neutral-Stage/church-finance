@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Cookie Sync</title>
+</head>
+<body>
+    <h1>Church Cookie Sync Test</h1>
+    <div id="output"></div>
+
+    <script>
+        const output = document.getElementById('output');
+
+        async function testCookieSync() {
+            output.innerHTML = '<h2>Starting test...</h2>';
+
+            // Step 1: Check localStorage
+            const storedChurch = localStorage.getItem('selectedChurch');
+            output.innerHTML += `<p>1. LocalStorage: ${storedChurch ? 'FOUND' : 'NOT FOUND'}</p>`;
+            if (storedChurch) {
+                const parsed = JSON.parse(storedChurch);
+                output.innerHTML += `<p>   Church: ${parsed.name} (${parsed.id})</p>`;
+            }
+
+            // Step 2: Check if cookie exists in browser
+            const cookies = document.cookie;
+            const hasChurchCookie = cookies.includes('selectedChurch=');
+            output.innerHTML += `<p>2. Browser Cookie: ${hasChurchCookie ? 'FOUND' : 'NOT FOUND'}</p>`;
+            if (hasChurchCookie) {
+                const match = cookies.match(/selectedChurch=([^;]+)/);
+                if (match) {
+                    try {
+                        const decoded = decodeURIComponent(match[1]);
+                        output.innerHTML += `<p>   Cookie value (first 100 chars): ${decoded.substring(0, 100)}</p>`;
+                    } catch (e) {
+                        output.innerHTML += `<p>   Error decoding: ${e.message}</p>`;
+                    }
+                }
+            }
+
+            // Step 3: Check server-side cookie via API
+            try {
+                const response = await fetch('/api/church-selection', {
+                    method: 'GET',
+                    credentials: 'include',
+                    cache: 'no-store'
+                });
+                const data = await response.json();
+                output.innerHTML += `<p>3. Server API Response: ${data.church ? 'FOUND' : 'NOT FOUND'}</p>`;
+                if (data.church) {
+                    output.innerHTML += `<p>   Church: ${data.church.name} (${data.church.id})</p>`;
+                }
+            } catch (error) {
+                output.innerHTML += `<p>3. Server API Error: ${error.message}</p>`;
+            }
+
+            // Step 4: Try to sync if there's a mismatch
+            if (storedChurch && !hasChurchCookie) {
+                output.innerHTML += '<h3>Attempting to sync localStorage to server...</h3>';
+                try {
+                    const church = JSON.parse(storedChurch);
+                    const syncResponse = await fetch('/api/church-selection', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        credentials: 'include',
+                        body: JSON.stringify({ church })
+                    });
+                    const syncData = await syncResponse.json();
+                    output.innerHTML += `<p>4. Sync Response: ${syncResponse.ok ? 'SUCCESS' : 'FAILED'}</p>`;
+                    output.innerHTML += `<p>   ${JSON.stringify(syncData)}</p>`;
+
+                    // Check cookie again
+                    const cookiesAfter = document.cookie;
+                    const hasChurchCookieAfter = cookiesAfter.includes('selectedChurch=');
+                    output.innerHTML += `<p>5. Browser Cookie After Sync: ${hasChurchCookieAfter ? 'FOUND' : 'STILL NOT FOUND'}</p>`;
+                } catch (error) {
+                    output.innerHTML += `<p>4. Sync Error: ${error.message}</p>`;
+                }
+            }
+        }
+
+        testCookieSync();
+    </script>
+</body>
+</html>

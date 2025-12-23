@@ -184,9 +184,12 @@ export async function safeSelect<T extends TableName>(
   }
 ): Promise<{ data: Tables[T]['Row'][] | null; error: any }> {
   try {
+    console.log(`[DEBUG] SafeSelect - Table: ${tableName}, Filter:`, options?.filter);
+
     let query = (supabase.from(tableName) as any).select(options?.columns || '*');
 
     if (options?.filter) {
+      console.log(`[DEBUG] SafeSelect - Adding filter: ${options.filter.column} = ${options.filter.value}`);
       query = query.eq(options.filter.column, options.filter.value);
     }
 
@@ -199,8 +202,15 @@ export async function safeSelect<T extends TableName>(
     }
 
     const result = await query;
+    console.log(`[DEBUG] SafeSelect - ${tableName} result:`, result.data?.length || 0, 'rows returned');
+
+    if (result.error) {
+      console.error(`[DEBUG] SafeSelect - ${tableName} error:`, result.error);
+    }
+
     return result as { data: Tables[T]['Row'][] | null; error: any };
   } catch (error) {
+    console.error(`[DEBUG] SafeSelect - ${tableName} exception:`, error);
     return { data: null, error };
   }
 }

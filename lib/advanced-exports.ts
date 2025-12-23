@@ -2,6 +2,7 @@ import ExcelJS from 'exceljs'
 import jsPDF from 'jspdf'
 import 'jspdf-autotable'
 import type { ReportsData } from '@/lib/server-data'
+import { formatCurrency } from '@/lib/utils'
 
 // Enhanced Excel export with formatting and charts
 export class AdvancedExcelExporter {
@@ -22,7 +23,7 @@ export class AdvancedExcelExporter {
     this.workbook.company = 'Church Finance Management'
   }
 
-  async generateComprehensiveReport(): Promise<Buffer> {
+  async generateComprehensiveReport(): Promise<ArrayBuffer> {
     await this.createSummarySheet()
     await this.createTransactionsSheet()
     await this.createOfferingsSheet()
@@ -31,7 +32,8 @@ export class AdvancedExcelExporter {
     await this.createFundsSheet()
     await this.createChartsSheet()
 
-    return this.workbook.xlsx.writeBuffer() as Promise<Buffer>
+    const buffer = await this.workbook.xlsx.writeBuffer()
+    return buffer as ArrayBuffer
   }
 
   private async createSummarySheet() {
@@ -75,7 +77,7 @@ export class AdvancedExcelExporter {
       worksheet.getCell(`A${row}`).value = metric.label
       worksheet.getCell(`A${row}`).font = { bold: true }
       worksheet.getCell(`B${row}`).value = metric.value
-      worksheet.getCell(`B${row}`).numFmt = '$#,##0.00'
+      worksheet.getCell(`B${row}`).numFmt = '"৳"#,##0.00'
       worksheet.getCell(`B${row}`).font = { color: { argb: metric.color }, bold: true }
     })
 
@@ -88,7 +90,7 @@ export class AdvancedExcelExporter {
       const row = fundStartRow + index + 1
       worksheet.getCell(`A${row}`).value = fund.name
       worksheet.getCell(`B${row}`).value = fund.current_balance || 0
-      worksheet.getCell(`B${row}`).numFmt = '$#,##0.00'
+      worksheet.getCell(`B${row}`).numFmt = '"৳"#,##0.00'
     })
 
     // Apply styling and autofit columns
@@ -107,50 +109,43 @@ export class AdvancedExcelExporter {
 
     // Headers
     const headers = ['Date', 'Type', 'Category', 'Description', 'Amount', 'Payment Method', 'Fund']
-    worksheet.addRow(headers)
 
-    // Style headers
-    const headerRow = worksheet.getRow(1)
-    headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } }
-    headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1976D2' } }
+    // Add data rows
+    const tableData = this.data.transactions.map(transaction => [
+      new Date(transaction.transaction_date),
+      transaction.type,
+      transaction.category || '',
+      transaction.description || '',
+      transaction.amount,
+      transaction.payment_method || '',
+      (transaction as any).fund?.name || ''
+    ])
 
-    // Add data
-    this.data.transactions.forEach(transaction => {
-      worksheet.addRow([
-        new Date(transaction.transaction_date),
-        transaction.type,
-        transaction.category || '',
-        transaction.description || '',
-        transaction.amount,
-        transaction.payment_method || '',
-        (transaction as any).fund?.name || ''
-      ])
-    })
+    // Only create table if there's data
+    if (tableData.length > 0) {
+      const tableRef = `A1:G${tableData.length + 1}`
+      worksheet.addTable({
+        name: 'TransactionsTable',
+        ref: tableRef,
+        headerRow: true,
+        style: {
+          theme: 'TableStyleMedium2',
+          showRowStripes: true,
+        },
+        columns: headers.map(header => ({ name: header, filterButton: true })),
+        rows: tableData
+      })
+    } else {
+      // Add headers manually if no data
+      worksheet.addRow(headers)
+      const headerRow = worksheet.getRow(1)
+      headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } }
+      headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1976D2' } }
+    }
 
     // Format columns
     worksheet.getColumn(1).numFmt = 'mm/dd/yyyy'
-    worksheet.getColumn(5).numFmt = '$#,##0.00'
-
-    // Create table
-    worksheet.addTable({
-      name: 'TransactionsTable',
-      ref: 'A1',
-      headerRow: true,
-      style: {
-        theme: 'TableStyleMedium2',
-        showRowStripes: true,
-      },
-      columns: headers.map(header => ({ name: header, filterButton: true })),
-      rows: this.data.transactions.map(t => [
-        new Date(t.transaction_date),
-        t.type,
-        t.category || '',
-        t.description || '',
-        t.amount,
-        t.payment_method || '',
-        (t as any).fund?.name || ''
-      ])
-    })
+    worksheet.getColumn(5).numFmt = '"৳"#,##0.00'
 
     worksheet.columns.forEach(column => {
       column.width = 15
@@ -180,7 +175,7 @@ export class AdvancedExcelExporter {
 
     // Format columns
     worksheet.getColumn(1).numFmt = 'mm/dd/yyyy'
-    worksheet.getColumn(3).numFmt = '$#,##0.00'
+    worksheet.getColumn(3).numFmt = '"৳"#,##0.00'
 
     worksheet.columns.forEach(column => {
       column.width = 20
@@ -215,7 +210,7 @@ export class AdvancedExcelExporter {
       }
     })
 
-    worksheet.getColumn(2).numFmt = '$#,##0.00'
+    worksheet.getColumn(2).numFmt = '"৳"#,##0.00'
     worksheet.getColumn(3).numFmt = 'mm/dd/yyyy'
 
     worksheet.columns.forEach(column => {
@@ -247,10 +242,10 @@ export class AdvancedExcelExporter {
       ])
     })
 
-    worksheet.getColumn(2).numFmt = '$#,##0.00'
+    worksheet.getColumn(2).numFmt = '"৳"#,##0.00'
     worksheet.getColumn(4).numFmt = 'mm/dd/yyyy'
     worksheet.getColumn(5).numFmt = 'mm/dd/yyyy'
-    worksheet.getColumn(7).numFmt = '$#,##0.00'
+    worksheet.getColumn(7).numFmt = '"৳"#,##0.00'
 
     worksheet.columns.forEach(column => {
       column.width = 18
@@ -277,7 +272,7 @@ export class AdvancedExcelExporter {
       ])
     })
 
-    worksheet.getColumn(2).numFmt = '$#,##0.00'
+    worksheet.getColumn(2).numFmt = '"৳"#,##0.00'
 
     worksheet.columns.forEach(column => {
       column.width = 25
@@ -356,7 +351,7 @@ export class AdvancedPDFExporter {
     this.margin = 20
   }
 
-  generateComprehensiveReport(): Uint8Array {
+  generateComprehensiveReport(): ArrayBuffer {
     this.addHeader()
     this.addSummarySection()
     this.addNewPage()
@@ -368,7 +363,7 @@ export class AdvancedPDFExporter {
     this.addNewPage()
     this.addAdvancesSection()
 
-    return this.doc.output('arraybuffer') as Uint8Array
+    return this.doc.output('arraybuffer')
   }
 
   private addHeader() {
@@ -401,12 +396,12 @@ export class AdvancedPDFExporter {
 
     const summaryData = [
       ['Metric', 'Amount'],
-      ['Total Income', this.formatCurrency(summary.totalIncome)],
-      ['Total Expenses', this.formatCurrency(summary.totalExpenses)],
-      ['Net Income', this.formatCurrency(summary.netIncome)],
-      ['Total Offerings', this.formatCurrency(summary.totalOfferings)],
-      ['Total Bills', this.formatCurrency(summary.totalBills)],
-      ['Outstanding Advances', this.formatCurrency(summary.totalAdvances)]
+      ['Total Income', formatCurrency(summary.totalIncome)],
+      ['Total Expenses', formatCurrency(summary.totalExpenses)],
+      ['Net Income', formatCurrency(summary.netIncome)],
+      ['Total Offerings', formatCurrency(summary.totalOfferings)],
+      ['Total Bills', formatCurrency(summary.totalBills)],
+      ['Outstanding Advances', formatCurrency(summary.totalAdvances)]
     ];
 
     (this.doc as any).autoTable({
@@ -431,7 +426,7 @@ export class AdvancedPDFExporter {
 
     const fundData = [['Fund Name', 'Balance']]
     this.data.funds.forEach(fund => {
-      fundData.push([fund.name, this.formatCurrency(fund.current_balance || 0)])
+      fundData.push([fund.name, formatCurrency(fund.current_balance || 0)])
     });
 
     (this.doc as any).autoTable({
@@ -457,7 +452,7 @@ export class AdvancedPDFExporter {
         new Date(transaction.transaction_date).toLocaleDateString(),
         transaction.type,
         transaction.category || 'N/A',
-        this.formatCurrency(transaction.amount)
+        formatCurrency(transaction.amount)
       ])
     });
 
@@ -483,7 +478,7 @@ export class AdvancedPDFExporter {
       offeringData.push([
         new Date(offering.service_date).toLocaleDateString(),
         offering.type,
-        this.formatCurrency(offering.amount),
+        formatCurrency(offering.amount),
         (offering.notes || '').substring(0, 30) + (offering.notes && offering.notes.length > 30 ? '...' : '')
       ])
     });
@@ -509,7 +504,7 @@ export class AdvancedPDFExporter {
     this.data.bills.slice(0, 20).forEach(bill => {
       billData.push([
         bill.vendor_name,
-        this.formatCurrency(bill.amount),
+        formatCurrency(bill.amount),
         new Date(bill.due_date).toLocaleDateString(),
         bill.status || 'pending'
       ])
@@ -536,7 +531,7 @@ export class AdvancedPDFExporter {
     this.data.advances.slice(0, 20).forEach(advance => {
       advanceData.push([
         advance.recipient_name,
-        this.formatCurrency(advance.amount),
+        formatCurrency(advance.amount),
         advance.status || 'outstanding',
         new Date(advance.expected_return_date).toLocaleDateString()
       ])
@@ -578,12 +573,6 @@ export class AdvancedPDFExporter {
                   this.doc.internal.pageSize.width - this.margin, 20, { align: 'right' })
   }
 
-  private formatCurrency(amount: number): string {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(amount)
-  }
 
   private calculateSummary() {
     const totalIncome = this.data.transactions
@@ -624,7 +613,7 @@ export class CSVExporter {
       t.type,
       t.category || '',
       t.description || '',
-      t.amount,
+      formatCurrency(t.amount),
       t.payment_method || '',
       t.fund?.name || ''
     ])
@@ -637,7 +626,7 @@ export class CSVExporter {
     const rows = offerings.map(o => [
       o.service_date,
       o.type,
-      o.amount,
+      formatCurrency(o.amount),
       o.notes || ''
     ])
 
@@ -648,7 +637,7 @@ export class CSVExporter {
     const headers = ['Vendor', 'Amount', 'Due Date', 'Category', 'Status', 'Fund']
     const rows = bills.map(b => [
       b.vendor_name,
-      b.amount,
+      formatCurrency(b.amount),
       b.due_date,
       b.category,
       b.status || 'pending',
@@ -656,6 +645,69 @@ export class CSVExporter {
     ])
 
     return this.arrayToCSV([headers, ...rows])
+  }
+
+  static exportAdvances(advances: any[]): string {
+    const headers = ['Recipient', 'Amount', 'Purpose', 'Advance Date', 'Expected Return', 'Status', 'Amount Returned']
+    const rows = advances.map(a => [
+      a.recipient_name,
+      formatCurrency(a.amount),
+      a.purpose,
+      a.advance_date,
+      a.expected_return_date,
+      a.status || 'outstanding',
+      formatCurrency(a.amount_returned || 0)
+    ])
+
+    return this.arrayToCSV([headers, ...rows])
+  }
+
+  static exportFunds(funds: any[]): string {
+    const headers = ['Fund Name', 'Current Balance', 'Description']
+    const rows = funds.map(f => [
+      f.name,
+      formatCurrency(f.current_balance || 0),
+      f.description || ''
+    ])
+
+    return this.arrayToCSV([headers, ...rows])
+  }
+
+  static exportComprehensive(data: any): string {
+    let csv = '=== COMPREHENSIVE FINANCIAL REPORT ===\n\n'
+
+    // Summary section
+    csv += '=== FINANCIAL SUMMARY ===\n'
+    const totalIncome = data.transactions.filter((t: any) => t.type === 'income').reduce((sum: number, t: any) => sum + t.amount, 0)
+    const totalExpenses = data.transactions.filter((t: any) => t.type === 'expense').reduce((sum: number, t: any) => sum + t.amount, 0)
+    const totalOfferings = data.offerings.reduce((sum: number, o: any) => sum + o.amount, 0)
+
+    csv += `Total Income,${formatCurrency(totalIncome)}\n`
+    csv += `Total Expenses,${formatCurrency(totalExpenses)}\n`
+    csv += `Net Income,${formatCurrency(totalIncome - totalExpenses)}\n`
+    csv += `Total Offerings,${formatCurrency(totalOfferings)}\n\n`
+
+    // Transactions
+    csv += '=== TRANSACTIONS ===\n'
+    csv += this.exportTransactions(data.transactions) + '\n\n'
+
+    // Offerings
+    csv += '=== OFFERINGS ===\n'
+    csv += this.exportOfferings(data.offerings) + '\n\n'
+
+    // Bills
+    csv += '=== BILLS ===\n'
+    csv += this.exportBills(data.bills) + '\n\n'
+
+    // Advances
+    csv += '=== ADVANCES ===\n'
+    csv += this.exportAdvances(data.advances) + '\n\n'
+
+    // Funds
+    csv += '=== FUND BALANCES ===\n'
+    csv += this.exportFunds(data.funds)
+
+    return csv
   }
 
   private static arrayToCSV(data: any[][]): string {

@@ -2,6 +2,7 @@ import { createServerClient } from "@/lib/supabase-server";
 import { safeSelect } from "@/lib/supabase-helpers";
 import { redirect } from "next/navigation";
 import { cache } from "react";
+import { getSelectedChurch, requireChurch, getServerChurchContext, withChurchFilter } from "@/lib/server-church-context";
 import type {
   FundSummary,
   TransactionWithFund,
@@ -96,37 +97,97 @@ export interface DashboardData {
 }
 
 export const getDashboardData = cache(async (): Promise<DashboardData> => {
+  console.log('[DEBUG] Dashboard Data - Starting data fetch');
+
   // Use requireAuth to ensure user is authenticated - will redirect if not
   await requireAuth();
 
-  // Now we can safely assume user is authenticated
+  // Get selected church context - critical for proper data filtering
+  const selectedChurch = await getSelectedChurch();
+  if (!selectedChurch) {
+    throw new Error('No church selected');
+  }
+
+  console.log('[DEBUG] Dashboard Data - Selected church:', selectedChurch.id, selectedChurch.name);
+
+  // Now we can safely assume user is authenticated and has a church selected
   const supabase = await createServerClient();
 
-  // Fetch fund summaries from the view
+  // Fetch fund summaries - MUST filter by church_id explicitly
+  console.log('[DEBUG] Dashboard Data - Querying funds for church:', selectedChurch.id);
   const fundsResult = await safeSelect(supabase, "funds", {
+    filter: { column: "church_id", value: selectedChurch.id },
+    order: { column: "name", ascending: true }
+  });
+  console.log('[DEBUG] Dashboard Data - Funds query result:', fundsResult.data?.length, 'funds found');
+
+  // Fetch recent transactions - MUST filter by church_id explicitly
+  console.log('[DEBUG] Dashboard Data - Querying transactions for church:', selectedChurch.id);
+
+  const { data: allTransactions, error: transactionsError } = await supabase
+    .from("transactions")
+    .select(`
+      *,
+      fund:funds(id, name, church_id)
+    `)
+    .eq("church_id", selectedChurch.id)
+    .order("created_at", { ascending: false })
+    .limit(10);
+
+  console.log('[DEBUG] Dashboard Data - Transactions query result:', allTransactions?.length, 'transactions found');
+
+  if (transactionsError) {
+    console.error('[DEBUG] Dashboard Data - Transactions query error:', transactionsError);
+  }
+
+  const transactionsResult = {
+    data: allTransactions,
+    error: transactionsError
+  };
+
+  // Fetch all funds - MUST filter by church_id explicitly
+  const allFundsResult = await safeSelect(supabase, "funds", {
+    filter: { column: "church_id", value: selectedChurch.id },
     order: { column: "name", ascending: true }
   });
 
-  // Fetch recent transactions (without joins for now to avoid RLS issues)
-  const transactionsResult = await safeSelect(supabase, "transactions", {
-    order: { column: "created_at", ascending: false },
-    limit: 10
-  });
+  // Fetch upcoming bills - MUST filter by church_id explicitly
+  console.log('[DEBUG] Dashboard Data - Querying bills for church:', selectedChurch.id);
+  const { data: allBills, error: billsError } = await supabase
+    .from("bills")
+    .select(`
+      *,
+      fund:funds(id, name, church_id)
+    `)
+    .eq("church_id", selectedChurch.id)
+    .order("due_date", { ascending: true })
+    .limit(50);
 
-  // Fetch all funds to join manually
-  const allFundsResult = await safeSelect(supabase, "funds");
+  console.log('[DEBUG] Dashboard Data - Bills query result:', allBills?.length, 'bills found');
 
-  // Fetch upcoming bills
-  const allBillsResult = await safeSelect(supabase, "bills", {
-    order: { column: "due_date", ascending: true },
-    limit: 50 // Get more and filter in memory
-  });
+  const allBillsResult = {
+    data: allBills,
+    error: billsError
+  };
 
-  // Fetch outstanding advances
-  const allAdvancesResult = await safeSelect(supabase, "advances", {
-    order: { column: "expected_return_date", ascending: true },
-    limit: 50 // Get more and filter in memory
-  });
+  // Fetch outstanding advances - MUST filter by church_id explicitly
+  console.log('[DEBUG] Dashboard Data - Querying advances for church:', selectedChurch.id);
+  const { data: allAdvances, error: advancesError } = await supabase
+    .from("advances")
+    .select(`
+      *,
+      fund:funds(id, name, church_id)
+    `)
+    .eq("church_id", selectedChurch.id)
+    .order("expected_return_date", { ascending: true })
+    .limit(50);
+
+  console.log('[DEBUG] Dashboard Data - Advances query result:', allAdvances?.length, 'advances found');
+
+  const allAdvancesResult = {
+    data: allAdvances,
+    error: advancesError
+  };
 
   // Calculate monthly income and expenses
   const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM format
@@ -136,25 +197,35 @@ export const getDashboardData = cache(async (): Promise<DashboardData> => {
     1
   ).toISOString().slice(0, 10);
 
-  const allTransactionsResult = await safeSelect(supabase, "transactions");
+  // Get all transactions - MUST filter by church_id explicitly
+  console.log('[DEBUG] Dashboard Data - Querying all transactions for monthly stats for church:', selectedChurch.id);
+  const { data: allTransactionsForStats, error: allTransactionsError } = await supabase
+    .from("transactions")
+    .select(`
+      *,
+      fund:funds(id, name, church_id)
+    `)
+    .eq("church_id", selectedChurch.id);
+
+  console.log('[DEBUG] Dashboard Data - All transactions result:', allTransactionsForStats?.length, 'transactions found');
 
   // Filter for monthly data in memory
   const monthlyIncomeResult = {
-    data: allTransactionsResult.data?.filter(t =>
+    data: allTransactionsForStats?.filter(t =>
       t.type === "income" &&
       t.transaction_date >= `${currentMonth}-01` &&
       t.transaction_date < nextMonth
     ) || [],
-    error: allTransactionsResult.error
+    error: allTransactionsError
   };
 
   const monthlyExpensesResult = {
-    data: allTransactionsResult.data?.filter(t =>
+    data: allTransactionsForStats?.filter(t =>
       t.type === "expense" &&
       t.transaction_date >= `${currentMonth}-01` &&
       t.transaction_date < nextMonth
     ) || [],
-    error: allTransactionsResult.error
+    error: allTransactionsError
   };
 
   // Handle errors
@@ -257,10 +328,17 @@ export const getTransactionsData = cache(
     // Use requireAuth to ensure user is authenticated - will redirect if not
     await requireAuth();
 
-    // Now we can safely assume user is authenticated
+    // Get selected church context - critical for proper data filtering
+    const selectedChurch = await getSelectedChurch();
+    if (!selectedChurch) {
+      return { transactions: [], funds: [] };
+    }
+
+    // Create supabase client with user context
     const supabase = await createServerClient();
 
     const [transactionsResult, fundsResult] = await Promise.all([
+      // MUST filter by church_id explicitly
       supabase
         .from("transactions")
         .select(
@@ -269,10 +347,16 @@ export const getTransactionsData = cache(
         fund:funds(*)
       `
         )
+        .eq("church_id", selectedChurch.id)
         .order("transaction_date", { ascending: false })
         .order("created_at", { ascending: false }),
 
-      supabase.from("funds").select("*").order("name"),
+      // MUST filter by church_id explicitly
+      supabase
+        .from("funds")
+        .select("*")
+        .eq("church_id", selectedChurch.id)
+        .order("name"),
     ]);
 
     if (transactionsResult.error)
@@ -304,7 +388,13 @@ export const getLedgerEntriesData = cache(
     // Use requireAuth to ensure user is authenticated - will redirect if not
     await requireAuth();
 
-    // Now we can safely assume user is authenticated
+    // Get selected church context
+    const selectedChurch = await getSelectedChurch();
+    if (!selectedChurch) {
+      return [];
+    }
+
+    // Now we can safely assume user is authenticated and has a church selected
     const supabase = await createServerClient();
 
     const { data, error } = await supabase
@@ -316,6 +406,7 @@ export const getLedgerEntriesData = cache(
       bills(*)
     `
       )
+      .eq("church_id", selectedChurch.id)
       .order("created_at", { ascending: false });
 
     if (error)
@@ -342,17 +433,26 @@ export const getMembersData = cache(async (): Promise<Member[]> => {
   // Use requireAuth to ensure user is authenticated - will redirect if not
   await requireAuth();
 
-  // Now we can safely assume user is authenticated
+  // Get selected church context
+  const selectedChurch = await getSelectedChurch();
+  if (!selectedChurch) {
+    return [];
+  }
 
+  // Now we can safely assume user is authenticated and has a church selected
   const supabase = await createServerClient();
 
   const { data, error } = await supabase
     .from("members")
     .select("*")
+    .eq("church_id", selectedChurch.id)
     .order("name");
 
   if (error) throw new Error(`Failed to fetch members: ${error.message}`);
-  return data || [];
+  return (data || []).map(member => ({
+    ...member,
+    church_id: selectedChurch.id
+  })) as Member[];
 });
 
 // Bills data fetching
@@ -365,8 +465,13 @@ export const getBillsData = cache(async (): Promise<BillsData> => {
   // Use requireAuth to ensure user is authenticated - will redirect if not
   await requireAuth();
 
-  // Now we can safely assume user is authenticated
+  // Get selected church context
+  const selectedChurch = await getSelectedChurch();
+  if (!selectedChurch) {
+    return { bills: [], funds: [] };
+  }
 
+  // Now we can safely assume user is authenticated and has a church selected
   const supabase = await createServerClient();
 
   const [billsResult, fundsResult] = await Promise.all([
@@ -378,10 +483,15 @@ export const getBillsData = cache(async (): Promise<BillsData> => {
         fund:funds(*)
       `
       )
+      .eq("church_id", selectedChurch.id)
       .order("due_date", { ascending: false })
       .order("created_at", { ascending: false }),
 
-    supabase.from("funds").select("*").order("name"),
+    supabase
+      .from("funds")
+      .select("*")
+      .eq("church_id", selectedChurch.id)
+      .order("name"),
   ]);
 
   if (billsResult.error)
@@ -405,8 +515,13 @@ export const getAdvancesData = cache(async (): Promise<AdvancesData> => {
   // Use requireAuth to ensure user is authenticated - will redirect if not
   await requireAuth();
 
-  // Now we can safely assume user is authenticated
+  // Get selected church context
+  const selectedChurch = await getSelectedChurch();
+  if (!selectedChurch) {
+    return { advances: [], funds: [] };
+  }
 
+  // Now we can safely assume user is authenticated and has a church selected
   const supabase = await createServerClient();
 
   const [advancesResult, fundsResult] = await Promise.all([
@@ -418,9 +533,14 @@ export const getAdvancesData = cache(async (): Promise<AdvancesData> => {
         fund:funds(*)
       `
       )
+      .eq("church_id", selectedChurch.id)
       .order("created_at", { ascending: false }),
 
-    supabase.from("funds").select("*").order("name"),
+    supabase
+      .from("funds")
+      .select("*")
+      .eq("church_id", selectedChurch.id)
+      .order("name"),
   ]);
 
   if (advancesResult.error)
@@ -446,8 +566,13 @@ export const getOfferingsData = cache(async (): Promise<OfferingsData> => {
   // Use requireAuth to ensure user is authenticated - will redirect if not
   await requireAuth();
 
-  // Now we can safely assume user is authenticated
+  // Get selected church context
+  const selectedChurch = await getSelectedChurch();
+  if (!selectedChurch) {
+    return { offerings: [], funds: [] };
+  }
 
+  // Now we can safely assume user is authenticated and has a church selected
   const supabase = await createServerClient();
 
   const [offeringsResult, fundsResult] = await Promise.all([
@@ -459,9 +584,14 @@ export const getOfferingsData = cache(async (): Promise<OfferingsData> => {
         fund:funds(*)
       `
       )
+      .eq("church_id", selectedChurch.id)
       .order("service_date", { ascending: false }),
 
-    supabase.from("funds").select("*").order("name"),
+    supabase
+      .from("funds")
+      .select("*")
+      .eq("church_id", selectedChurch.id)
+      .order("name"),
   ]);
 
   if (offeringsResult.error)
@@ -491,19 +621,25 @@ export const getCashBreakdownData = cache(
     // Use requireAuth to ensure user is authenticated - will redirect if not
     await requireAuth();
 
-    // Now we can safely assume user is authenticated
+    // Get selected church context
+    const selectedChurch = await getSelectedChurch();
+    if (!selectedChurch) {
+      return [];
+    }
 
+    // Now we can safely assume user is authenticated and has a church selected
     const supabase = await createServerClient();
 
     const { data, error } = await supabase
       .from("cash_breakdown")
       .select("*")
+      .eq("church_id", selectedChurch.id)
       .order("fund_type")
       .order("denomination", { ascending: false });
 
     if (error)
       throw new Error(`Failed to fetch cash breakdown: ${error.message}`);
-    return data || [];
+    return (data || []) as CashBreakdownData[];
   }
 );
 
@@ -517,13 +653,24 @@ export const getFundsPageData = cache(async (): Promise<FundsPageData> => {
   // Use requireAuth to ensure user is authenticated - will redirect if not
   await requireAuth();
 
-  // Now we can safely assume user is authenticated
+  // Get selected church context - critical for proper data filtering
+  const selectedChurch = await getSelectedChurch();
+  if (!selectedChurch) {
+    return { funds: [], recentTransactions: [] };
+  }
 
+  // Create supabase client with user context
   const supabase = await createServerClient();
 
   const [fundsResult, transactionsResult] = await Promise.all([
-    supabase.from("funds").select("*").order("name"),
+    // MUST filter by church_id explicitly
+    supabase
+      .from("funds")
+      .select("*")
+      .eq("church_id", selectedChurch.id)
+      .order("name"),
 
+    // MUST filter by church_id explicitly
     supabase
       .from("transactions")
       .select(
@@ -532,6 +679,7 @@ export const getFundsPageData = cache(async (): Promise<FundsPageData> => {
         fund:funds(*)
       `
       )
+      .eq("church_id", selectedChurch.id)
       .order("created_at", { ascending: false })
       .limit(20),
   ]);
@@ -582,11 +730,16 @@ export const getMemberContributionsData = cache(
     // Use requireAuth to ensure user is authenticated - will redirect if not
     await requireAuth();
 
-    // Now we can safely assume user is authenticated
+    // Get selected church context
+    const selectedChurch = await getSelectedChurch();
+    if (!selectedChurch) {
+      return [];
+    }
 
+    // Now we can safely assume user is authenticated and has a church selected
     const supabase = await createServerClient();
 
-    // Fetch all offerings with their member and fund information
+    // Fetch all offerings with their member and fund information for the selected church
     const { data: offeringsData, error: offeringsError } = await supabase
       .from("offerings")
       .select(
@@ -600,17 +753,20 @@ export const getMemberContributionsData = cache(
       offering_member!inner(
         id,
         member_id,
-        member:members(
+        member:members!inner(
           id,
           name,
           phone,
           fellowship_name,
           job,
-          location
+          location,
+          church_id
         )
       )
     `
       )
+      .eq("church_id", selectedChurch.id)
+      .eq("offering_member.member.church_id", selectedChurch.id)
       .order("service_date", { ascending: false });
 
     if (offeringsError)
@@ -618,10 +774,11 @@ export const getMemberContributionsData = cache(
         `Failed to fetch member contributions: ${offeringsError.message}`
       );
 
-    // Fetch funds for fund name lookup
+    // Fetch funds for fund name lookup (filtered by church)
     const { data: fundsData, error: fundsError } = await supabase
       .from("funds")
-      .select("id, name");
+      .select("id, name")
+      .eq("church_id", selectedChurch.id);
 
     if (fundsError)
       throw new Error(`Failed to fetch funds: ${fundsError.message}`);
@@ -791,20 +948,26 @@ export const getNotificationsData = cache(
     // Use requireAuth to ensure user is authenticated - will redirect if not
     const user = await requireAuth();
 
-    // Now we can safely assume user is authenticated
+    // Get selected church context
+    const selectedChurch = await getSelectedChurch();
+    if (!selectedChurch) {
+      return [];
+    }
 
+    // Now we can safely assume user is authenticated and has a church selected
     const supabase = await createServerClient();
 
     const { data, error } = await supabase
       .from("notifications")
       .select("*")
       .eq("user_id", user.id)
+      .eq("church_id", selectedChurch.id)
       .order("created_at", { ascending: false })
       .limit(100);
 
     if (error)
       throw new Error(`Failed to fetch notifications: ${error.message}`);
-    return data || [];
+    return (data || []) as NotificationData[];
   }
 );
 
@@ -825,8 +988,19 @@ export const getReportsData = cache(
     // Use requireAuth to ensure user is authenticated - will redirect if not
     await requireAuth();
 
-    // Now we can safely assume user is authenticated
+    // Get selected church context
+    const selectedChurch = await getSelectedChurch();
+    if (!selectedChurch) {
+      return {
+        transactions: [],
+        offerings: [],
+        bills: [],
+        advances: [],
+        funds: []
+      };
+    }
 
+    // Now we can safely assume user is authenticated and has a church selected
     const supabase = await createServerClient();
 
     const [
@@ -844,6 +1018,7 @@ export const getReportsData = cache(
         fund:funds(*)
       `
         )
+        .eq("church_id", selectedChurch.id)
         .gte("transaction_date", dateRange.startDate)
         .lte("transaction_date", dateRange.endDate)
         .order("transaction_date", { ascending: false }),
@@ -851,6 +1026,7 @@ export const getReportsData = cache(
       supabase
         .from("offerings")
         .select("*")
+        .eq("church_id", selectedChurch.id)
         .gte("service_date", dateRange.startDate)
         .lte("service_date", dateRange.endDate)
         .order("service_date", { ascending: false }),
@@ -863,6 +1039,7 @@ export const getReportsData = cache(
         fund:funds(*)
       `
         )
+        .eq("church_id", selectedChurch.id)
         .gte("due_date", dateRange.startDate)
         .lte("due_date", dateRange.endDate)
         .order("due_date", { ascending: false }),
@@ -875,11 +1052,16 @@ export const getReportsData = cache(
         fund:funds(*)
       `
         )
+        .eq("church_id", selectedChurch.id)
         .gte("created_at", dateRange.startDate)
         .lte("created_at", dateRange.endDate)
         .order("created_at", { ascending: false }),
 
-      supabase.from("funds").select("*").order("name"),
+      supabase
+        .from("funds")
+        .select("*")
+        .eq("church_id", selectedChurch.id)
+        .order("name"),
     ]);
 
     if (transactionsResult.error)

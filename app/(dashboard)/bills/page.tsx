@@ -100,10 +100,13 @@ export default function BillsPage(): JSX.Element {
   })
 
   const fetchLedgerEntries = useCallback(async () => {
+    if (!selectedChurch) return
+
     try {
       const { data, error } = await supabase
         .from('ledger_entries')
         .select('*')
+        .eq('church_id', selectedChurch.id)
         .order('created_at', { ascending: false })
 
       if (error) throw error
@@ -112,13 +115,20 @@ export default function BillsPage(): JSX.Element {
       console.error('Error fetching ledger entries:', error)
       toast.error('Failed to fetch ledger entries')
     }
-  }, [])
+  }, [selectedChurch])
 
   const fetchLedgerSubgroups = useCallback(async () => {
+    if (!selectedChurch) return
+
     try {
+      // Fetch subgroups with their parent ledger entries to filter by church
       const { data, error } = await supabase
         .from('ledger_subgroups')
-        .select('*')
+        .select(`
+          *,
+          ledger_entries!inner(church_id)
+        `)
+        .eq('ledger_entries.church_id', selectedChurch.id)
         .order('sort_order', { ascending: true })
 
       if (error) throw error
@@ -127,13 +137,18 @@ export default function BillsPage(): JSX.Element {
       console.error('Error fetching ledger subgroups:', error)
       toast.error('Failed to fetch ledger subgroups')
     }
-  }, [])
+  }, [selectedChurch])
 
   const fetchData = useCallback(async () => {
+    if (!selectedChurch) {
+      setLoading(false)
+      return
+    }
+
     try {
       setLoading(true)
 
-      // Fetch bills
+      // Fetch bills - filter by church_id
       const { data: billsData, error: billsError } = await supabase
         .from('bills')
         .select(`
@@ -141,22 +156,25 @@ export default function BillsPage(): JSX.Element {
           ledger_entries(*),
           ledger_subgroups(*)
         `)
+        .eq('church_id', selectedChurch.id)
         .order('due_date', { ascending: true })
 
       if (billsError) throw billsError
 
-      // Fetch petty cash
+      // Fetch petty cash - filter by church_id
       const { data: pettyCashData, error: pettyCashError } = await supabase
         .from('petty_cash')
         .select('*')
+        .eq('church_id', selectedChurch.id)
         .order('created_at', { ascending: false })
 
       if (pettyCashError) throw pettyCashError
 
-      // Fetch funds
+      // Fetch funds - filter by church_id
       const { data: fundsData, error: fundsError } = await supabase
         .from('funds')
         .select('*')
+        .eq('church_id', selectedChurch.id)
         .order('name')
 
       if (fundsError) throw fundsError
@@ -173,7 +191,7 @@ export default function BillsPage(): JSX.Element {
     } finally {
       setLoading(false)
     }
-  }, [fetchLedgerEntries, fetchLedgerSubgroups])
+  }, [selectedChurch, fetchLedgerEntries, fetchLedgerSubgroups])
 
   useEffect(() => {
     fetchData()

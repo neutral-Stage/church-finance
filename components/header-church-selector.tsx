@@ -17,8 +17,8 @@ export function HeaderChurchSelector({ className }: HeaderChurchSelectorProps) {
   const { selectedChurch, availableChurches, setSelectedChurch, isLoading, error } = useChurch()
   const [isOpen, setIsOpen] = useState(false)
 
-  const handleChurchSelect = (church: ChurchWithRole) => {
-    setSelectedChurch(church)
+  const handleChurchSelect = async (church: ChurchWithRole) => {
+    await setSelectedChurch(church)
     setIsOpen(false)
   }
 

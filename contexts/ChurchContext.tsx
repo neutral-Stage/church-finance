@@ -7,7 +7,7 @@ import { churchApi } from '@/lib/church-aware-api'
 interface ChurchContextType {
   selectedChurch: ChurchWithRole | null
   availableChurches: ChurchWithRole[]
-  setSelectedChurch: (church: ChurchWithRole | null) => void
+  setSelectedChurch: (church: ChurchWithRole | null, skipReload?: boolean) => Promise<void>
   isLoading: boolean
   error: string | null
   refreshChurches: () => Promise<void>
@@ -65,24 +65,104 @@ export function ChurchProvider({ children }: ChurchProviderProps) {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isInitialized, setIsInitialized] = useState(false)
+  const [isUpdating, setIsUpdating] = useState(false) // Track if we're in the middle of an update
 
-  // Load selected church from localStorage on mount
+  // Load selected church from localStorage on mount and sync with server
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem('selectedChurch')
-      if (stored) {
-        try {
-          const parsedChurch = JSON.parse(stored) as ChurchWithRole
-          setSelectedChurchState(parsedChurch)
-          // Initialize the API client with the stored church
-          churchApi.setSelectedChurch(parsedChurch)
-        } catch (error) {
-          console.error('Error parsing stored church:', error)
-          localStorage.removeItem('selectedChurch')
+    const initializeChurch = async () => {
+      if (typeof window !== 'undefined') {
+        // First try to load from localStorage for immediate UI update
+        const stored = localStorage.getItem('selectedChurch')
+        if (stored) {
+          try {
+            const parsedChurch = JSON.parse(stored) as ChurchWithRole
+            setSelectedChurchState(parsedChurch)
+            // Initialize the API client with the stored church
+            churchApi.setSelectedChurch(parsedChurch)
+            console.log('[ChurchContext] Loaded church from localStorage:', parsedChurch.id)
+          } catch (error) {
+            console.error('[ChurchContext] Error parsing stored church:', error)
+            localStorage.removeItem('selectedChurch')
+          }
         }
+
+        // Then check server-side cookie for validation and sync
+        try {
+          console.log('[ChurchContext] Checking server cookie status...')
+          const response = await fetch('/api/church-selection', {
+            method: 'GET',
+            credentials: 'include',
+            cache: 'no-store' // Ensure we get fresh data, not cached response
+          })
+
+          if (response.ok) {
+            const data = await response.json()
+            const storedChurch = stored ? JSON.parse(stored) : null
+
+            console.log('[ChurchContext] Server cookie check:', {
+              hasServerChurch: !!data.church,
+              serverChurchId: data.church?.id,
+              hasClientChurch: !!storedChurch,
+              clientChurchId: storedChurch?.id
+            })
+
+            if (data.church && (!storedChurch || data.church.id !== storedChurch.id)) {
+              // Server has a different church selected, sync with it
+              console.log('[ChurchContext] Server has different church, syncing to client:', data.church.id)
+              setSelectedChurchState(data.church)
+              churchApi.setSelectedChurch(data.church)
+              localStorage.setItem('selectedChurch', JSON.stringify(data.church))
+              sessionStorage.setItem('churchSyncCompleted', 'true')
+            } else if (!data.church && storedChurch) {
+              // Client has church but server doesn't - sync client to server
+              // Only sync once per session to prevent infinite loops
+              const hasSynced = sessionStorage.getItem('churchSyncAttempted')
+
+              if (!hasSynced) {
+                console.log('[ChurchContext] Client has church but server doesn\'t, syncing to server:', storedChurch.id)
+                sessionStorage.setItem('churchSyncAttempted', 'true')
+
+                const syncResponse = await fetch('/api/church-selection', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  credentials: 'include',
+                  body: JSON.stringify({ church: storedChurch })
+                })
+
+                if (syncResponse.ok) {
+                  const syncData = await syncResponse.json()
+                  console.log('[ChurchContext] Cookie synced successfully:', syncData)
+
+                  // Reload only once
+                  console.log('[ChurchContext] Reloading page once to refresh server components')
+                  window.location.reload()
+                } else {
+                  console.error('[ChurchContext] Failed to sync cookie to server:', syncResponse.status)
+                }
+              } else {
+                console.log('[ChurchContext] Already attempted sync this session, skipping to prevent loop')
+              }
+            } else if (data.church && storedChurch && data.church.id === storedChurch.id) {
+              // Server and client are already in sync
+              console.log('[ChurchContext] Server and client already in sync:', storedChurch.id)
+              sessionStorage.setItem('churchSyncCompleted', 'true')
+            } else if (!data.church && !storedChurch) {
+              // No church selected anywhere - will auto-select when churches are loaded
+              console.log('[ChurchContext] No church selected on server or client')
+            }
+          } else {
+            console.error('[ChurchContext] Failed to fetch server church selection:', response.status)
+          }
+        } catch (error) {
+          console.error('[ChurchContext] Error syncing with server church selection:', error)
+          // Continue with localStorage data even if server sync fails
+        }
+
+        setIsInitialized(true)
       }
-      setIsInitialized(true)
     }
+
+    initializeChurch()
   }, [])
 
   // Fetch available churches
@@ -121,17 +201,78 @@ export function ChurchProvider({ children }: ChurchProviderProps) {
     await fetchChurches()
   }, [fetchChurches])
 
-  // Set selected church with persistence
-  const setSelectedChurch = useCallback((church: ChurchWithRole | null) => {
+  // Set selected church with persistence and server synchronization
+  const setSelectedChurch = useCallback(async (church: ChurchWithRole | null, skipReload = false) => {
+    // Prevent infinite loops - check if church actually changed
+    if (isUpdating) {
+      console.log('[ChurchContext] Already updating, skipping...')
+      return
+    }
+
+    const currentChurchId = selectedChurch?.id
+    const newChurchId = church?.id
+
+    if (currentChurchId === newChurchId) {
+      console.log('[ChurchContext] Church unchanged, skipping update')
+      return
+    }
+
+    setIsUpdating(true)
+    console.log('[ChurchContext] Changing church from', currentChurchId, 'to', newChurchId)
+
+    // Clear sync flags when manually changing church to allow re-sync
+    sessionStorage.removeItem('churchSyncAttempted')
+    sessionStorage.removeItem('churchSyncCompleted')
+
     setSelectedChurchState(church)
     // Update the API client with the new church context
     churchApi.setSelectedChurch(church)
+
+    // Update localStorage for immediate client-side access
     if (church) {
       localStorage.setItem('selectedChurch', JSON.stringify(church))
     } else {
       localStorage.removeItem('selectedChurch')
+      // Clear the sync flag when clearing church selection
+      sessionStorage.removeItem('churchSyncCompleted')
     }
-  }, [])
+
+    // Always synchronize with server-side cookies
+    try {
+      const response = await fetch('/api/church-selection', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({ church })
+      })
+
+      if (!response.ok) {
+        console.error('Failed to synchronize church selection with server')
+        setIsUpdating(false)
+        // Still continue with client-side selection even if server sync fails
+      } else {
+        // Mark sync as completed
+        if (church) {
+          sessionStorage.setItem('churchSyncCompleted', 'true')
+        }
+
+        // Only reload if this is a manual church change (not auto-select)
+        if (!skipReload && typeof window !== 'undefined') {
+          console.log('[ChurchContext] Reloading page with new church context')
+          window.location.reload()
+        } else {
+          console.log('[ChurchContext] Cookie synced, skipping reload (auto-select)')
+          setIsUpdating(false)
+        }
+      }
+    } catch (error) {
+      console.error('Error synchronizing church selection:', error)
+      setIsUpdating(false)
+      // Still continue with client-side selection even if server sync fails
+    }
+  }, [selectedChurch, isUpdating])
 
   // Fetch churches when component mounts and is initialized
   useEffect(() => {
@@ -142,25 +283,27 @@ export function ChurchProvider({ children }: ChurchProviderProps) {
 
   // Separate effect to validate selected church when available churches change
   useEffect(() => {
-    if (availableChurches.length > 0 && selectedChurch) {
-      const churchStillExists = availableChurches.find((c: ChurchWithRole) => c.id === selectedChurch.id)
-      if (!churchStillExists) {
-        // Clear invalid selection and auto-select first available church
-        setSelectedChurchState(availableChurches[0])
-        localStorage.setItem('selectedChurch', JSON.stringify(availableChurches[0]))
-      } else if (churchStillExists !== selectedChurch) {
-        // Update with latest data
-        setSelectedChurchState(churchStillExists)
-        localStorage.setItem('selectedChurch', JSON.stringify(churchStillExists))
+    const syncSelectedChurch = async () => {
+      if (isUpdating) return // Don't sync while updating
+      if (!isInitialized) return // Don't sync until initialized
+
+      if (availableChurches.length > 0 && selectedChurch) {
+        const churchStillExists = availableChurches.find((c: ChurchWithRole) => c.id === selectedChurch.id)
+        if (!churchStillExists) {
+          console.log('[ChurchContext] Selected church no longer exists, auto-selecting first church')
+          // Clear invalid selection and auto-select first available church (skip reload)
+          await setSelectedChurch(availableChurches[0], true)
+        }
+        // Don't update if church reference is different but ID is the same
+      } else if (availableChurches.length > 0 && !selectedChurch) {
+        console.log('[ChurchContext] No church selected, auto-selecting first church')
+        // Auto-select first church if none is selected (skip reload on auto-select)
+        await setSelectedChurch(availableChurches[0], true)
       }
-    } else if (availableChurches.length > 0 && !selectedChurch) {
-      // Auto-select first church if none is selected
-      const firstChurch = availableChurches[0]
-      setSelectedChurchState(firstChurch)
-      churchApi.setSelectedChurch(firstChurch)
-      localStorage.setItem('selectedChurch', JSON.stringify(firstChurch))
     }
-  }, [availableChurches, selectedChurch])
+
+    syncSelectedChurch()
+  }, [availableChurches, selectedChurch, setSelectedChurch, isUpdating, isInitialized])
 
   const value: ChurchContextType = {
     selectedChurch,

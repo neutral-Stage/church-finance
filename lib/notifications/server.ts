@@ -93,7 +93,7 @@ export class ServerNotificationService {
         .limit(limit)
 
       if (error) throw error
-      return data || []
+      return (data || []).filter(n => n.user_id) as Notification[]
     } catch (error) {
       console.error('Error getting user notifications:', error)
       throw new Error(`Failed to get user notifications: ${error instanceof Error ? error.message : 'Unknown error'}`)

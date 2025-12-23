@@ -1,14 +1,25 @@
 import { Suspense } from 'react'
-import { getMembersData, checkUserPermissions } from '@/lib/server-data'
+import { getMembersData, checkUserPermissions, requireAuth } from '@/lib/server-data'
+import { getSelectedChurch } from '@/lib/server-church-context'
 import { MembersClient } from '@/components/members-client'
 import { FullScreenLoader } from '@/components/ui/loader'
+import { EmptyChurchState } from '@/components/empty-church-state'
 
 // Force dynamic rendering since this page requires server-side authentication
 export const dynamic = 'force-dynamic';
 
 // This is now a Server Component
 export default async function MembersPage() {
-  // All data fetching happens on the server
+  // Require authentication first - will redirect if not authenticated
+  await requireAuth()
+
+  // Get selected church - if no church is selected, show empty state
+  const selectedChurch = await getSelectedChurch()
+  if (!selectedChurch) {
+    return <EmptyChurchState />
+  }
+
+  // All data fetching happens on the server with church context
   const [membersData, permissions] = await Promise.all([
     getMembersData(),
     checkUserPermissions()

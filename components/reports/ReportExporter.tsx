@@ -9,7 +9,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Input } from '@/components/ui/input'
-import { Download, FileText, Table, BarChart3, Settings, Mail } from 'lucide-react'
+import { Download, FileText, Table, BarChart3, Settings } from 'lucide-react'
 import { toast } from 'sonner'
 import { AdvancedExcelExporter, AdvancedPDFExporter, CSVExporter } from '@/lib/advanced-exports'
 import type { ReportsData } from '@/lib/server-data'
@@ -28,8 +28,6 @@ interface ExportConfig {
   includeCharts: boolean
   includeRawData: boolean
   customFields: string[]
-  emailDelivery: boolean
-  emailAddresses: string[]
   fileName: string
   notes: string
 }
@@ -43,8 +41,6 @@ export function ReportExporter({ data, dateRange }: ReportExporterProps) {
     includeCharts: true,
     includeRawData: true,
     customFields: [],
-    emailDelivery: false,
-    emailAddresses: [],
     fileName: `church-finance-report-${dateRange.startDate}-to-${dateRange.endDate}`,
     notes: ''
   })
@@ -69,24 +65,54 @@ export function ReportExporter({ data, dateRange }: ReportExporterProps) {
     try {
       setExporting(true)
       let blob: Blob
-      const fileName = `${exportConfig.fileName}.${exportConfig.format}`
+      const getFileExtension = (format: ExportFormat) => {
+        switch (format) {
+          case 'excel': return 'xlsx'
+          case 'pdf': return 'pdf'
+          case 'csv': return 'csv'
+          default: return format
+        }
+      }
+
+      const fileName = `${exportConfig.fileName}.${getFileExtension(exportConfig.format)}`
 
       switch (exportConfig.format) {
         case 'excel':
           const excelExporter = new AdvancedExcelExporter(data, dateRange)
-          const excelBuffer = await excelExporter.generateComprehensiveReport()
-          blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+          let excelBuffer: ArrayBuffer
+
+          switch (exportConfig.reportType) {
+            case 'comprehensive':
+            default:
+              excelBuffer = await excelExporter.generateComprehensiveReport()
+              break
+          }
+
+          blob = new Blob([excelBuffer], {
+            type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+          })
           break
 
         case 'pdf':
           const pdfExporter = new AdvancedPDFExporter(data, dateRange)
-          const pdfBuffer = pdfExporter.generateComprehensiveReport()
+          let pdfBuffer: ArrayBuffer
+
+          switch (exportConfig.reportType) {
+            case 'comprehensive':
+            default:
+              pdfBuffer = pdfExporter.generateComprehensiveReport()
+              break
+          }
+
           blob = new Blob([pdfBuffer], { type: 'application/pdf' })
           break
 
         case 'csv':
           let csvContent = ''
           switch (exportConfig.reportType) {
+            case 'comprehensive':
+              csvContent = CSVExporter.exportComprehensive(data)
+              break
             case 'transactions':
               csvContent = CSVExporter.exportTransactions(data.transactions)
               break
@@ -96,10 +122,21 @@ export function ReportExporter({ data, dateRange }: ReportExporterProps) {
             case 'bills':
               csvContent = CSVExporter.exportBills(data.bills)
               break
+            case 'advances':
+              csvContent = CSVExporter.exportAdvances(data.advances)
+              break
+            case 'funds':
+              csvContent = CSVExporter.exportFunds(data.funds)
+              break
             default:
-              csvContent = CSVExporter.exportTransactions(data.transactions)
+              csvContent = CSVExporter.exportComprehensive(data)
           }
-          blob = new Blob([csvContent], { type: 'text/csv' })
+
+          // Add UTF-8 BOM for proper Excel compatibility
+          const csvWithBOM = '\uFEFF' + csvContent
+          blob = new Blob([csvWithBOM], {
+            type: 'text/csv;charset=utf-8'
+          })
           break
 
         default:
@@ -116,11 +153,6 @@ export function ReportExporter({ data, dateRange }: ReportExporterProps) {
       document.body.removeChild(link)
       URL.revokeObjectURL(url)
 
-      // Handle email delivery if requested
-      if (exportConfig.emailDelivery && exportConfig.emailAddresses.length > 0) {
-        await handleEmailDelivery(blob, fileName)
-      }
-
       toast.success(`Report exported successfully as ${fileName}`)
       setExportDialogOpen(false)
     } catch (error) {
@@ -129,12 +161,6 @@ export function ReportExporter({ data, dateRange }: ReportExporterProps) {
     } finally {
       setExporting(false)
     }
-  }
-
-  const handleEmailDelivery = async (blob: Blob, fileName: string) => {
-    // This would integrate with your email service
-    // For now, we'll just show a success message
-    toast.success(`Report will be emailed to ${exportConfig.emailAddresses.join(', ')}`)
   }
 
   const updateConfig = (updates: Partial<ExportConfig>) => {
@@ -265,33 +291,6 @@ export function ReportExporter({ data, dateRange }: ReportExporterProps) {
             />
           </div>
 
-          {/* Email Delivery */}
-          <div className="space-y-3">
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="emailDelivery"
-                checked={exportConfig.emailDelivery}
-                onCheckedChange={(checked) => updateConfig({ emailDelivery: !!checked })}
-              />
-              <Label htmlFor="emailDelivery" className="text-sm font-medium flex items-center gap-1">
-                <Mail className="h-4 w-4" />
-                Email delivery
-              </Label>
-            </div>
-            {exportConfig.emailDelivery && (
-              <div className="space-y-2">
-                <Label htmlFor="emailAddresses" className="text-sm">Email addresses (comma-separated)</Label>
-                <Textarea
-                  id="emailAddresses"
-                  placeholder="admin@church.com, treasurer@church.com"
-                  value={exportConfig.emailAddresses.join(', ')}
-                  onChange={(e) => updateConfig({
-                    emailAddresses: e.target.value.split(',').map(email => email.trim()).filter(Boolean)
-                  })}
-                />
-              </div>
-            )}
-          </div>
 
           {/* Notes */}
           <div className="space-y-2">
