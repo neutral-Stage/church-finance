@@ -26,13 +26,21 @@ type LedgerEntry = Database['public']['Tables']['ledger_entries']['Row']
 type LedgerSubgroup = Database['public']['Tables']['ledger_subgroups']['Row']
 type Bill = Database['public']['Tables']['bills']['Row']
 
+// Extended interfaces with optional properties expected by the component
+// These may not exist in the database but are expected by the form logic
 interface LedgerSubgroupWithBills extends LedgerSubgroup {
   bills?: Bill[]
+  // Additional properties used by form
+  purpose?: string
+  notes?: string
 }
 
 interface LedgerEntryWithRelations extends LedgerEntry {
   ledger_subgroups?: LedgerSubgroupWithBills[]
   bills?: Bill[]
+  // Additional properties used by form
+  approval_status?: string
+  notes?: string
 }
 
 interface BillForm {
@@ -118,23 +126,23 @@ const isImageFile = (type: string): boolean => {
 const getDocumentUrl = async (path: string): Promise<string> => {
   try {
     console.log('🔗 Getting signed URL for path:', path)
-    
+
     // Check if the storage bucket exists and the file exists
     const supabase = await getSupabaseClient()
     const { data: listData, error: listError } = await supabase.storage
       .from('documents')
       .list(path.split('/')[0], { limit: 100 })
-    
+
     if (listError) {
       console.error('❌ Error listing storage contents:', listError)
     } else {
       console.log('📁 Storage bucket contents:', listData?.map(item => item.name))
     }
-    
+
     const { data, error } = await supabase.storage
       .from('documents')
       .createSignedUrl(path, 3600) // 1 hour expiry
-      
+
     if (error) {
       console.error('❌ Error creating signed URL:', error, {
         path,
@@ -143,7 +151,7 @@ const getDocumentUrl = async (path: string): Promise<string> => {
       })
       throw error
     }
-    
+
     const url = data?.signedUrl || ''
     console.log('✅ Signed URL created:', url ? `Success: ${url.substring(0, 100)}...` : 'No URL returned')
     return url
@@ -157,23 +165,23 @@ const downloadDocument = async (path: string, filename: string) => {
   try {
     console.log('📥 Downloading document:', { path, filename })
     toast.info(`Downloading ${filename}...`)
-    
+
     const supabase = await getSupabaseClient()
     const { data, error } = await supabase.storage
       .from('documents')
       .download(path)
-    
+
     if (error) {
       console.error('❌ Download error:', error)
       throw error
     }
-    
+
     if (!data) {
       throw new Error('No data received from storage')
     }
-    
+
     console.log('✅ Document data received, size:', data.size, 'bytes')
-    
+
     const url = URL.createObjectURL(data)
     const a = document.createElement('a')
     a.href = url
@@ -183,7 +191,7 @@ const downloadDocument = async (path: string, filename: string) => {
     a.click()
     document.body.removeChild(a)
     URL.revokeObjectURL(url)
-    
+
     toast.success(`${filename} downloaded successfully`)
     console.log('✅ Document download completed:', filename)
   } catch (error) {
@@ -205,7 +213,7 @@ export function ComprehensiveLedgerDialog({
   const [funds, setFunds] = useState<Fund[]>([])
   const [responsiblePartyInput, setResponsiblePartyInput] = useState('')
   const [uploadProgress, setUploadProgress] = useState<UploadProgress>({})
-  
+
   const [entryForm, setEntryForm] = useState<EntryForm>({
     title: '',
     description: '',
@@ -275,27 +283,28 @@ export function ComprehensiveLedgerDialog({
           allocation_percentage: subgroup.allocation_percentage?.toString() || '',
           notes: subgroup.notes || '',
           bills: (subgroup.bills || []).map(bill => {
-            const existingDoc = bill.document_url ? {
-              url: bill.document_url,
-              name: bill.document_name || 'Unknown Document',
-              size: bill.document_size || 0,
-              type: bill.document_type || 'application/octet-stream',
-              uploadedAt: bill.document_uploaded_at || ''
+            const doc = (bill as any).document_attachments?.[0]
+            const existingDoc = doc ? {
+              url: doc.file_path,
+              name: doc.file_name,
+              size: doc.file_size,
+              type: doc.file_type,
+              uploadedAt: doc.created_at || ''
             } : null
-            
+
             console.log(`📄 Subgroup bill ${bill.vendor_name} document:`, {
-              hasDocument: !!bill.document_url,
-              documentName: bill.document_name,
-              documentSize: bill.document_size,
+              hasDocument: !!doc,
+              documentName: doc?.file_name,
+              documentSize: doc?.file_size,
               existingDoc
             })
-            
+
             return {
               vendor_name: bill.vendor_name,
               amount: bill.amount.toString(),
               due_date: formatDateForInput(new Date(bill.due_date)),
               frequency: (bill.frequency as "one-time" | "monthly" | "quarterly" | "yearly") || "one-time",
-              category: bill.category,
+              category: bill.category || '', // Ensure category is not null
               fund_id: bill.fund_id,
               notes: bill.notes || '',
               priority: (bill.priority as "low" | "medium" | "high" | "urgent") || "medium",
@@ -305,27 +314,28 @@ export function ComprehensiveLedgerDialog({
           })
         })) : [],
         directBills: !hasSubgroups ? (entry.bills || []).map(bill => {
-          const existingDoc = bill.document_url ? {
-            url: bill.document_url,
-            name: bill.document_name || 'Unknown Document',
-            size: bill.document_size || 0,
-            type: bill.document_type || 'application/octet-stream',
-            uploadedAt: bill.document_uploaded_at || ''
+          const doc = (bill as any).document_attachments?.[0]
+          const existingDoc = doc ? {
+            url: doc.file_path,
+            name: doc.file_name,
+            size: doc.file_size,
+            type: doc.file_type,
+            uploadedAt: doc.created_at || ''
           } : null
-          
+
           console.log(`📄 Direct bill ${bill.vendor_name} document:`, {
-            hasDocument: !!bill.document_url,
-            documentName: bill.document_name,
-            documentSize: bill.document_size,
+            hasDocument: !!doc,
+            documentName: doc?.file_name,
+            documentSize: doc?.file_size,
             existingDoc
           })
-          
+
           return {
             vendor_name: bill.vendor_name,
             amount: bill.amount.toString(),
             due_date: formatDateForInput(new Date(bill.due_date)),
             frequency: (bill.frequency as "one-time" | "monthly" | "quarterly" | "yearly") || "one-time",
-            category: bill.category,
+            category: bill.category || '', // Ensure category is not null
             fund_id: bill.fund_id,
             notes: bill.notes || '',
             priority: (bill.priority as "low" | "medium" | "high" | "urgent") || "medium",
@@ -402,7 +412,7 @@ export function ComprehensiveLedgerDialog({
   const uploadDocument = async (file: File, billId: string): Promise<string | null> => {
     const supabase = await getSupabaseClient()
     const uploadId = `${billId}-${Date.now()}`
-    
+
     try {
       console.log('📤 Starting document upload:', {
         fileName: file.name,
@@ -472,16 +482,16 @@ export function ComprehensiveLedgerDialog({
         billId,
         uploadId
       })
-      
+
       setUploadProgress(prev => ({
         ...prev,
-        [uploadId]: { 
-          progress: 0, 
-          status: 'error', 
-          error: error instanceof Error ? error.message : 'Upload failed' 
+        [uploadId]: {
+          progress: 0,
+          status: 'error',
+          error: error instanceof Error ? error.message : 'Upload failed'
         }
       }))
-      
+
       toast.error(`Failed to upload ${file.name}: ${error instanceof Error ? error.message : 'Unknown error'}`)
       return null
     }
@@ -510,14 +520,14 @@ export function ComprehensiveLedgerDialog({
       setEntryForm(prev => {
         const updated = {
           ...prev,
-          subgroups: prev.subgroups.map((subgroup, sIdx) => 
+          subgroups: prev.subgroups.map((subgroup, sIdx) =>
             sIdx === subgroupIndex
               ? {
-                  ...subgroup,
-                  bills: subgroup.bills.map((bill, bIdx) => 
-                    bIdx === billIndex ? { ...bill, document: file, existingDocument: null } : bill
-                  )
-                }
+                ...subgroup,
+                bills: subgroup.bills.map((bill, bIdx) =>
+                  bIdx === billIndex ? { ...bill, document: file, existingDocument: null } : bill
+                )
+              }
               : subgroup
           )
         }
@@ -533,7 +543,7 @@ export function ComprehensiveLedgerDialog({
       setEntryForm(prev => {
         const updated = {
           ...prev,
-          directBills: prev.directBills.map((bill, bIdx) => 
+          directBills: prev.directBills.map((bill, bIdx) =>
             bIdx === billIndex ? { ...bill, document: file, existingDocument: null } : bill
           )
         }
@@ -550,30 +560,30 @@ export function ComprehensiveLedgerDialog({
 
   const handleDocumentRemove = (billIndex: number, isSubgroup: boolean, subgroupIndex?: number) => {
     console.log('🗑️ Removing document:', { billIndex, isSubgroup, subgroupIndex })
-    
+
     if (isSubgroup && subgroupIndex !== undefined) {
       setEntryForm(prev => ({
         ...prev,
-        subgroups: prev.subgroups.map((subgroup, sIdx) => 
+        subgroups: prev.subgroups.map((subgroup, sIdx) =>
           sIdx === subgroupIndex
             ? {
-                ...subgroup,
-                bills: subgroup.bills.map((bill, bIdx) => 
-                  bIdx === billIndex ? { ...bill, document: null, existingDocument: null } : bill
-                )
-              }
+              ...subgroup,
+              bills: subgroup.bills.map((bill, bIdx) =>
+                bIdx === billIndex ? { ...bill, document: null, existingDocument: null } : bill
+              )
+            }
             : subgroup
         )
       }))
     } else {
       setEntryForm(prev => ({
         ...prev,
-        directBills: prev.directBills.map((bill, bIdx) => 
+        directBills: prev.directBills.map((bill, bIdx) =>
           bIdx === billIndex ? { ...bill, document: null, existingDocument: null } : bill
         )
       }))
     }
-    
+
     toast.success('Document removed successfully')
   }
 
@@ -634,7 +644,7 @@ export function ComprehensiveLedgerDialog({
     if (isSubgroup && subgroupIndex !== undefined) {
       setEntryForm(prev => ({
         ...prev,
-        subgroups: prev.subgroups.map((subgroup, index) => 
+        subgroups: prev.subgroups.map((subgroup, index) =>
           index === subgroupIndex
             ? { ...subgroup, bills: [...subgroup.bills, newBill] }
             : subgroup
@@ -652,7 +662,7 @@ export function ComprehensiveLedgerDialog({
     if (isSubgroup && subgroupIndex !== undefined) {
       setEntryForm(prev => ({
         ...prev,
-        subgroups: prev.subgroups.map((subgroup, sIdx) => 
+        subgroups: prev.subgroups.map((subgroup, sIdx) =>
           sIdx === subgroupIndex
             ? { ...subgroup, bills: subgroup.bills.filter((_, bIdx) => bIdx !== billIndex) }
             : subgroup
@@ -707,9 +717,9 @@ export function ComprehensiveLedgerDialog({
 
       // Calculate total amount
       const totalAmount = entryForm.subgroupsEnabled
-        ? entryForm.subgroups.reduce((sum, subgroup) => 
-            sum + subgroup.bills.reduce((billSum, bill) => billSum + (parseFloat(bill.amount) || 0), 0), 0
-          )
+        ? entryForm.subgroups.reduce((sum, subgroup) =>
+          sum + subgroup.bills.reduce((billSum, bill) => billSum + (parseFloat(bill.amount) || 0), 0), 0
+        )
         : entryForm.directBills.reduce((sum, bill) => sum + (parseFloat(bill.amount) || 0), 0)
 
       const entryData = {
@@ -741,12 +751,12 @@ export function ComprehensiveLedgerDialog({
             ...entryData
           })
         })
-        
+
         if (!response.ok) {
           const errorData = await response.json()
           throw new Error(errorData.error || 'Failed to update ledger entry')
         }
-        
+
         entryId = editingEntry.id
         toast.success('Ledger entry updated successfully')
       } else {
@@ -758,12 +768,12 @@ export function ComprehensiveLedgerDialog({
           },
           body: JSON.stringify(entryData)
         })
-        
+
         if (!response.ok) {
           const errorData = await response.json()
           throw new Error(errorData.error || 'Failed to create ledger entry')
         }
-        
+
         const data = await response.json()
         entryId = data.ledgerEntry.id
         toast.success('Ledger entry created successfully')
@@ -952,13 +962,13 @@ export function ComprehensiveLedgerDialog({
     }
   }
 
-  const DocumentDisplay = ({ 
-    bill, 
-    billIndex, 
-    isSubgroup, 
-    subgroupIndex, 
-    uploadId 
-  }: { 
+  const DocumentDisplay = ({
+    bill,
+    billIndex,
+    isSubgroup,
+    subgroupIndex,
+    uploadId
+  }: {
     bill: BillForm
     billIndex: number
     isSubgroup: boolean
@@ -970,7 +980,7 @@ export function ComprehensiveLedgerDialog({
     const hasNewDocument = !!bill.document
     const hasExistingDocument = !!bill.existingDocument
     const hasAnyDocument = hasNewDocument || hasExistingDocument
-    
+
     // Debug logging with better visibility
     console.log(`🎯 DocumentDisplay rendered - uploadId: ${uploadId}`, {
       hasNewDocument,
@@ -989,7 +999,7 @@ export function ComprehensiveLedgerDialog({
           url: bill.existingDocument.url,
           type: bill.existingDocument.type
         })
-        
+
         getDocumentUrl(bill.existingDocument.url)
           .then(url => {
             console.log('✅ Image URL loaded successfully:', {
@@ -1064,14 +1074,14 @@ export function ComprehensiveLedgerDialog({
         newDocType: bill.document?.type,
         existingDocType: bill.existingDocument?.type
       })
-      
+
       if (hasNewDocument && bill.document) {
         if (isImageFile(bill.document.type)) {
           const url = URL.createObjectURL(bill.document)
           return (
             <div className="relative group">
-              <Image 
-                src={url} 
+              <Image
+                src={url}
                 alt={bill.document.name}
                 width={64}
                 height={64}
@@ -1086,7 +1096,7 @@ export function ComprehensiveLedgerDialog({
           )
         } else {
           return (
-            <div 
+            <div
               className="w-16 h-16 bg-white/10 border border-white/20 rounded-lg flex items-center justify-center cursor-pointer hover:bg-white/20 transition-colors group relative"
               onClick={handleDocumentClick}
             >
@@ -1101,8 +1111,8 @@ export function ComprehensiveLedgerDialog({
         if (isImageFile(bill.existingDocument.type) && imageUrl) {
           return (
             <div className="relative group">
-              <Image 
-                src={imageUrl} 
+              <Image
+                src={imageUrl}
                 alt={bill.existingDocument.name}
                 width={64}
                 height={64}
@@ -1120,7 +1130,7 @@ export function ComprehensiveLedgerDialog({
           )
         } else {
           return (
-            <div 
+            <div
               className="w-16 h-16 bg-white/10 border border-white/20 rounded-lg flex items-center justify-center cursor-pointer hover:bg-white/20 transition-colors group relative"
               onClick={handleDocumentClick}
             >
@@ -1141,20 +1151,20 @@ export function ComprehensiveLedgerDialog({
       const documentName = hasNewDocument && bill.document ? bill.document.name : (bill.existingDocument?.name || 'Unknown Document')
       const documentSize = hasNewDocument && bill.document ? bill.document.size : (bill.existingDocument?.size || 0)
       const isExistingOnly = hasExistingDocument && !hasNewDocument
-      
+
       console.log('📄 Rendering document info:', {
         documentName,
         documentSize,
         isExistingOnly,
         hasProgress: !!progress
       })
-      
+
       return (
         <div className="flex items-center gap-3 p-3 bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 transition-colors">
           {getDocumentPreview()}
           <div className="flex-1">
-            <p 
-              className="text-sm font-medium text-white cursor-pointer hover:text-blue-400 transition-colors flex items-center gap-2" 
+            <p
+              className="text-sm font-medium text-white cursor-pointer hover:text-blue-400 transition-colors flex items-center gap-2"
               onClick={handleDocumentClick}
               title="Click to view/download document"
             >
@@ -1181,7 +1191,7 @@ export function ComprehensiveLedgerDialog({
             <div className="flex items-center gap-2">
               {progress.status === 'uploading' && (
                 <div className="w-16 bg-white/10 rounded-full h-2">
-                  <div 
+                  <div
                     className="bg-blue-500 h-2 rounded-full transition-all duration-300"
                     style={{ width: `${progress.progress}%` }}
                   />
@@ -1223,7 +1233,7 @@ export function ComprehensiveLedgerDialog({
 
     return (
       <div className="border-2 border-dashed border-white/20 rounded-lg p-6 text-center hover:border-white/30 transition-colors">
-        
+
         <Upload className="w-8 h-8 text-white/40 mx-auto mb-2" />
         <p className="text-sm text-white/60 mb-2">Upload document (PDF, Word, Excel, Images)</p>
         <p className="text-xs text-white/40 mb-3">Maximum file size: 10MB</p>
@@ -1254,26 +1264,26 @@ export function ComprehensiveLedgerDialog({
       hasDocument: !!bill.document,
       hasExistingDocument: !!bill.existingDocument
     })
-    
+
     const updateBill = (field: keyof BillForm, value: string | File | null) => {
       if (isSubgroup && subgroupIndex !== undefined) {
         setEntryForm(prev => ({
           ...prev,
-          subgroups: prev.subgroups.map((subgroup, sIdx) => 
+          subgroups: prev.subgroups.map((subgroup, sIdx) =>
             sIdx === subgroupIndex
               ? {
-                  ...subgroup,
-                  bills: subgroup.bills.map((b, bIdx) => 
-                    bIdx === billIndex ? { ...b, [field]: value } : b
-                  )
-                }
+                ...subgroup,
+                bills: subgroup.bills.map((b, bIdx) =>
+                  bIdx === billIndex ? { ...b, [field]: value } : b
+                )
+              }
               : subgroup
           )
         }))
       } else {
         setEntryForm(prev => ({
           ...prev,
-          directBills: prev.directBills.map((b, bIdx) => 
+          directBills: prev.directBills.map((b, bIdx) =>
             bIdx === billIndex ? { ...b, [field]: value } : b
           )
         }))
@@ -1393,7 +1403,7 @@ export function ComprehensiveLedgerDialog({
           <div>
             <Label className="text-white/90">Document Attachment</Label>
             <div className="mt-2">
-              <DocumentDisplay 
+              <DocumentDisplay
                 bill={bill}
                 billIndex={billIndex}
                 isSubgroup={isSubgroup}
@@ -1464,8 +1474,8 @@ export function ComprehensiveLedgerDialog({
                 </div>
                 <div>
                   <Label htmlFor="status" className="text-white/90">Status</Label>
-                  <Select 
-                    value={entryForm.status} 
+                  <Select
+                    value={entryForm.status}
                     onValueChange={(value) => setEntryForm(prev => ({ ...prev, status: value as 'draft' | 'active' | 'completed' | 'cancelled' }))}
                   >
                     <SelectTrigger className="bg-white/10 border-white/20 text-white">
@@ -1481,8 +1491,8 @@ export function ComprehensiveLedgerDialog({
                 </div>
                 <div>
                   <Label htmlFor="priority" className="text-white/90">Priority</Label>
-                  <Select 
-                    value={entryForm.priority} 
+                  <Select
+                    value={entryForm.priority}
                     onValueChange={(value) => setEntryForm(prev => ({ ...prev, priority: value as 'low' | 'medium' | 'high' | 'urgent' }))}
                   >
                     <SelectTrigger className="bg-white/10 border-white/20 text-white">
@@ -1584,8 +1594,8 @@ export function ComprehensiveLedgerDialog({
                 <div>
                   <h3 className="text-lg font-medium text-white">Enable Subgroups</h3>
                   <p className="text-sm text-white/60">
-                    {entryForm.subgroupsEnabled 
-                      ? 'Bills are organized within subgroups' 
+                    {entryForm.subgroupsEnabled
+                      ? 'Bills are organized within subgroups'
                       : 'Bills are added directly to the main entry'
                     }
                   </p>
@@ -1643,7 +1653,7 @@ export function ComprehensiveLedgerDialog({
                             onChange={(e) => {
                               setEntryForm(prev => ({
                                 ...prev,
-                                subgroups: prev.subgroups.map((sg, idx) => 
+                                subgroups: prev.subgroups.map((sg, idx) =>
                                   idx === subgroupIndex ? { ...sg, title: e.target.value } : sg
                                 )
                               }))
@@ -1655,12 +1665,12 @@ export function ComprehensiveLedgerDialog({
                         </div>
                         <div>
                           <Label className="text-white/90">Status</Label>
-                          <Select 
-                            value={subgroup.status} 
+                          <Select
+                            value={subgroup.status}
                             onValueChange={(value) => {
                               setEntryForm(prev => ({
                                 ...prev,
-                                subgroups: prev.subgroups.map((sg, idx) => 
+                                subgroups: prev.subgroups.map((sg, idx) =>
                                   idx === subgroupIndex ? { ...sg, status: value as 'draft' | 'active' | 'completed' | 'cancelled' } : sg
                                 )
                               }))
@@ -1679,12 +1689,12 @@ export function ComprehensiveLedgerDialog({
                         </div>
                         <div>
                           <Label className="text-white/90">Priority</Label>
-                          <Select 
-                            value={subgroup.priority} 
+                          <Select
+                            value={subgroup.priority}
                             onValueChange={(value) => {
                               setEntryForm(prev => ({
                                 ...prev,
-                                subgroups: prev.subgroups.map((sg, idx) => 
+                                subgroups: prev.subgroups.map((sg, idx) =>
                                   idx === subgroupIndex ? { ...sg, priority: value as 'low' | 'medium' | 'high' | 'urgent' } : sg
                                 )
                               }))
@@ -1712,7 +1722,7 @@ export function ComprehensiveLedgerDialog({
                             onChange={(e) => {
                               setEntryForm(prev => ({
                                 ...prev,
-                                subgroups: prev.subgroups.map((sg, idx) => 
+                                subgroups: prev.subgroups.map((sg, idx) =>
                                   idx === subgroupIndex ? { ...sg, allocation_percentage: e.target.value } : sg
                                 )
                               }))
@@ -1730,7 +1740,7 @@ export function ComprehensiveLedgerDialog({
                           onChange={(e) => {
                             setEntryForm(prev => ({
                               ...prev,
-                              subgroups: prev.subgroups.map((sg, idx) => 
+                              subgroups: prev.subgroups.map((sg, idx) =>
                                 idx === subgroupIndex ? { ...sg, description: e.target.value } : sg
                               )
                             }))
@@ -1756,7 +1766,7 @@ export function ComprehensiveLedgerDialog({
                           </Button>
                         </div>
                         <div className="space-y-4">
-                          {subgroup.bills.map((bill, billIndex) => 
+                          {subgroup.bills.map((bill, billIndex) =>
                             <div key={`subgroup-${subgroupIndex}-bill-${billIndex}`}>
                               {renderBillForm(bill, billIndex, true, subgroupIndex)}
                             </div>
@@ -1797,7 +1807,7 @@ export function ComprehensiveLedgerDialog({
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
-                {entryForm.directBills.map((bill, billIndex) => 
+                {entryForm.directBills.map((bill, billIndex) =>
                   <div key={`direct-bill-${billIndex}`}>
                     {renderBillForm(bill, billIndex, false)}
                   </div>

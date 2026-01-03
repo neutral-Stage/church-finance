@@ -120,7 +120,7 @@ export class TypeSafeQueryBuilder<
       limit?: number;
     }
   ): Promise<ApiResult<Row[]>> {
-    let query = this.supabase
+    let query = (this.supabase as any)
       .from(this.tableName)
       .select(options?.columns || '*');
 
@@ -147,7 +147,7 @@ export class TypeSafeQueryBuilder<
     filter: Record<string, any>,
     columns?: string
   ): Promise<ApiResult<Row>> {
-    let query = this.supabase
+    let query = (this.supabase as any)
       .from(this.tableName)
       .select(columns || '*');
 
@@ -159,7 +159,7 @@ export class TypeSafeQueryBuilder<
   }
 
   async insert(values: Insert | Insert[]): Promise<ApiResult<Row[]>> {
-    const query = this.supabase
+    const query = (this.supabase as any)
       .from(this.tableName)
       .insert(values as any)
       .select();
@@ -171,7 +171,7 @@ export class TypeSafeQueryBuilder<
     values: Update,
     filter: Record<string, any>
   ): Promise<ApiResult<Row[]>> {
-    let query = this.supabase
+    let query = (this.supabase as any)
       .from(this.tableName)
       .update(values as any);
 
@@ -183,7 +183,7 @@ export class TypeSafeQueryBuilder<
   }
 
   async delete(filter: Record<string, any>): Promise<ApiResult<Row[]>> {
-    let query = this.supabase
+    let query = (this.supabase as any)
       .from(this.tableName)
       .delete();
 
@@ -243,7 +243,7 @@ export class FundsService extends BaseApiService {
       data.church_id = churchResult.data!;
     }
 
-    data.created_by = authResult.data!;
+    // created_by column doesn't exist on funds table
 
     const query = this.supabase
       .from('funds')
@@ -362,7 +362,7 @@ export class TransactionsService extends BaseApiService {
       ...data,
       church_id: (data as any).church_id,
       created_by: authResult.data!
-    } as Database['public']['Tables']['transactions']['Insert'];
+    } as any;
 
     const query = this.supabase
       .from('transactions')

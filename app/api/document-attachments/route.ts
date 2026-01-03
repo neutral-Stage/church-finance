@@ -129,7 +129,7 @@ export async function POST(request: NextRequest) {
       metadata,
       uploaded_by: user.id,
       created_at: new Date().toISOString(),
-    } as Database['public']['Tables']['document_attachments']['Insert'];
+    } as unknown as Database['public']['Tables']['document_attachments']['Insert'];
 
     const { data: attachmentResult, error: attachmentError } = await (adminSupabase
       .from('document_attachments') as any)

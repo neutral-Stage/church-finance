@@ -13,7 +13,7 @@ interface AuthContextType {
   signOut: () => Promise<void>
   refreshUser: () => Promise<void>
   setServerUser: (user: AuthUser) => void
-  hasRole: (role: UserRole) => boolean
+  hasRole: (role: string) => boolean
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -44,12 +44,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } else {
         const errorData = await response.json().catch(() => ({}))
         console.error('AuthContext: API error:', response.status, errorData.error || 'Unknown error')
-        
+
         // If it's a server error (500) or data integrity error, we should handle it differently
         if (response.status >= 500) {
           console.error('AuthContext: Server error detected. This may be a critical authentication issue.')
         }
-        
+
         setUser(null)
       }
     } catch (error) {
@@ -64,7 +64,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signIn = async (email: string, password: string): Promise<{ error: string | null }> => {
     try {
       setLoading(true)
-      
+
       const response = await fetch('/api/auth/signin', {
         method: 'POST',
         headers: {
@@ -95,15 +95,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signOut = async () => {
     try {
       setLoading(true)
-      
+
       const response = await fetch('/api/auth/signout', {
         method: 'POST',
         credentials: 'include',
       })
-      
+
       // Always clear user state first for immediate UI response
       setUser(null)
-      
+
       if (response.ok) {
         // Force a hard redirect to ensure clean state
         window.location.href = '/auth/login'
@@ -126,11 +126,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []) // Empty dependency array is correct here - this function should be stable
 
   // Check if user has specific role (for UI state only)
-  const hasRole = (role: UserRole): boolean => {
+  const hasRole = (role: string): boolean => {
     if (!user) return false
-    
+
     const userRole = user.role?.toLowerCase()
-    
+
     // Exact role match only - each role should only see their own items
     return userRole === role.toLowerCase()
   }

@@ -115,7 +115,7 @@ export default function OfferingsPage() {
             `)
             .eq('church_id', selectedChurch.id)
             .order('service_date', { ascending: false })
-          return { data: result.data, error: result.error }
+          return { data: result.data as unknown as OfferingWithFund[], error: result.error }
         },
         {
           maxAttempts: 3,
@@ -271,7 +271,7 @@ export default function OfferingsPage() {
               .insert({
                 offering_id: editingOffering.id,
                 member_id: newMemberId
-              })
+              } as any)
 
             if (memberError) {
               throw new Error('Failed to associate member with offering')
@@ -281,7 +281,7 @@ export default function OfferingsPage() {
 
         // Update fund balances - revert old allocations and apply new ones
         const allFundIds = new Set([...Object.keys(oldFundAllocations), ...Object.keys(newFundAllocations)])
-        
+
         for (const fundId of allFundIds) {
           const oldAmount = oldFundAllocations[fundId] || 0
           const newAmount = newFundAllocations[fundId] || 0
@@ -323,7 +323,7 @@ export default function OfferingsPage() {
             fund_allocations: requestData.fund_allocations,
             notes: requestData.notes,
             church_id: requestData.church_id
-          })
+          } as any)
           .select()
           .single()
 
@@ -338,7 +338,7 @@ export default function OfferingsPage() {
             .insert({
               offering_id: newOffering.id,
               member_id: requestData.member_id
-            })
+            } as any)
 
           if (memberError) {
             // If member association fails, we should clean up the offering

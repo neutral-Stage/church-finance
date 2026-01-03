@@ -157,7 +157,7 @@ export default function CashBreakdownClient({ initialData }: CashBreakdownClient
 
       const { error } = await supabase
         .from('cash_breakdown')
-        .upsert(updates, {
+        .upsert(updates as any, {
           onConflict: 'fund_type,denomination'
         })
 

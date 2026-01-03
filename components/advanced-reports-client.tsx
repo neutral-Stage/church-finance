@@ -158,12 +158,12 @@ export default function AdvancedReportsClient({ initialData, initialDateRange }:
       const recipients = [...new Set(newData.advances.map(a => a.recipient_name).filter(Boolean))]
 
       setAvailableCategories({
-        transaction: transactionCategories,
-        offering: offeringTypes,
-        bill: billCategories
+        transaction: transactionCategories as string[],
+        offering: offeringTypes as string[],
+        bill: billCategories as string[]
       })
-      setAvailableVendors(vendors)
-      setAvailableRecipients(recipients)
+      setAvailableVendors(vendors as string[])
+      setAvailableRecipients(recipients as string[])
 
     } catch (error) {
       console.error('Error fetching report data:', error)
@@ -511,11 +511,10 @@ export default function AdvancedReportsClient({ initialData, initialDateRange }:
                               <td className="p-4">
                                 <Badge
                                   variant={transaction.type === 'income' ? 'success' : 'destructive'}
-                                  className={`${
-                                    transaction.type === 'income'
+                                  className={`${transaction.type === 'income'
                                       ? 'bg-green-500/20 text-green-300 border-green-500/30'
                                       : 'bg-red-500/20 text-red-300 border-red-500/30'
-                                  } backdrop-blur-sm`}
+                                    } backdrop-blur-sm`}
                                 >
                                   {transaction.type}
                                 </Badge>

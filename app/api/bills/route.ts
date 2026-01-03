@@ -82,7 +82,8 @@ export async function POST(request: NextRequest) {
       status = 'pending',
       fund_id,
       notes,
-      frequency = 'one-time'
+      frequency = 'one-time',
+      church_id
     } = body;
 
     // Handle legacy vendor field
@@ -105,7 +106,8 @@ export async function POST(request: NextRequest) {
       status,
       fund_id: fund_id || null,
       notes: notes || null,
-      frequency
+      frequency,
+      church_id: church_id || user.user_metadata?.church_id
     };
 
     const result = await safeInsert(adminSupabase, 'bills', billData);

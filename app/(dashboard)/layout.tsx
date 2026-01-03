@@ -43,6 +43,7 @@ import { cn } from "@/lib/utils";
 import SearchModal from "@/components/SearchModal";
 import NotificationsDropdown from "@/components/NotificationsDropdown";
 import { HeaderChurchSelector } from "@/components/header-church-selector";
+import { AIChatWrapper } from "@/components/ai";
 
 const navigation = [
   {
@@ -162,11 +163,11 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
   };
 
   const filteredNavigation = navigation.filter((item) =>
-    item.roles.some((role) => hasRole(role as UserRole))
+    item.roles.some((role) => hasRole(role))
   );
 
   const filteredAdminNavigation = adminNavigation.filter((item) =>
-    item.roles.some((role) => hasRole(role as UserRole))
+    item.roles.some((role) => hasRole(role))
   );
 
   if (!mounted) {
@@ -220,8 +221,8 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
                 mobile
                   ? "px-4 py-3"
                   : isCollapsed
-                  ? "px-3 py-3 justify-center"
-                  : "px-4 py-3",
+                    ? "px-3 py-3 justify-center"
+                    : "px-4 py-3",
                 isActive
                   ? "bg-white/20 text-white"
                   : "text-white/80 hover:text-white hover:bg-white/10"
@@ -267,8 +268,8 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
                     mobile
                       ? "px-4 py-3"
                       : isCollapsed
-                      ? "px-3 py-3 justify-center"
-                      : "px-4 py-3",
+                        ? "px-3 py-3 justify-center"
+                        : "px-4 py-3",
                     isActive
                       ? "bg-white/20 text-white"
                       : "text-white/80 hover:text-white hover:bg-white/10"
@@ -332,172 +333,175 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
     <ChurchProvider>
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 relative">
         <div className="flex h-screen">
-        {/* Desktop Sidebar */}
-        <div
-          className={cn(
-            "hidden lg:flex transition-[width] duration-300 ease-in-out will-change-[width]",
-            isCollapsed ? "w-20" : "w-64"
-          )}
-        >
-          <Sidebar />
-        </div>
-
-        {/* Mobile Sidebar */}
-        <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
-          <SheetContent
-            side="left"
-            className="p-0 w-80 sm:w-72 bg-black/90 backdrop-blur-xl border-white/10"
+          {/* Desktop Sidebar */}
+          <div
+            className={cn(
+              "hidden lg:flex transition-[width] duration-300 ease-in-out will-change-[width]",
+              isCollapsed ? "w-20" : "w-64"
+            )}
           >
-            <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
-            <Sidebar mobile />
-          </SheetContent>
-        </Sheet>
+            <Sidebar />
+          </div>
 
-        {/* Main Content */}
-        <div
-          className={cn(
-            "flex-1 lg:flex-none flex flex-col transition-[width] duration-300 ease-in-out will-change-[width] overflow-hidden",
-            isCollapsed ? "lg:w-[calc(100%-5rem)]" : "lg:w-[calc(100%-16rem)]"
-          )}
-        >
-          {/* Header */}
-          <header className="bg-white/5 backdrop-blur-xl border-b border-white/10 px-4 py-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                {/* Mobile menu button */}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="lg:hidden text-white hover:bg-white/10 p-2 rounded-lg"
-                  onClick={() => setSidebarOpen(true)}
-                >
-                  <Menu className="h-5 w-5" />
-                </Button>
-
-                {/* Desktop sidebar toggle button */}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="hidden lg:flex text-white hover:bg-white/10 p-2 rounded-lg transition-all duration-300"
-                  onClick={toggleSidebar}
-                  title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-                >
-                  {isCollapsed ? (
-                    <ChevronRight className="h-4 w-4" />
-                  ) : (
-                    <ChevronLeft className="h-4 w-4" />
-                  )}
-                </Button>
-
-                {/* Page title */}
-                <h1 className="text-lg font-semibold text-white">
-                  {navigation.find((item) => item.href === pathname)?.name ||
-                    adminNavigation.find((item) => item.href === pathname)?.name ||
-                    "Dashboard"}
-                </h1>
-              </div>
-
-              {/* Header actions */}
-              <div className="flex items-center space-x-2">
-                {/* Church Selector */}
-                <HeaderChurchSelector className="hidden sm:flex" />
-
-                {/* Search button */}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setSearchOpen(true)}
-                  className="text-white/80 hover:text-white hover:bg-white/10 p-2 rounded-lg"
-                >
-                  <Search className="h-4 w-4" />
-                </Button>
-
-                {/* Notifications */}
-                <NotificationsDropdown className="hidden md:block" />
-
-                {/* User dropdown */}
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      className="p-1 rounded-full hover:bg-white/10"
-                    >
-                      <Avatar className="h-8 w-8 border border-white/20">
-                        <AvatarFallback className="bg-white/10 text-white font-semibold text-xs">
-                          {user?.full_name
-                            ?.split(" ")
-                            .map((n: string) => n[0])
-                            .join("") || user?.email?.[0]?.toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent
-                    className="w-56 bg-black/90 backdrop-blur-xl border-white/10 text-white"
-                    align="end"
-                  >
-                    <DropdownMenuLabel className="font-normal">
-                      <div className="flex flex-col space-y-1">
-                        <p className="text-sm font-medium">
-                          {user?.full_name || "User"}
-                        </p>
-                        <p className="text-xs text-white/60">{user?.email}</p>
-                        <p className="text-xs text-white/60 capitalize">
-                          {user?.role}
-                        </p>
-                      </div>
-                    </DropdownMenuLabel>
-                    <DropdownMenuSeparator className="bg-white/10" />
-                    <DropdownMenuItem
-                      onClick={() => router.push("/profile-settings")}
-                      className="hover:bg-white/10 cursor-pointer"
-                    >
-                      <User className="mr-2 h-4 w-4" />
-                      Profile Settings
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() => router.push("/preferences")}
-                      className="hover:bg-white/10 cursor-pointer"
-                    >
-                      <Settings className="mr-2 h-4 w-4" />
-                      Preferences
-                    </DropdownMenuItem>
-                    {hasRole("admin") && (
-                      <>
-                        <DropdownMenuSeparator className="bg-white/10" />
-                        <DropdownMenuItem
-                          onClick={() => router.push("/admin/churches")}
-                          className="hover:bg-blue-500/20 text-blue-300 hover:text-blue-200"
-                        >
-                          <Shield className="mr-2 h-4 w-4" />
-                          Administration
-                        </DropdownMenuItem>
-                      </>
-                    )}
-                    <DropdownMenuSeparator className="bg-white/10" />
-                    <DropdownMenuItem
-                      onClick={handleSignOut}
-                      className="hover:bg-red-500/20 text-red-300 hover:text-red-200"
-                    >
-                      <LogOut className="mr-2 h-4 w-4" />
-                      Sign Out
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            </div>
-          </header>
+          {/* Mobile Sidebar */}
+          <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
+            <SheetContent
+              side="left"
+              className="p-0 w-80 sm:w-72 bg-black/90 backdrop-blur-xl border-white/10"
+            >
+              <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
+              <Sidebar mobile />
+            </SheetContent>
+          </Sheet>
 
           {/* Main Content */}
-          <main className="flex-1 overflow-auto">
-            <div className="bg-white/5 backdrop-blur-sm border border-white/10 p-6 min-h-full">
-              <ErrorBoundary>{children}</ErrorBoundary>
-            </div>
-          </main>
-        </div>
+          <div
+            className={cn(
+              "flex-1 lg:flex-none flex flex-col transition-[width] duration-300 ease-in-out will-change-[width] overflow-hidden",
+              isCollapsed ? "lg:w-[calc(100%-5rem)]" : "lg:w-[calc(100%-16rem)]"
+            )}
+          >
+            {/* Header */}
+            <header className="bg-white/5 backdrop-blur-xl border-b border-white/10 px-4 py-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  {/* Mobile menu button */}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="lg:hidden text-white hover:bg-white/10 p-2 rounded-lg"
+                    onClick={() => setSidebarOpen(true)}
+                  >
+                    <Menu className="h-5 w-5" />
+                  </Button>
 
-        {/* Search Modal */}
-        <SearchModal isOpen={searchOpen} onClose={() => setSearchOpen(false)} />
+                  {/* Desktop sidebar toggle button */}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="hidden lg:flex text-white hover:bg-white/10 p-2 rounded-lg transition-all duration-300"
+                    onClick={toggleSidebar}
+                    title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+                  >
+                    {isCollapsed ? (
+                      <ChevronRight className="h-4 w-4" />
+                    ) : (
+                      <ChevronLeft className="h-4 w-4" />
+                    )}
+                  </Button>
+
+                  {/* Page title */}
+                  <h1 className="text-lg font-semibold text-white">
+                    {navigation.find((item) => item.href === pathname)?.name ||
+                      adminNavigation.find((item) => item.href === pathname)?.name ||
+                      "Dashboard"}
+                  </h1>
+                </div>
+
+                {/* Header actions */}
+                <div className="flex items-center space-x-2">
+                  {/* Church Selector */}
+                  <HeaderChurchSelector className="hidden sm:flex" />
+
+                  {/* Search button */}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setSearchOpen(true)}
+                    className="text-white/80 hover:text-white hover:bg-white/10 p-2 rounded-lg"
+                  >
+                    <Search className="h-4 w-4" />
+                  </Button>
+
+                  {/* Notifications */}
+                  <NotificationsDropdown className="hidden md:block" />
+
+                  {/* User dropdown */}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        className="p-1 rounded-full hover:bg-white/10"
+                      >
+                        <Avatar className="h-8 w-8 border border-white/20">
+                          <AvatarFallback className="bg-white/10 text-white font-semibold text-xs">
+                            {user?.full_name
+                              ?.split(" ")
+                              .map((n: string) => n[0])
+                              .join("") || user?.email?.[0]?.toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent
+                      className="w-56 bg-black/90 backdrop-blur-xl border-white/10 text-white"
+                      align="end"
+                    >
+                      <DropdownMenuLabel className="font-normal">
+                        <div className="flex flex-col space-y-1">
+                          <p className="text-sm font-medium">
+                            {user?.full_name || "User"}
+                          </p>
+                          <p className="text-xs text-white/60">{user?.email}</p>
+                          <p className="text-xs text-white/60 capitalize">
+                            {user?.role}
+                          </p>
+                        </div>
+                      </DropdownMenuLabel>
+                      <DropdownMenuSeparator className="bg-white/10" />
+                      <DropdownMenuItem
+                        onClick={() => router.push("/profile-settings")}
+                        className="hover:bg-white/10 cursor-pointer"
+                      >
+                        <User className="mr-2 h-4 w-4" />
+                        Profile Settings
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => router.push("/preferences")}
+                        className="hover:bg-white/10 cursor-pointer"
+                      >
+                        <Settings className="mr-2 h-4 w-4" />
+                        Preferences
+                      </DropdownMenuItem>
+                      {hasRole("admin") && (
+                        <>
+                          <DropdownMenuSeparator className="bg-white/10" />
+                          <DropdownMenuItem
+                            onClick={() => router.push("/admin/churches")}
+                            className="hover:bg-blue-500/20 text-blue-300 hover:text-blue-200"
+                          >
+                            <Shield className="mr-2 h-4 w-4" />
+                            Administration
+                          </DropdownMenuItem>
+                        </>
+                      )}
+                      <DropdownMenuSeparator className="bg-white/10" />
+                      <DropdownMenuItem
+                        onClick={handleSignOut}
+                        className="hover:bg-red-500/20 text-red-300 hover:text-red-200"
+                      >
+                        <LogOut className="mr-2 h-4 w-4" />
+                        Sign Out
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              </div>
+            </header>
+
+            {/* Main Content */}
+            <main className="flex-1 overflow-auto">
+              <div className="bg-white/5 backdrop-blur-sm border border-white/10 p-6 min-h-full">
+                <ErrorBoundary>{children}</ErrorBoundary>
+              </div>
+            </main>
+          </div>
+
+          {/* Search Modal */}
+          <SearchModal isOpen={searchOpen} onClose={() => setSearchOpen(false)} />
+
+          {/* AI Chat Interface */}
+          <AIChatWrapper />
         </div>
       </div>
     </ChurchProvider>

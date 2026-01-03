@@ -265,7 +265,7 @@ export const getDashboardData = cache(async (): Promise<DashboardData> => {
     .slice(0, 5)
     .map(bill => ({
       ...bill,
-      funds: bill.fund_id ? fundsMap.get(bill.fund_id) : undefined
+      fund: bill.fund_id ? fundsMap.get(bill.fund_id) : undefined
     }));
 
   // Filter and join advances
@@ -274,7 +274,7 @@ export const getDashboardData = cache(async (): Promise<DashboardData> => {
     .slice(0, 5)
     .map(advance => ({
       ...advance,
-      funds: advance.fund_id ? fundsMap.get(advance.fund_id) : undefined
+      fund: advance.fund_id ? fundsMap.get(advance.fund_id) : undefined
     }));
 
   // Calculate monthly totals
@@ -639,7 +639,7 @@ export const getCashBreakdownData = cache(
 
     if (error)
       throw new Error(`Failed to fetch cash breakdown: ${error.message}`);
-    return (data || []) as CashBreakdownData[];
+    return (data || []) as unknown as CashBreakdownData[];
   }
 );
 
@@ -930,13 +930,13 @@ export interface NotificationData {
   message: string;
   type: "info" | "success" | "warning" | "error";
   category:
-    | "transaction"
-    | "member"
-    | "offering"
-    | "bill"
-    | "system"
-    | "report"
-    | "advance";
+  | "transaction"
+  | "member"
+  | "offering"
+  | "bill"
+  | "system"
+  | "report"
+  | "advance";
   read: boolean;
   created_at: string;
   action_url?: string;
@@ -1103,7 +1103,7 @@ export const checkUserPermissions = async () => {
   };
 
   const hasRole = (role: string): boolean => {
-    return (roleHierarchy[user.role] || 0) >= (roleHierarchy[role] || 0);
+    return (roleHierarchy[user.role || 'viewer'] || 0) >= (roleHierarchy[role] || 0);
   };
 
   return {

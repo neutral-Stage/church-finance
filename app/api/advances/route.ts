@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
   try {
     const supabase = await createServerClient();
     const adminSupabase = createAdminClient();
-    
+
     // Check authentication
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     if (authError || !user) {
@@ -74,23 +74,24 @@ export async function POST(request: NextRequest) {
         { status: 401 }
       )
     }
-    
+
     const body = await request.json();
-    const { 
-      recipient_name, 
-      amount, 
-      purpose, 
-      advance_date, 
-      expected_return_date, 
+    const {
+      recipient_name,
+      amount,
+      purpose,
+      advance_date,
+      expected_return_date,
       status = 'outstanding',
       fund_id,
-      action = 'create' // 'create' or 'repay'
+      action = 'create', // 'create' or 'repay'
+      church_id
     } = body;
 
     if (action === 'repay') {
       // Handle repayment
       const { advance_id, repayment_amount, repayment_date } = body;
-      
+
       if (!advance_id || !repayment_amount) {
         return NextResponse.json(
           { error: 'Advance ID and repayment amount are required for repayment' },
@@ -149,7 +150,8 @@ export async function POST(request: NextRequest) {
           transaction_date: repayment_date || new Date().toISOString().split('T')[0],
           fund_id: fundId,
           category: 'Advance Repayment',
-          payment_method: 'Cash'
+          payment_method: 'Cash',
+          church_id: church_id || user.user_metadata?.church_id
         });
       }
 
@@ -175,7 +177,8 @@ export async function POST(request: NextRequest) {
       fund_id: fund_id || null,
       amount_returned: 0,
       payment_method: 'cash',
-      approved_by: 'system'
+      approved_by: 'system',
+      church_id: church_id || user.user_metadata?.church_id
     });
 
     if (insertResult.error || !insertResult.data || insertResult.data.length === 0) {
@@ -215,7 +218,8 @@ export async function POST(request: NextRequest) {
         transaction_date: advance_date,
         fund_id,
         category: 'Advance',
-        payment_method: 'cash'
+        payment_method: 'cash',
+        church_id: church_id || user.user_metadata?.church_id
       });
     }
 
@@ -233,7 +237,7 @@ export async function PUT(request: NextRequest) {
   try {
     const supabase = await createServerClient();
     const adminSupabase = createAdminClient();
-    
+
     // Check authentication
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     if (authError || !user) {
@@ -242,17 +246,17 @@ export async function PUT(request: NextRequest) {
         { status: 401 }
       )
     }
-    
+
     const body = await request.json();
-    const { 
-      id, 
-      recipient_name, 
-      amount, 
-      purpose, 
-      advance_date, 
-      expected_return_date, 
-      status, 
-      fund_id 
+    const {
+      id,
+      recipient_name,
+      amount,
+      purpose,
+      advance_date,
+      expected_return_date,
+      status,
+      fund_id
     } = body;
 
     if (!id) {
@@ -359,7 +363,7 @@ export async function DELETE(request: NextRequest) {
   try {
     const supabase = await createServerClient();
     const adminSupabase = createAdminClient();
-    
+
     // Check authentication
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     if (authError || !user) {
@@ -368,7 +372,7 @@ export async function DELETE(request: NextRequest) {
         { status: 401 }
       )
     }
-    
+
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
 

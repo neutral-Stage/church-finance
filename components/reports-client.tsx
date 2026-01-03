@@ -230,7 +230,7 @@ export default function ReportsClient({ initialData, initialDateRange }: Reports
         const fund = reportData.funds.find(f => f.id === bill.fund_id)
         billsData.push([
           bill.vendor_name,
-          bill.category,
+          bill.category || 'Uncategorized',
           bill.amount.toString(),
           formatDate(bill.due_date),
           bill.status || 'pending',

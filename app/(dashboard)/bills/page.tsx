@@ -20,6 +20,7 @@ import { formatCurrency, formatDate } from '@/lib/utils'
 import { useAuth } from '@/contexts/AuthContext'
 import { useChurch } from '@/contexts/ChurchContext'
 import { Database } from '@/types/database'
+import { ReceiptUpload } from '@/components/ai/receipt-upload'
 
 type Bill = Database['public']['Tables']['bills']['Row'] & {
   ledger_entries?: LedgerEntry | null
@@ -237,17 +238,17 @@ export default function BillsPage(): JSX.Element {
         }
         return acc
       }, {} as Record<string, { subgroup: LedgerSubgroup; bills: Bill[] }>)
-      
+
       return {
         entry,
         directBills,
         subgroups: subgroupsWithBills
       }
     })
-    
+
     // Add ungrouped bills as a special entry
     const result: Record<string, { entry: LedgerEntry | null; directBills: Bill[]; subgroups: Record<string, { subgroup: LedgerSubgroup; bills: Bill[] }> }> = {}
-    
+
     // Add ungrouped bills if they exist
     if (ungroupedBills.length > 0) {
       result['ungrouped'] = {
@@ -256,14 +257,14 @@ export default function BillsPage(): JSX.Element {
         subgroups: {}
       }
     }
-    
+
     // Add entries with bills
     entriesWithBills.forEach((entryData, index) => {
       if (entryData.directBills.length > 0 || Object.keys(entryData.subgroups).length > 0) {
         result[entryData.entry.id || `entry-${index}`] = entryData
       }
     })
-    
+
     return result
   }
 
@@ -296,7 +297,8 @@ export default function BillsPage(): JSX.Element {
         allocation_percentage: billForm.allocation_percentage ? parseFloat(billForm.allocation_percentage) : null,
         priority: billForm.priority,
         approval_status: billForm.approval_status,
-        notes: billForm.notes || null
+        notes: billForm.notes || null,
+        church_id: selectedChurch?.id
       }
 
       if (editingBill) {
@@ -310,7 +312,7 @@ export default function BillsPage(): JSX.Element {
       } else {
         const { error } = await supabase
           .from('bills')
-          .insert([billData])
+          .insert([billData] as any)
 
         if (error) throw error
         toast.success('Bill created successfully')
@@ -345,7 +347,8 @@ export default function BillsPage(): JSX.Element {
         purpose: pettyCashForm.purpose,
         transaction_date: pettyCashForm.transaction_date,
         approved_by: pettyCashForm.approved_by,
-        receipt_available: pettyCashForm.receipt_available
+        receipt_available: pettyCashForm.receipt_available,
+        church_id: selectedChurch?.id
       }
 
       if (editingPettyCash) {
@@ -359,7 +362,7 @@ export default function BillsPage(): JSX.Element {
       } else {
         const { error } = await supabase
           .from('petty_cash')
-          .insert([pettyCashData])
+          .insert([pettyCashData] as any)
 
         if (error) throw error
         toast.success('Petty cash request created successfully')
@@ -429,6 +432,19 @@ export default function BillsPage(): JSX.Element {
       const errorMessage = error instanceof Error ? error.message : 'Failed to delete petty cash request'
       toast.error(errorMessage)
     }
+  }
+
+  const handleScanComplete = (data: any) => {
+    setBillForm(prev => ({
+      ...prev,
+      amount: data.amount ? data.amount.toString() : prev.amount,
+      vendor_name: data.vendor || prev.vendor_name,
+      category: data.category || prev.category,
+      due_date: data.date ? formatDateForInput(new Date(data.date)) : prev.due_date,
+      notes: data.description ? (prev.notes ? `${prev.notes}\n${data.description}` : data.description) : prev.notes
+    }))
+
+    toast.success('Bill details scanned successfully')
   }
 
   const resetBillForm = () => {
@@ -558,12 +574,12 @@ export default function BillsPage(): JSX.Element {
       const animate = (currentTime: number) => {
         if (!startTime) startTime = currentTime
         const progress = Math.min((currentTime - startTime) / duration, 1)
-        
+
         const easeOutCubic = 1 - Math.pow(1 - progress, 3)
         const currentCount = Math.floor(startValue + (endValue - startValue) * easeOutCubic)
-        
+
         setCount(currentCount)
-        
+
         if (progress < 1) {
           requestAnimationFrame(animate)
         }
@@ -617,316 +633,319 @@ export default function BillsPage(): JSX.Element {
                           Add Bill
                         </GlassButton>
                       </DialogTrigger>
-                  <DialogContent className="sm:max-w-[500px]">
-                    <DialogHeader>
-                      <DialogTitle className="text-white">{editingBill ? 'Edit Bill' : 'Add New Bill'}</DialogTitle>
-                      <DialogDescription className="text-white/70">
-                        {editingBill ? 'Update bill information' : 'Create a new bill or recurring payment'}
-                      </DialogDescription>
-                    </DialogHeader>
-                    <form onSubmit={handleSaveBill} className="space-y-4">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="vendor_name" className="text-white">Vendor *</Label>
-                          <Input
-                            id="vendor_name"
-                            value={billForm.vendor_name}
-                            onChange={(e) => setBillForm({ ...billForm, vendor_name: e.target.value })}
-                            placeholder="Vendor name"
-                            className="bg-white/10 backdrop-blur-xl border border-white/20 text-white placeholder:text-white/50"
-                            required
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="amount" className="text-white">Amount *</Label>
-                          <Input
-                            id="amount"
-                            type="number"
-                            step="0.01"
-                            min="0.01"
-                            value={billForm.amount}
-                            onChange={(e) => setBillForm({ ...billForm, amount: e.target.value })}
-                            className="bg-white/10 backdrop-blur-xl border border-white/20 text-white placeholder:text-white/50"
-                            required
-                          />
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="due_date" className="text-white">Due Date *</Label>
-                          <Input
-                            id="due_date"
-                            type="date"
-                            value={billForm.due_date}
-                            onChange={(e) => setBillForm({ ...billForm, due_date: e.target.value })}
-                            className="bg-white/10 backdrop-blur-xl border border-white/20 text-white placeholder:text-white/50"
-                            required
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="fund_id" className="text-white">Fund *</Label>
-                          <Select value={billForm.fund_id} onValueChange={(value) => setBillForm({ ...billForm, fund_id: value })}>
-                            <SelectTrigger className="bg-white/10 backdrop-blur-xl border border-white/20 text-white">
-                              <SelectValue placeholder="Select fund" className="text-white/50" />
-                            </SelectTrigger>
-                            <SelectContent className="bg-black/80 backdrop-blur-xl border border-white/20 rounded-xl">
-                              {funds.map((fund) => (
-                                <SelectItem key={fund.id} value={fund.id} className="text-white hover:bg-white/10 focus:bg-white/10">
-                                  {fund.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="category" className="text-white">Category</Label>
-                          <Input
-                            id="category"
-                            value={billForm.category}
-                            onChange={(e) => setBillForm({ ...billForm, category: e.target.value })}
-                            placeholder="e.g., Utilities, Maintenance"
-                            className="bg-white/10 backdrop-blur-xl border border-white/20 text-white placeholder:text-white/50"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="status" className="text-white">Status</Label>
-                          <Select value={billForm.status} onValueChange={(value: 'pending' | 'paid' | 'overdue') => setBillForm({ ...billForm, status: value })}>
-                            <SelectTrigger className="bg-white/10 backdrop-blur-xl border border-white/20 text-white">
-                              <SelectValue className="text-white/50" />
-                            </SelectTrigger>
-                            <SelectContent className="bg-black/80 backdrop-blur-xl border border-white/20 rounded-xl">
-                              <SelectItem value="pending" className="text-white hover:bg-white/10 focus:bg-white/10">Pending</SelectItem>
-                              <SelectItem value="paid" className="text-white hover:bg-white/10 focus:bg-white/10">Paid</SelectItem>
-                              <SelectItem value="overdue" className="text-white hover:bg-white/10 focus:bg-white/10">Overdue</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="frequency" className="text-white">Frequency</Label>
-                        <Select value={billForm.frequency} onValueChange={(value: 'one-time' | 'monthly' | 'quarterly' | 'yearly') => setBillForm({ ...billForm, frequency: value })}>
-                          <SelectTrigger className="bg-white/10 backdrop-blur-xl border border-white/20 text-white">
-                            <SelectValue className="text-white/50" />
-                          </SelectTrigger>
-                          <SelectContent className="bg-black/80 backdrop-blur-xl border border-white/20 rounded-xl">
-                            <SelectItem value="one-time" className="text-white hover:bg-white/10 focus:bg-white/10">One-time</SelectItem>
-                            <SelectItem value="monthly" className="text-white hover:bg-white/10 focus:bg-white/10">Monthly</SelectItem>
-                            <SelectItem value="quarterly" className="text-white hover:bg-white/10 focus:bg-white/10">Quarterly</SelectItem>
-                            <SelectItem value="yearly" className="text-white hover:bg-white/10 focus:bg-white/10">Yearly</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="ledger_entry" className="text-white">Ledger Entry</Label>
-                          <Select 
-                            value={billForm.ledger_entry_id || 'none'} 
-                            onValueChange={(value) => setBillForm({...billForm, ledger_entry_id: value === 'none' ? '' : value, ledger_subgroup_id: (value === 'none' || !value) ? '' : billForm.ledger_subgroup_id})}>
-                            <SelectTrigger className="bg-white/10 backdrop-blur-xl border border-white/20 text-white">
-                              <SelectValue placeholder="Select ledger entry" className="text-white/50" />
-                            </SelectTrigger>
-                            <SelectContent className="bg-black/80 backdrop-blur-xl border border-white/20 rounded-xl">
-                              <SelectItem value="none" className="text-white hover:bg-white/10 focus:bg-white/10">None</SelectItem>
-                              {ledgerEntries.map((entry) => (
-                                <SelectItem key={entry.id} value={entry.id} className="text-white hover:bg-white/10 focus:bg-white/10">{entry.title}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="ledger_subgroup" className="text-white">Subgroup</Label>
-                          <Select 
-                            value={billForm.ledger_subgroup_id || 'none'} 
-                            onValueChange={(value) => setBillForm({...billForm, ledger_subgroup_id: value === 'none' ? '' : value})}
-                            disabled={!billForm.ledger_entry_id}>
-                            <SelectTrigger className="bg-white/10 backdrop-blur-xl border border-white/20 text-white">
-                              <SelectValue placeholder="Select subgroup" className="text-white/50" />
-                            </SelectTrigger>
-                            <SelectContent className="bg-black/80 backdrop-blur-xl border border-white/20 rounded-xl">
-                              <SelectItem value="none" className="text-white hover:bg-white/10 focus:bg-white/10">None</SelectItem>
-                              {ledgerSubgroups
-                                .filter(subgroup => subgroup.ledger_entry_id === billForm.ledger_entry_id)
-                                .map((subgroup) => (
-                                  <SelectItem key={subgroup.id} value={subgroup.id} className="text-white hover:bg-white/10 focus:bg-white/10">{subgroup.title}</SelectItem>
-                                ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="priority" className="text-white">Priority</Label>
-                          <Select value={billForm.priority} onValueChange={(value) => setBillForm({...billForm, priority: value as 'low' | 'medium' | 'high'})}>
-                            <SelectTrigger className="bg-white/10 backdrop-blur-xl border border-white/20 text-white">
-                              <SelectValue placeholder="Select priority" className="text-white/50" />
-                            </SelectTrigger>
-                            <SelectContent className="bg-black/80 backdrop-blur-xl border border-white/20 rounded-xl">
-                              <SelectItem value="low" className="text-white hover:bg-white/10 focus:bg-white/10">Low</SelectItem>
-                              <SelectItem value="medium" className="text-white hover:bg-white/10 focus:bg-white/10">Medium</SelectItem>
-                              <SelectItem value="high" className="text-white hover:bg-white/10 focus:bg-white/10">High</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="approval_status" className="text-white">Approval Status</Label>
-                          <Select value={billForm.approval_status} onValueChange={(value) => setBillForm({...billForm, approval_status: value as 'pending' | 'approved' | 'rejected'})}>
-                            <SelectTrigger className="bg-white/10 backdrop-blur-xl border border-white/20 text-white">
-                              <SelectValue placeholder="Select approval status" className="text-white/50" />
-                            </SelectTrigger>
-                            <SelectContent className="bg-black/80 backdrop-blur-xl border border-white/20 rounded-xl">
-                              <SelectItem value="pending" className="text-white hover:bg-white/10 focus:bg-white/10">Pending</SelectItem>
-                              <SelectItem value="approved" className="text-white hover:bg-white/10 focus:bg-white/10">Approved</SelectItem>
-                              <SelectItem value="rejected" className="text-white hover:bg-white/10 focus:bg-white/10">Rejected</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="responsible_parties" className="text-white">Responsible Parties</Label>
-                          <Input
-                            id="responsible_parties"
-                            value={billForm.responsible_parties}
-                            onChange={(e) => setBillForm({...billForm, responsible_parties: e.target.value})}
-                            placeholder="Enter names separated by commas"
-                            className="bg-white/10 backdrop-blur-xl border border-white/20 text-white placeholder:text-white/50"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="allocation_percentage" className="text-white">Allocation %</Label>
-                          <Input
-                            id="allocation_percentage"
-                            type="number"
-                            min="0"
-                            max="100"
-                            step="0.01"
-                            value={billForm.allocation_percentage}
-                            onChange={(e) => setBillForm({...billForm, allocation_percentage: e.target.value})}
-                            placeholder="0.00"
-                            className="bg-white/10 backdrop-blur-xl border border-white/20 text-white placeholder:text-white/50"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="notes" className="text-white">Notes</Label>
-                        <Textarea
-                          id="notes"
-                          value={billForm.notes}
-                          onChange={(e) => setBillForm({...billForm, notes: e.target.value})}
-                          placeholder="Additional notes or comments"
-                          rows={3}
-                          className="bg-white/10 backdrop-blur-xl border border-white/20 text-white placeholder:text-white/50"
-                        />
-                      </div>
-                      <DialogFooter>
-                        <Button type="button" variant="outline" onClick={() => setBillDialogOpen(false)} className="bg-white/10 backdrop-blur-xl border border-white/20 text-white hover:bg-white/15 hover:scale-105 transition-all duration-300">
-                          Cancel
-                        </Button>
-                        <Button type="submit" className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white border-0 hover:scale-105 transition-all duration-300">
-                          {editingBill ? 'Update Bill' : 'Create Bill'}
-                        </Button>
-                      </DialogFooter>
-                    </form>
-                  </DialogContent>
-                </Dialog>
-
-                  <Dialog open={pettyCashDialogOpen} onOpenChange={setPettyCashDialogOpen}>
-                    <DialogTrigger asChild>
-                      <GlassButton variant="success" className="shadow-xl hover:shadow-2xl transition-all duration-300 px-6 py-3 text-base font-semibold" onClick={() => openPettyCashDialog()}>
-                        <Plus className="w-5 h-5 mr-2" />
-                        Petty Cash
-                      </GlassButton>
-                    </DialogTrigger>
-                  <DialogContent className="sm:max-w-[500px]">
-                    <DialogHeader>
-                      <DialogTitle className="text-white">{editingPettyCash ? 'Edit Petty Cash' : 'New Petty Cash Request'}</DialogTitle>
-                      <DialogDescription className="text-white/70">
-                        {editingPettyCash ? 'Update petty cash information' : 'Create a new petty cash request'}
-                      </DialogDescription>
-                    </DialogHeader>
-                    <form onSubmit={handlePettyCashSubmit} className="space-y-4">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="amount" className="text-white">Amount *</Label>
-                          <Input
-                            id="amount"
-                            type="number"
-                            step="0.01"
-                            min="0.01"
-                            value={pettyCashForm.amount}
-                            onChange={(e) => setPettyCashForm({ ...pettyCashForm, amount: e.target.value })}
-                            className="bg-white/10 backdrop-blur-xl border border-white/20 text-white placeholder:text-white/50"
-                            required
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="transaction_date" className="text-white">Transaction Date *</Label>
-                          <Input
-                            id="transaction_date"
-                            type="date"
-                            value={pettyCashForm.transaction_date}
-                            onChange={(e) => setPettyCashForm({ ...pettyCashForm, transaction_date: e.target.value })}
-                            className="bg-white/10 backdrop-blur-xl border border-white/20 text-white placeholder:text-white/50"
-                            required
-                          />
-                        </div>
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="purpose" className="text-white">Purpose *</Label>
-                        <Textarea
-                          id="purpose"
-                          value={pettyCashForm.purpose}
-                          onChange={(e) => setPettyCashForm({ ...pettyCashForm, purpose: e.target.value })}
-                          placeholder="What is this for?"
-                          className="bg-white/10 backdrop-blur-xl border border-white/20 text-white placeholder:text-white/50"
-                          required
-                        />
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="approved_by" className="text-white">Approved By</Label>
-                          <Input
-                            id="approved_by"
-                            value={pettyCashForm.approved_by}
-                            onChange={(e) => setPettyCashForm({ ...pettyCashForm, approved_by: e.target.value })}
-                            placeholder="Approver name"
-                            className="bg-white/10 backdrop-blur-xl border border-white/20 text-white placeholder:text-white/50"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="receipt_available" className="text-white">Receipt Available</Label>
-                          <div className="flex items-center space-x-2">
-                            <input
-                              type="checkbox"
-                              id="receipt_available"
-                              checked={pettyCashForm.receipt_available}
-                              onChange={(e) => setPettyCashForm({ ...pettyCashForm, receipt_available: e.target.checked })}
-                              className="bg-white/10 border border-white/20"
-                            />
-                            <Label htmlFor="receipt_available" className="text-white">Receipt is available</Label>
+                      <DialogContent className="sm:max-w-[500px]">
+                        <DialogHeader>
+                          <DialogTitle className="text-white">{editingBill ? 'Edit Bill' : 'Add New Bill'}</DialogTitle>
+                          <DialogDescription className="text-white/70">
+                            {editingBill ? 'Update bill information' : 'Create a new bill or recurring payment'}
+                          </DialogDescription>
+                        </DialogHeader>
+                        <form onSubmit={handleSaveBill} className="space-y-4">
+                          <div className="mb-4">
+                            <ReceiptUpload onScanComplete={handleScanComplete} className="mb-4" />
                           </div>
-                        </div>
-                      </div>
-                      <DialogFooter>
-                        <Button type="button" variant="outline" onClick={() => setPettyCashDialogOpen(false)} className="bg-white/10 backdrop-blur-xl border border-white/20 text-white hover:bg-white/15 hover:scale-105 transition-all duration-300">
-                          Cancel
-                        </Button>
-                        <Button type="submit" className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white border-0 hover:scale-105 transition-all duration-300">
-                          {editingPettyCash ? 'Update Request' : 'Create Request'}
-                        </Button>
-                      </DialogFooter>
-                    </form>
-                  </DialogContent>
-                </Dialog>
-                </>
-              )}
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label htmlFor="vendor_name" className="text-white">Vendor *</Label>
+                              <Input
+                                id="vendor_name"
+                                value={billForm.vendor_name}
+                                onChange={(e) => setBillForm({ ...billForm, vendor_name: e.target.value })}
+                                placeholder="Vendor name"
+                                className="bg-white/10 backdrop-blur-xl border border-white/20 text-white placeholder:text-white/50"
+                                required
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="amount" className="text-white">Amount *</Label>
+                              <Input
+                                id="amount"
+                                type="number"
+                                step="0.01"
+                                min="0.01"
+                                value={billForm.amount}
+                                onChange={(e) => setBillForm({ ...billForm, amount: e.target.value })}
+                                className="bg-white/10 backdrop-blur-xl border border-white/20 text-white placeholder:text-white/50"
+                                required
+                              />
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label htmlFor="due_date" className="text-white">Due Date *</Label>
+                              <Input
+                                id="due_date"
+                                type="date"
+                                value={billForm.due_date}
+                                onChange={(e) => setBillForm({ ...billForm, due_date: e.target.value })}
+                                className="bg-white/10 backdrop-blur-xl border border-white/20 text-white placeholder:text-white/50"
+                                required
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="fund_id" className="text-white">Fund *</Label>
+                              <Select value={billForm.fund_id} onValueChange={(value) => setBillForm({ ...billForm, fund_id: value })}>
+                                <SelectTrigger className="bg-white/10 backdrop-blur-xl border border-white/20 text-white">
+                                  <SelectValue placeholder="Select fund" className="text-white/50" />
+                                </SelectTrigger>
+                                <SelectContent className="bg-black/80 backdrop-blur-xl border border-white/20 rounded-xl">
+                                  {funds.map((fund) => (
+                                    <SelectItem key={fund.id} value={fund.id} className="text-white hover:bg-white/10 focus:bg-white/10">
+                                      {fund.name}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label htmlFor="category" className="text-white">Category</Label>
+                              <Input
+                                id="category"
+                                value={billForm.category}
+                                onChange={(e) => setBillForm({ ...billForm, category: e.target.value })}
+                                placeholder="e.g., Utilities, Maintenance"
+                                className="bg-white/10 backdrop-blur-xl border border-white/20 text-white placeholder:text-white/50"
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="status" className="text-white">Status</Label>
+                              <Select value={billForm.status} onValueChange={(value: 'pending' | 'paid' | 'overdue') => setBillForm({ ...billForm, status: value })}>
+                                <SelectTrigger className="bg-white/10 backdrop-blur-xl border border-white/20 text-white">
+                                  <SelectValue className="text-white/50" />
+                                </SelectTrigger>
+                                <SelectContent className="bg-black/80 backdrop-blur-xl border border-white/20 rounded-xl">
+                                  <SelectItem value="pending" className="text-white hover:bg-white/10 focus:bg-white/10">Pending</SelectItem>
+                                  <SelectItem value="paid" className="text-white hover:bg-white/10 focus:bg-white/10">Paid</SelectItem>
+                                  <SelectItem value="overdue" className="text-white hover:bg-white/10 focus:bg-white/10">Overdue</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="frequency" className="text-white">Frequency</Label>
+                            <Select value={billForm.frequency} onValueChange={(value: 'one-time' | 'monthly' | 'quarterly' | 'yearly') => setBillForm({ ...billForm, frequency: value })}>
+                              <SelectTrigger className="bg-white/10 backdrop-blur-xl border border-white/20 text-white">
+                                <SelectValue className="text-white/50" />
+                              </SelectTrigger>
+                              <SelectContent className="bg-black/80 backdrop-blur-xl border border-white/20 rounded-xl">
+                                <SelectItem value="one-time" className="text-white hover:bg-white/10 focus:bg-white/10">One-time</SelectItem>
+                                <SelectItem value="monthly" className="text-white hover:bg-white/10 focus:bg-white/10">Monthly</SelectItem>
+                                <SelectItem value="quarterly" className="text-white hover:bg-white/10 focus:bg-white/10">Quarterly</SelectItem>
+                                <SelectItem value="yearly" className="text-white hover:bg-white/10 focus:bg-white/10">Yearly</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label htmlFor="ledger_entry" className="text-white">Ledger Entry</Label>
+                              <Select
+                                value={billForm.ledger_entry_id || 'none'}
+                                onValueChange={(value) => setBillForm({ ...billForm, ledger_entry_id: value === 'none' ? '' : value, ledger_subgroup_id: (value === 'none' || !value) ? '' : billForm.ledger_subgroup_id })}>
+                                <SelectTrigger className="bg-white/10 backdrop-blur-xl border border-white/20 text-white">
+                                  <SelectValue placeholder="Select ledger entry" className="text-white/50" />
+                                </SelectTrigger>
+                                <SelectContent className="bg-black/80 backdrop-blur-xl border border-white/20 rounded-xl">
+                                  <SelectItem value="none" className="text-white hover:bg-white/10 focus:bg-white/10">None</SelectItem>
+                                  {ledgerEntries.map((entry) => (
+                                    <SelectItem key={entry.id} value={entry.id} className="text-white hover:bg-white/10 focus:bg-white/10">{entry.title}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="ledger_subgroup" className="text-white">Subgroup</Label>
+                              <Select
+                                value={billForm.ledger_subgroup_id || 'none'}
+                                onValueChange={(value) => setBillForm({ ...billForm, ledger_subgroup_id: value === 'none' ? '' : value })}
+                                disabled={!billForm.ledger_entry_id}>
+                                <SelectTrigger className="bg-white/10 backdrop-blur-xl border border-white/20 text-white">
+                                  <SelectValue placeholder="Select subgroup" className="text-white/50" />
+                                </SelectTrigger>
+                                <SelectContent className="bg-black/80 backdrop-blur-xl border border-white/20 rounded-xl">
+                                  <SelectItem value="none" className="text-white hover:bg-white/10 focus:bg-white/10">None</SelectItem>
+                                  {ledgerSubgroups
+                                    .filter(subgroup => subgroup.ledger_entry_id === billForm.ledger_entry_id)
+                                    .map((subgroup) => (
+                                      <SelectItem key={subgroup.id} value={subgroup.id} className="text-white hover:bg-white/10 focus:bg-white/10">{subgroup.title}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label htmlFor="priority" className="text-white">Priority</Label>
+                              <Select value={billForm.priority} onValueChange={(value) => setBillForm({ ...billForm, priority: value as 'low' | 'medium' | 'high' })}>
+                                <SelectTrigger className="bg-white/10 backdrop-blur-xl border border-white/20 text-white">
+                                  <SelectValue placeholder="Select priority" className="text-white/50" />
+                                </SelectTrigger>
+                                <SelectContent className="bg-black/80 backdrop-blur-xl border border-white/20 rounded-xl">
+                                  <SelectItem value="low" className="text-white hover:bg-white/10 focus:bg-white/10">Low</SelectItem>
+                                  <SelectItem value="medium" className="text-white hover:bg-white/10 focus:bg-white/10">Medium</SelectItem>
+                                  <SelectItem value="high" className="text-white hover:bg-white/10 focus:bg-white/10">High</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="approval_status" className="text-white">Approval Status</Label>
+                              <Select value={billForm.approval_status} onValueChange={(value) => setBillForm({ ...billForm, approval_status: value as 'pending' | 'approved' | 'rejected' })}>
+                                <SelectTrigger className="bg-white/10 backdrop-blur-xl border border-white/20 text-white">
+                                  <SelectValue placeholder="Select approval status" className="text-white/50" />
+                                </SelectTrigger>
+                                <SelectContent className="bg-black/80 backdrop-blur-xl border border-white/20 rounded-xl">
+                                  <SelectItem value="pending" className="text-white hover:bg-white/10 focus:bg-white/10">Pending</SelectItem>
+                                  <SelectItem value="approved" className="text-white hover:bg-white/10 focus:bg-white/10">Approved</SelectItem>
+                                  <SelectItem value="rejected" className="text-white hover:bg-white/10 focus:bg-white/10">Rejected</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label htmlFor="responsible_parties" className="text-white">Responsible Parties</Label>
+                              <Input
+                                id="responsible_parties"
+                                value={billForm.responsible_parties}
+                                onChange={(e) => setBillForm({ ...billForm, responsible_parties: e.target.value })}
+                                placeholder="Enter names separated by commas"
+                                className="bg-white/10 backdrop-blur-xl border border-white/20 text-white placeholder:text-white/50"
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="allocation_percentage" className="text-white">Allocation %</Label>
+                              <Input
+                                id="allocation_percentage"
+                                type="number"
+                                min="0"
+                                max="100"
+                                step="0.01"
+                                value={billForm.allocation_percentage}
+                                onChange={(e) => setBillForm({ ...billForm, allocation_percentage: e.target.value })}
+                                placeholder="0.00"
+                                className="bg-white/10 backdrop-blur-xl border border-white/20 text-white placeholder:text-white/50"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label htmlFor="notes" className="text-white">Notes</Label>
+                            <Textarea
+                              id="notes"
+                              value={billForm.notes}
+                              onChange={(e) => setBillForm({ ...billForm, notes: e.target.value })}
+                              placeholder="Additional notes or comments"
+                              rows={3}
+                              className="bg-white/10 backdrop-blur-xl border border-white/20 text-white placeholder:text-white/50"
+                            />
+                          </div>
+                          <DialogFooter>
+                            <Button type="button" variant="outline" onClick={() => setBillDialogOpen(false)} className="bg-white/10 backdrop-blur-xl border border-white/20 text-white hover:bg-white/15 hover:scale-105 transition-all duration-300">
+                              Cancel
+                            </Button>
+                            <Button type="submit" className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white border-0 hover:scale-105 transition-all duration-300">
+                              {editingBill ? 'Update Bill' : 'Create Bill'}
+                            </Button>
+                          </DialogFooter>
+                        </form>
+                      </DialogContent>
+                    </Dialog>
+
+                    <Dialog open={pettyCashDialogOpen} onOpenChange={setPettyCashDialogOpen}>
+                      <DialogTrigger asChild>
+                        <GlassButton variant="success" className="shadow-xl hover:shadow-2xl transition-all duration-300 px-6 py-3 text-base font-semibold" onClick={() => openPettyCashDialog()}>
+                          <Plus className="w-5 h-5 mr-2" />
+                          Petty Cash
+                        </GlassButton>
+                      </DialogTrigger>
+                      <DialogContent className="sm:max-w-[500px]">
+                        <DialogHeader>
+                          <DialogTitle className="text-white">{editingPettyCash ? 'Edit Petty Cash' : 'New Petty Cash Request'}</DialogTitle>
+                          <DialogDescription className="text-white/70">
+                            {editingPettyCash ? 'Update petty cash information' : 'Create a new petty cash request'}
+                          </DialogDescription>
+                        </DialogHeader>
+                        <form onSubmit={handlePettyCashSubmit} className="space-y-4">
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label htmlFor="amount" className="text-white">Amount *</Label>
+                              <Input
+                                id="amount"
+                                type="number"
+                                step="0.01"
+                                min="0.01"
+                                value={pettyCashForm.amount}
+                                onChange={(e) => setPettyCashForm({ ...pettyCashForm, amount: e.target.value })}
+                                className="bg-white/10 backdrop-blur-xl border border-white/20 text-white placeholder:text-white/50"
+                                required
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="transaction_date" className="text-white">Transaction Date *</Label>
+                              <Input
+                                id="transaction_date"
+                                type="date"
+                                value={pettyCashForm.transaction_date}
+                                onChange={(e) => setPettyCashForm({ ...pettyCashForm, transaction_date: e.target.value })}
+                                className="bg-white/10 backdrop-blur-xl border border-white/20 text-white placeholder:text-white/50"
+                                required
+                              />
+                            </div>
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="purpose" className="text-white">Purpose *</Label>
+                            <Textarea
+                              id="purpose"
+                              value={pettyCashForm.purpose}
+                              onChange={(e) => setPettyCashForm({ ...pettyCashForm, purpose: e.target.value })}
+                              placeholder="What is this for?"
+                              className="bg-white/10 backdrop-blur-xl border border-white/20 text-white placeholder:text-white/50"
+                              required
+                            />
+                          </div>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label htmlFor="approved_by" className="text-white">Approved By</Label>
+                              <Input
+                                id="approved_by"
+                                value={pettyCashForm.approved_by}
+                                onChange={(e) => setPettyCashForm({ ...pettyCashForm, approved_by: e.target.value })}
+                                placeholder="Approver name"
+                                className="bg-white/10 backdrop-blur-xl border border-white/20 text-white placeholder:text-white/50"
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="receipt_available" className="text-white">Receipt Available</Label>
+                              <div className="flex items-center space-x-2">
+                                <input
+                                  type="checkbox"
+                                  id="receipt_available"
+                                  checked={pettyCashForm.receipt_available}
+                                  onChange={(e) => setPettyCashForm({ ...pettyCashForm, receipt_available: e.target.checked })}
+                                  className="bg-white/10 border border-white/20"
+                                />
+                                <Label htmlFor="receipt_available" className="text-white">Receipt is available</Label>
+                              </div>
+                            </div>
+                          </div>
+                          <DialogFooter>
+                            <Button type="button" variant="outline" onClick={() => setPettyCashDialogOpen(false)} className="bg-white/10 backdrop-blur-xl border border-white/20 text-white hover:bg-white/15 hover:scale-105 transition-all duration-300">
+                              Cancel
+                            </Button>
+                            <Button type="submit" className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white border-0 hover:scale-105 transition-all duration-300">
+                              {editingPettyCash ? 'Update Request' : 'Create Request'}
+                            </Button>
+                          </DialogFooter>
+                        </form>
+                      </DialogContent>
+                    </Dialog>
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -1034,11 +1053,11 @@ export default function BillsPage(): JSX.Element {
                   const entry = entryData?.entry
                   const directBills = entryData?.directBills || []
                   const subgroups = entryData?.subgroups || {}
-                  
+
                   return (
                     <div key={entryId} className="rounded-xl border border-white/20 bg-white/5 backdrop-blur-xl shadow-lg">
                       {/* Entry Header */}
-                      <div 
+                      <div
                         className="flex items-center justify-between p-4 cursor-pointer hover:bg-white/10 transition-all duration-300"
                         onClick={() => toggleEntryExpansion(entryId)}
                       >
@@ -1061,7 +1080,7 @@ export default function BillsPage(): JSX.Element {
                           <span className="text-lg font-bold text-white">
                             {formatCurrency(
                               directBills.reduce((sum: number, bill: Bill) => sum + bill.amount, 0) +
-                              Object.values(subgroups).reduce((sum: number, sg: { subgroup: LedgerSubgroup; bills: Bill[] }) => 
+                              Object.values(subgroups).reduce((sum: number, sg: { subgroup: LedgerSubgroup; bills: Bill[] }) =>
                                 sum + (sg?.bills || []).reduce((billSum: number, bill: Bill) => billSum + bill.amount, 0), 0
                               )
                             )}
@@ -1139,12 +1158,12 @@ export default function BillsPage(): JSX.Element {
                             const isSubgroupExpanded = expandedSubgroups.has(subgroupId)
                             const subgroup = subgroupData?.subgroup
                             const subgroupBills = subgroupData?.bills || []
-                            
+
                             if (!subgroup) return null
-                            
+
                             return (
                               <div key={subgroupId} className="border-t border-white/10">
-                                <div 
+                                <div
                                   className="flex items-center justify-between p-4 pl-8 cursor-pointer hover:bg-white/5 transition-all duration-300"
                                   onClick={() => toggleSubgroupExpansion(subgroupId)}
                                 >
@@ -1252,15 +1271,15 @@ export default function BillsPage(): JSX.Element {
         )}
 
         {/* Petty Cash Table */}
-         {activeTab === 'petty-cash' && (
-           <GlassCard variant="default" className="animate-in fade-in-0 slide-in-from-bottom-4 duration-700 shadow-lg transition-all duration-500" style={{ animationDelay: '600ms' }}>
-             <GlassCardHeader className="pb-6">
-               <GlassCardTitle className="text-2xl text-white font-bold bg-gradient-to-r from-white via-white/90 to-white/80 bg-clip-text text-transparent flex items-center gap-3">
-                 <CreditCard className="w-6 h-6" />
-                 Petty Cash Management
-               </GlassCardTitle>
-               <GlassCardDescription className="text-white/70 text-base font-medium">Manage petty cash requests and approvals</GlassCardDescription>
-             </GlassCardHeader>
+        {activeTab === 'petty-cash' && (
+          <GlassCard variant="default" className="animate-in fade-in-0 slide-in-from-bottom-4 duration-700 shadow-lg transition-all duration-500" style={{ animationDelay: '600ms' }}>
+            <GlassCardHeader className="pb-6">
+              <GlassCardTitle className="text-2xl text-white font-bold bg-gradient-to-r from-white via-white/90 to-white/80 bg-clip-text text-transparent flex items-center gap-3">
+                <CreditCard className="w-6 h-6" />
+                Petty Cash Management
+              </GlassCardTitle>
+              <GlassCardDescription className="text-white/70 text-base font-medium">Manage petty cash requests and approvals</GlassCardDescription>
+            </GlassCardHeader>
             <GlassCardContent className="pt-0">
               <div className="rounded-xl border border-white/20 bg-white/5 backdrop-blur-xl shadow-lg">
                 <div className="overflow-x-auto">
@@ -1293,8 +1312,8 @@ export default function BillsPage(): JSX.Element {
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
                                   <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-white/70 hover:text-white hover:bg-white/10">
-                                      <MoreHorizontal className="h-4 w-4" />
-                                    </Button>
+                                    <MoreHorizontal className="h-4 w-4" />
+                                  </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end" className="bg-white/10 backdrop-blur-xl border-white/20">
                                   <DropdownMenuItem onClick={() => openPettyCashDialog(pc)} className="text-white/90 hover:bg-white/10">

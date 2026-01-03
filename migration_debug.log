@@ -1,0 +1,863 @@
+﻿node.exe : open supabase\.temp\profile: The 
+system cannot find the file specified.
+At line:1 char:1
++ & "C:\Program Files\nodejs/node.exe" 
+"C:\Users\anirb\AppData\Roaming\ ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (op 
+   en supabase\....file specified.:String) [],  
+   RemoteException
+    + FullyQualifiedErrorId : NativeCommandErro 
+   r
+ 
+Loading project ref from file: 
+supabase\.temp\project-ref
+Using connection pooler: postgresql://postgres.w
+uiyqlrztxyfcdnoplvb@aws-1-ap-south-1.pooler.supa
+base.com:5432/postgres
+Initialising login role...
+Using access token for profile: supabase
+Supabase CLI 2.70.5
+Using profile: supabase (supabase.co)
+Connecting to remote database...
+2026/01/02 20:19:42 PG Send: {"Type":"StartupMes
+sage","ProtocolVersion":196608,"Parameters":{"da
+tabase":"postgres","user":"cli_login_postgres.wu
+iyqlrztxyfcdnoplvb"}}
+2026/01/02 20:19:42 PG Recv: {"Type":"Authentica
+tionSASL","AuthMechanisms":["SCRAM-SHA-256"]}
+2026/01/02 20:19:42 PG Send: {"Type":"SASLInitia
+lResponse","AuthMechanism":"SCRAM-SHA-256","Data
+":"n,,n=,r=9HJVhqjvNoD5mztoJ92XATpl"}
+2026/01/02 20:19:42 PG Recv: {"Type":"Authentica
+tionSASLContinue","Data":"r=9HJVhqjvNoD5mztoJ92X
+ATplRU8xMGw5T2NKUm1QcXNOUEtQMEJ4R0F3V0JwRA==,s=w
+KjHK37IPbcqI9jwDVfctQ==,i=4096"}
+2026/01/02 20:19:42 PG Send: {"Type":"SASLRespon
+se","Data":"c=biws,r=9HJVhqjvNoD5mztoJ92XATplRU8
+xMGw5T2NKUm1QcXNOUEtQMEJ4R0F3V0JwRA==,p=DoLmISFI
+KCyVOTFxgVNCQm7au0gjHQdDhiRCmZGNZU4="}
+2026/01/02 20:19:42 PG Recv: {"Type":"Authentica
+tionSASLFinal","Data":"v=fDaPNel0NSPBIWYHiaCb46b
+UREP8kAd9Uah1Tr6ZdmU="}
+2026/01/02 20:19:42 PG Recv: 
+{"Type":"AuthenticationOK"}
+2026/01/02 20:19:42 PG Recv: {"Type":"ParameterS
+tatus","Name":"DateStyle","Value":"ISO, MDY"}
+2026/01/02 20:19:42 PG Recv: {"Type":"ParameterS
+tatus","Name":"IntervalStyle","Value":"postgres"
+}
+2026/01/02 20:19:42 PG Recv: {"Type":"ParameterS
+tatus","Name":"TimeZone","Value":"UTC"}
+2026/01/02 20:19:42 PG Recv: {"Type":"ParameterS
+tatus","Name":"application_name","Value":"Supavi
+sor"}
+2026/01/02 20:19:42 PG Recv: {"Type":"ParameterS
+tatus","Name":"client_encoding","Value":"UTF8"}
+2026/01/02 20:19:42 PG Recv: {"Type":"ParameterS
+tatus","Name":"default_transaction_read_only","V
+alue":"off"}
+2026/01/02 20:19:42 PG Recv: {"Type":"ParameterS
+tatus","Name":"in_hot_standby","Value":"off"}
+2026/01/02 20:19:42 PG Recv: {"Type":"ParameterS
+tatus","Name":"integer_datetimes","Value":"on"}
+2026/01/02 20:19:42 PG Recv: {"Type":"ParameterS
+tatus","Name":"is_superuser","Value":"off"}
+2026/01/02 20:19:42 PG Recv: {"Type":"ParameterS
+tatus","Name":"scram_iterations","Value":"4096"}
+2026/01/02 20:19:42 PG Recv: {"Type":"ParameterS
+tatus","Name":"server_encoding","Value":"UTF8"}
+2026/01/02 20:19:42 PG Recv: {"Type":"ParameterS
+tatus","Name":"server_version","Value":"17.6"}
+2026/01/02 20:19:42 PG Recv: {"Type":"ParameterS
+tatus","Name":"session_authorization","Value":"c
+li_login_postgres"}
+2026/01/02 20:19:42 PG Recv: {"Type":"ParameterS
+tatus","Name":"standard_conforming_strings","Val
+ue":"on"}
+2026/01/02 20:19:42 PG Recv: {"Type":"BackendKey
+Data","ProcessID":44874796,"SecretKey":221178648
+8}
+2026/01/02 20:19:42 PG Recv: 
+{"Type":"ReadyForQuery","TxStatus":"I"}
+2026/01/02 20:19:42 PG Send: 
+{"Type":"Query","String":"SET SESSION ROLE 
+postgres"}
+2026/01/02 20:19:43 PG Recv: 
+{"Type":"CommandComplete","CommandTag":"SET"}
+2026/01/02 20:19:43 PG Recv: 
+{"Type":"ReadyForQuery","TxStatus":"I"}
+2026/01/02 20:19:43 PG Send: {"Type":"Parse","Na
+me":"lrupsc_1_0","Query":"SELECT version FROM 
+supabase_migrations.schema_migrations ORDER BY 
+version","ParameterOIDs":null}
+2026/01/02 20:19:43 PG Send: {"Type":"Describe",
+"ObjectType":"S","Name":"lrupsc_1_0"}
+2026/01/02 20:19:43 PG Send: {"Type":"Sync"}
+2026/01/02 20:19:43 PG Recv: 
+{"Type":"ParseComplete"}
+2026/01/02 20:19:43 PG Recv: {"Type":"ParameterD
+escription","ParameterOIDs":[]}
+2026/01/02 20:19:43 PG Recv: {"Type":"RowDescrip
+tion","Fields":[{"Name":"version","TableOID":174
+86,"TableAttributeNumber":1,"DataTypeOID":25,"Da
+taTypeSize":-1,"TypeModifier":-1,"Format":0}]}
+2026/01/02 20:19:43 PG Recv: 
+{"Type":"ReadyForQuery","TxStatus":"I"}
+2026/01/02 20:19:43 PG Send: {"Type":"Bind","Des
+tinationPortal":"","PreparedStatement":"lrupsc_1
+_0","ParameterFormatCodes":null,"Parameters":[],
+"ResultFormatCodes":[0]}
+2026/01/02 20:19:43 PG Send: 
+{"Type":"Describe","ObjectType":"P","Name":""}
+2026/01/02 20:19:43 PG Send: 
+{"Type":"Execute","Portal":"","MaxRows":0}
+2026/01/02 20:19:43 PG Send: {"Type":"Sync"}
+2026/01/02 20:19:43 PG Recv: 
+{"Type":"BindComplete"}
+2026/01/02 20:19:43 PG Recv: {"Type":"RowDescrip
+tion","Fields":[{"Name":"version","TableOID":174
+86,"TableAttributeNumber":1,"DataTypeOID":25,"Da
+taTypeSize":-1,"TypeModifier":-1,"Format":0}]}
+2026/01/02 20:19:43 PG Recv: 
+{"Type":"DataRow","Values":[{"text":"001"}]}
+2026/01/02 20:19:43 PG Recv: 
+{"Type":"CommandComplete","CommandTag":"SELECT 
+1"}
+2026/01/02 20:19:43 PG Recv: 
+{"Type":"ReadyForQuery","TxStatus":"I"}
+Skipping migration add_funds_description.sql... 
+(file name must match pattern 
+"<timestamp>_name.sql")
+Skipping migration 
+add_members_rls_policies.sql... (file name must 
+match pattern "<timestamp>_name.sql")
+Skipping migration 
+add_rls_policies_for_all_tables.sql... (file 
+name must match pattern "<timestamp>_name.sql")
+Skipping migration 
+add_unique_offering_constraint.sql... (file 
+name must match pattern "<timestamp>_name.sql")
+Skipping migration 
+check_bills_with_documents.sql... (file name 
+must match pattern "<timestamp>_name.sql")
+Skipping migration check_constraints.sql... 
+(file name must match pattern 
+"<timestamp>_name.sql")
+Skipping migration check_data_existence.sql... 
+(file name must match pattern 
+"<timestamp>_name.sql")
+Skipping migration check_ledger_entries.sql... 
+(file name must match pattern 
+"<timestamp>_name.sql")
+Skipping migration 
+check_offering_member_data.sql... (file name 
+must match pattern "<timestamp>_name.sql")
+Skipping migration cleanup_duplicates.sql... 
+(file name must match pattern 
+"<timestamp>_name.sql")
+Skipping migration 
+create_cash_breakdown_table.sql... (file name 
+must match pattern "<timestamp>_name.sql")
+Skipping migration create_fund_metadata.sql... 
+(file name must match pattern 
+"<timestamp>_name.sql")
+Skipping migration create_members_table.sql... 
+(file name must match pattern 
+"<timestamp>_name.sql")
+Skipping migration 
+create_notifications_table.sql... (file name 
+must match pattern "<timestamp>_name.sql")
+Skipping migration 
+create_offering_members_table.sql... (file name 
+must match pattern "<timestamp>_name.sql")
+Skipping migration 
+create_storage_policies.sql... (file name must 
+match pattern "<timestamp>_name.sql")
+Skipping migration create_users_table.sql... 
+(file name must match pattern 
+"<timestamp>_name.sql")
+Skipping migration debug_duplicate_users.sql... 
+(file name must match pattern 
+"<timestamp>_name.sql")
+Skipping migration 
+debug_member_relationships.sql... (file name 
+must match pattern "<timestamp>_name.sql")
+Skipping migration 
+debug_offering_member_data.sql... (file name 
+must match pattern "<timestamp>_name.sql")
+Skipping migration 
+debug_offering_members.sql... (file name must 
+match pattern "<timestamp>_name.sql")
+Skipping migration debug_offerings_data.sql... 
+(file name must match pattern 
+"<timestamp>_name.sql")
+Skipping migration final_constraint_fix.sql... 
+(file name must match pattern 
+"<timestamp>_name.sql")
+Skipping migration fix_constraint_names.sql... 
+(file name must match pattern 
+"<timestamp>_name.sql")
+Skipping migration fix_duplicate_users.sql... 
+(file name must match pattern 
+"<timestamp>_name.sql")
+Skipping migration fix_funds_permissions.sql... 
+(file name must match pattern 
+"<timestamp>_name.sql")
+Skipping migration 
+fix_funds_schema_constraints.sql... (file name 
+must match pattern "<timestamp>_name.sql")
+Skipping migration 
+fix_offering_member_constraints.sql... (file 
+name must match pattern "<timestamp>_name.sql")
+Skipping migration 
+fix_offering_types_constraint.sql... (file name 
+must match pattern "<timestamp>_name.sql")
+Skipping migration 
+fix_offering_types_final.sql... (file name must 
+match pattern "<timestamp>_name.sql")
+Skipping migration 
+fix_update_fund_balance_rpc.sql... (file name 
+must match pattern "<timestamp>_name.sql")
+Skipping migration 
+fix_user_role_constraint.sql... (file name must 
+match pattern "<timestamp>_name.sql")
+Skipping migration 
+fix_user_role_constraint_safe.sql... (file name 
+must match pattern "<timestamp>_name.sql")
+Skipping migration 
+force_constraint_cleanup.sql... (file name must 
+match pattern "<timestamp>_name.sql")
+Skipping migration 
+insert_test_bills_with_documents.sql... (file 
+name must match pattern "<timestamp>_name.sql")
+Skipping migration 
+rename_offering_members_to_singular.sql... 
+(file name must match pattern 
+"<timestamp>_name.sql")
+Skipping migration 
+test_offering_member_data.sql... (file name 
+must match pattern "<timestamp>_name.sql")
+Skipping migration update_admin_role.sql... 
+(file name must match pattern 
+"<timestamp>_name.sql")
+Do you want to push these migrations to the 
+remote database?
+ ΓÇó 
+20250105_add_church_id_to_cash_breakdown.sql
+ ΓÇó 20250105_add_church_id_to_petty_cash.sql
+ ΓÇó 20250107_create_default_funds.sql
+ ΓÇó 20250117120000_add_rls_policies.sql
+ ΓÇó 20250117120001_fix_rls_policies.sql
+ ΓÇó 20250117120002_fix_offering_member_rls_poli
+cies.sql
+ ΓÇó 
+20250117130000_create_user_preferences_table.sql
+ ΓÇó 20250127_add_bill_documents.sql
+ ΓÇó 20250127_create_document_attachments.sql
+ ΓÇó 20250127_create_ledger_entries.sql
+ ΓÇó 20250127_create_ledger_subgroups.sql
+ ΓÇó 20250127_update_bills_schema.sql
+ ΓÇó 
+20250916_create_multi_church_system_fixed.sql
+ ΓÇó 20250916_fix_rls_policies.sql
+ ΓÇó 20250918_fix_architectural_issues.sql
+ ΓÇó 
+20250919_add_permission_check_function_fixed.sql
+ ΓÇó 20250919_fix_duplicate_churches.sql
+ ΓÇó 20250919_setup_admin_permissions.sql
+ ΓÇó 20250923_add_church_id_to_members.sql
+ ΓÇó 
+20250924_fix_rls_church_isolation_security.sql
+ ΓÇó 20251223_enable_pgvector_extension.sql
+
+ [Y/n] 2026/01/02 20:20:21 PG Send: 
+{"Type":"Parse","Name":"","Query":"SET 
+lock_timeout = '4s'","ParameterOIDs":null}
+2026/01/02 20:20:21 PG Send: {"Type":"Bind","Des
+tinationPortal":"","PreparedStatement":"","Param
+eterFormatCodes":null,"Parameters":[],"ResultFor
+matCodes":[]}
+2026/01/02 20:20:21 PG Send: 
+{"Type":"Describe","ObjectType":"P","Name":""}
+2026/01/02 20:20:21 PG Send: 
+{"Type":"Execute","Portal":"","MaxRows":0}
+2026/01/02 20:20:21 PG Send: 
+{"Type":"Parse","Name":"","Query":"CREATE 
+SCHEMA IF NOT EXISTS 
+supabase_migrations","ParameterOIDs":null}
+2026/01/02 20:20:21 PG Send: {"Type":"Bind","Des
+tinationPortal":"","PreparedStatement":"","Param
+eterFormatCodes":null,"Parameters":[],"ResultFor
+matCodes":[]}
+2026/01/02 20:20:21 PG Send: 
+{"Type":"Describe","ObjectType":"P","Name":""}
+2026/01/02 20:20:21 PG Send: 
+{"Type":"Execute","Portal":"","MaxRows":0}
+2026/01/02 20:20:21 PG Send: 
+{"Type":"Parse","Name":"","Query":"CREATE TABLE 
+IF NOT EXISTS 
+supabase_migrations.schema_migrations (version 
+text NOT NULL PRIMARY 
+KEY)","ParameterOIDs":null}
+2026/01/02 20:20:21 PG Send: {"Type":"Bind","Des
+tinationPortal":"","PreparedStatement":"","Param
+eterFormatCodes":null,"Parameters":[],"ResultFor
+matCodes":[]}
+2026/01/02 20:20:21 PG Send: 
+{"Type":"Describe","ObjectType":"P","Name":""}
+2026/01/02 20:20:21 PG Send: 
+{"Type":"Execute","Portal":"","MaxRows":0}
+2026/01/02 20:20:21 PG Send: 
+{"Type":"Parse","Name":"","Query":"ALTER TABLE 
+supabase_migrations.schema_migrations ADD 
+COLUMN IF NOT EXISTS statements 
+text[]","ParameterOIDs":null}
+2026/01/02 20:20:21 PG Send: {"Type":"Bind","Des
+tinationPortal":"","PreparedStatement":"","Param
+eterFormatCodes":null,"Parameters":[],"ResultFor
+matCodes":[]}
+2026/01/02 20:20:21 PG Send: 
+{"Type":"Describe","ObjectType":"P","Name":""}
+2026/01/02 20:20:21 PG Send: 
+{"Type":"Execute","Portal":"","MaxRows":0}
+2026/01/02 20:20:21 PG Send: 
+{"Type":"Parse","Name":"","Query":"ALTER TABLE 
+supabase_migrations.schema_migrations ADD 
+COLUMN IF NOT EXISTS name 
+text","ParameterOIDs":null}
+2026/01/02 20:20:21 PG Send: {"Type":"Bind","Des
+tinationPortal":"","PreparedStatement":"","Param
+eterFormatCodes":null,"Parameters":[],"ResultFor
+matCodes":[]}
+2026/01/02 20:20:21 PG Send: 
+{"Type":"Describe","ObjectType":"P","Name":""}
+2026/01/02 20:20:21 PG Send: 
+{"Type":"Execute","Portal":"","MaxRows":0}
+2026/01/02 20:20:21 PG Send: {"Type":"Sync"}
+2026/01/02 20:20:21 PG Recv: 
+{"Type":"ParseComplete"}
+2026/01/02 20:20:21 PG Recv: 
+{"Type":"BindComplete"}
+2026/01/02 20:20:21 PG Recv: {"Type":"NoData"}
+2026/01/02 20:20:21 PG Recv: 
+{"Type":"CommandComplete","CommandTag":"SET"}
+2026/01/02 20:20:21 PG Recv: 
+{"Type":"ParseComplete"}
+2026/01/02 20:20:21 PG Recv: 
+{"Type":"BindComplete"}
+2026/01/02 20:20:21 PG Recv: {"Type":"NoData"}
+2026/01/02 20:20:21 PG Recv: {"Severity":"NOTICE
+","SeverityUnlocalized":"NOTICE","Code":"42P06",
+"Message":"schema \"supabase_migrations\" 
+already exists, skipping","Detail":"","Hint":"",
+"Position":0,"InternalPosition":0,"InternalQuery
+":"","Where":"","SchemaName":"","TableName":"","
+ColumnName":"","DataTypeName":"","ConstraintName
+":"","File":"schemacmds.c","Line":132,"Routine":
+"CreateSchemaCommand","UnknownFields":null}
+2026/01/02 20:20:21 PG Recv: 
+{"Type":"CommandComplete","CommandTag":"CREATE 
+SCHEMA"}
+2026/01/02 20:20:21 PG Recv: 
+{"Type":"ParseComplete"}
+2026/01/02 20:20:21 PG Recv: 
+{"Type":"BindComplete"}
+2026/01/02 20:20:21 PG Recv: {"Type":"NoData"}
+2026/01/02 20:20:21 PG Recv: {"Severity":"NOTICE
+","SeverityUnlocalized":"NOTICE","Code":"42P07",
+"Message":"relation \"schema_migrations\" 
+already exists, skipping","Detail":"","Hint":"",
+"Position":0,"InternalPosition":0,"InternalQuery
+":"","Where":"","SchemaName":"","TableName":"","
+ColumnName":"","DataTypeName":"","ConstraintName
+":"","File":"parse_utilcmd.c","Line":207,"Routin
+e":"transformCreateStmt","UnknownFields":null}
+2026/01/02 20:20:21 PG Recv: 
+{"Type":"CommandComplete","CommandTag":"CREATE 
+TABLE"}
+2026/01/02 20:20:21 PG Recv: 
+{"Type":"ParseComplete"}
+2026/01/02 20:20:21 PG Recv: 
+{"Type":"BindComplete"}
+2026/01/02 20:20:21 PG Recv: {"Type":"NoData"}
+2026/01/02 20:20:21 PG Recv: {"Severity":"NOTICE
+","SeverityUnlocalized":"NOTICE","Code":"42701",
+"Message":"column \"statements\" of relation 
+\"schema_migrations\" already exists, skipping",
+"Detail":"","Hint":"","Position":0,"InternalPosi
+tion":0,"InternalQuery":"","Where":"","SchemaNam
+e":"","TableName":"","ColumnName":"","DataTypeNa
+me":"","ConstraintName":"","File":"tablecmds.c",
+"Line":7471,"Routine":"check_for_column_name_col
+lision","UnknownFields":null}
+2026/01/02 20:20:21 PG Recv: 
+{"Type":"CommandComplete","CommandTag":"ALTER 
+TABLE"}
+2026/01/02 20:20:21 PG Recv: 
+{"Type":"ParseComplete"}
+2026/01/02 20:20:21 PG Recv: 
+{"Type":"BindComplete"}
+2026/01/02 20:20:21 PG Recv: {"Type":"NoData"}
+2026/01/02 20:20:21 PG Recv: {"Severity":"NOTICE
+","SeverityUnlocalized":"NOTICE","Code":"42701",
+"Message":"column \"name\" of relation 
+\"schema_migrations\" already exists, skipping",
+"Detail":"","Hint":"","Position":0,"InternalPosi
+tion":0,"InternalQuery":"","Where":"","SchemaNam
+e":"","TableName":"","ColumnName":"","DataTypeNa
+me":"","ConstraintName":"","File":"tablecmds.c",
+"Line":7471,"Routine":"check_for_column_name_col
+lision","UnknownFields":null}
+2026/01/02 20:20:21 PG Recv: 
+{"Type":"CommandComplete","CommandTag":"ALTER 
+TABLE"}
+2026/01/02 20:20:21 PG Recv: 
+{"Type":"ReadyForQuery","TxStatus":"I"}
+Applying migration 
+20250105_add_church_id_to_cash_breakdown.sql...
+2026/01/02 20:20:21 PG Send: 
+{"Type":"Query","String":"RESET ALL"}
+2026/01/02 20:20:21 PG Recv: 
+{"Type":"CommandComplete","CommandTag":"RESET"}
+2026/01/02 20:20:21 PG Recv: 
+{"Type":"ReadyForQuery","TxStatus":"I"}
+2026/01/02 20:20:21 PG Send: 
+{"Type":"Parse","Name":"","Query":"-- 
+Migration: Add church_id to cash_breakdown 
+table for multi-church support\r\n-- This 
+ensures cash breakdown records are properly 
+isolated by church\r\n\r\n-- Step 1: Add 
+church_id column (nullable initially to allow 
+existing data)\r\nALTER TABLE 
+cash_breakdown\r\nADD COLUMN IF NOT EXISTS 
+church_id UUID REFERENCES churches(id) ON 
+DELETE CASCADE","ParameterOIDs":null}
+2026/01/02 20:20:21 PG Send: {"Type":"Bind","Des
+tinationPortal":"","PreparedStatement":"","Param
+eterFormatCodes":null,"Parameters":[],"ResultFor
+matCodes":[]}
+2026/01/02 20:20:21 PG Send: 
+{"Type":"Describe","ObjectType":"P","Name":""}
+2026/01/02 20:20:21 PG Send: 
+{"Type":"Execute","Portal":"","MaxRows":0}
+2026/01/02 20:20:21 PG Send: 
+{"Type":"Parse","Name":"","Query":"-- Step 2: 
+Create an index for better query 
+performance\r\nCREATE INDEX IF NOT EXISTS 
+idx_cash_breakdown_church_id\r\nON 
+cash_breakdown(church_id)","ParameterOIDs":null}
+2026/01/02 20:20:21 PG Send: {"Type":"Bind","Des
+tinationPortal":"","PreparedStatement":"","Param
+eterFormatCodes":null,"Parameters":[],"ResultFor
+matCodes":[]}
+2026/01/02 20:20:21 PG Send: 
+{"Type":"Describe","ObjectType":"P","Name":""}
+2026/01/02 20:20:21 PG Send: 
+{"Type":"Execute","Portal":"","MaxRows":0}
+2026/01/02 20:20:21 PG Send: 
+{"Type":"Parse","Name":"","Query":"-- Step 3: 
+Update existing records with a default church 
+(if any exist)\r\n-- This assumes you have at 
+least one church in the system\r\n-- If you 
+have existing data, you may need to manually 
+assign the correct church_id\r\nDO 
+$$\r\nDECLARE\r\n  default_church_id 
+UUID;\r\nBEGIN\r\n  -- Get the first church_id 
+to use as default for existing records\r\n  
+SELECT id INTO default_church_id FROM churches 
+LIMIT 1;\r\n\r\n  -- Only update if we found a 
+church and there are records without 
+church_id\r\n  IF default_church_id IS NOT NULL 
+THEN\r\n    UPDATE cash_breakdown\r\n    SET 
+church_id = default_church_id\r\n    WHERE 
+church_id IS NULL;\r\n  END IF;\r\nEND 
+$$","ParameterOIDs":null}
+2026/01/02 20:20:21 PG Send: {"Type":"Bind","Des
+tinationPortal":"","PreparedStatement":"","Param
+eterFormatCodes":null,"Parameters":[],"ResultFor
+matCodes":[]}
+2026/01/02 20:20:21 PG Send: 
+{"Type":"Describe","ObjectType":"P","Name":""}
+2026/01/02 20:20:21 PG Send: 
+{"Type":"Execute","Portal":"","MaxRows":0}
+2026/01/02 20:20:21 PG Send: 
+{"Type":"Parse","Name":"","Query":"-- Step 4: 
+Make church_id NOT NULL after updating existing 
+records\r\nALTER TABLE cash_breakdown\r\nALTER 
+COLUMN church_id SET NOT 
+NULL","ParameterOIDs":null}
+2026/01/02 20:20:21 PG Send: {"Type":"Bind","Des
+tinationPortal":"","PreparedStatement":"","Param
+eterFormatCodes":null,"Parameters":[],"ResultFor
+matCodes":[]}
+2026/01/02 20:20:21 PG Send: 
+{"Type":"Describe","ObjectType":"P","Name":""}
+2026/01/02 20:20:21 PG Send: 
+{"Type":"Execute","Portal":"","MaxRows":0}
+2026/01/02 20:20:21 PG Send: 
+{"Type":"Parse","Name":"","Query":"-- Step 5: 
+Enable RLS on cash_breakdown if not already 
+enabled\r\nALTER TABLE cash_breakdown ENABLE 
+ROW LEVEL SECURITY","ParameterOIDs":null}
+2026/01/02 20:20:21 PG Send: {"Type":"Bind","Des
+tinationPortal":"","PreparedStatement":"","Param
+eterFormatCodes":null,"Parameters":[],"ResultFor
+matCodes":[]}
+2026/01/02 20:20:21 PG Send: 
+{"Type":"Describe","ObjectType":"P","Name":""}
+2026/01/02 20:20:21 PG Send: 
+{"Type":"Execute","Portal":"","MaxRows":0}
+2026/01/02 20:20:21 PG Send: 
+{"Type":"Parse","Name":"","Query":"-- Step 6: 
+Drop existing policies if they exist\r\nDROP 
+POLICY IF EXISTS \"Users can view cash 
+breakdown for their churches\" ON 
+cash_breakdown","ParameterOIDs":null}
+2026/01/02 20:20:21 PG Send: {"Type":"Bind","Des
+tinationPortal":"","PreparedStatement":"","Param
+eterFormatCodes":null,"Parameters":[],"ResultFor
+matCodes":[]}
+2026/01/02 20:20:21 PG Send: 
+{"Type":"Describe","ObjectType":"P","Name":""}
+2026/01/02 20:20:21 PG Send: 
+{"Type":"Execute","Portal":"","MaxRows":0}
+2026/01/02 20:20:21 PG Send: 
+{"Type":"Parse","Name":"","Query":"DROP POLICY 
+IF EXISTS \"Users can insert cash breakdown for 
+their churches\" ON 
+cash_breakdown","ParameterOIDs":null}
+2026/01/02 20:20:21 PG Send: {"Type":"Bind","Des
+tinationPortal":"","PreparedStatement":"","Param
+eterFormatCodes":null,"Parameters":[],"ResultFor
+matCodes":[]}
+2026/01/02 20:20:21 PG Send: 
+{"Type":"Describe","ObjectType":"P","Name":""}
+2026/01/02 20:20:21 PG Send: 
+{"Type":"Execute","Portal":"","MaxRows":0}
+2026/01/02 20:20:21 PG Send: 
+{"Type":"Parse","Name":"","Query":"DROP POLICY 
+IF EXISTS \"Users can update cash breakdown for 
+their churches\" ON 
+cash_breakdown","ParameterOIDs":null}
+2026/01/02 20:20:21 PG Send: {"Type":"Bind","Des
+tinationPortal":"","PreparedStatement":"","Param
+eterFormatCodes":null,"Parameters":[],"ResultFor
+matCodes":[]}
+2026/01/02 20:20:21 PG Send: 
+{"Type":"Describe","ObjectType":"P","Name":""}
+2026/01/02 20:20:21 PG Send: 
+{"Type":"Execute","Portal":"","MaxRows":0}
+2026/01/02 20:20:21 PG Send: 
+{"Type":"Parse","Name":"","Query":"DROP POLICY 
+IF EXISTS \"Users can delete cash breakdown for 
+their churches\" ON 
+cash_breakdown","ParameterOIDs":null}
+2026/01/02 20:20:21 PG Send: {"Type":"Bind","Des
+tinationPortal":"","PreparedStatement":"","Param
+eterFormatCodes":null,"Parameters":[],"ResultFor
+matCodes":[]}
+2026/01/02 20:20:21 PG Send: 
+{"Type":"Describe","ObjectType":"P","Name":""}
+2026/01/02 20:20:21 PG Send: 
+{"Type":"Execute","Portal":"","MaxRows":0}
+2026/01/02 20:20:21 PG Send: 
+{"Type":"Parse","Name":"","Query":"-- Step 7: 
+Create RLS policies for church 
+isolation\r\nCREATE POLICY \"Users can view 
+cash breakdown for their churches\"\r\nON 
+cash_breakdown\r\nFOR SELECT\r\nTO 
+authenticated\r\nUSING (\r\n  church_id IN 
+(\r\n    SELECT church_id\r\n    FROM 
+user_church_roles\r\n    WHERE user_id = 
+auth.uid()\r\n    AND is_active = true\r\n  
+)\r\n)","ParameterOIDs":null}
+2026/01/02 20:20:21 PG Send: {"Type":"Bind","Des
+tinationPortal":"","PreparedStatement":"","Param
+eterFormatCodes":null,"Parameters":[],"ResultFor
+matCodes":[]}
+2026/01/02 20:20:21 PG Send: 
+{"Type":"Describe","ObjectType":"P","Name":""}
+2026/01/02 20:20:21 PG Send: 
+{"Type":"Execute","Portal":"","MaxRows":0}
+2026/01/02 20:20:21 PG Send: 
+{"Type":"Parse","Name":"","Query":"CREATE 
+POLICY \"Users can insert cash breakdown for 
+their churches\"\r\nON cash_breakdown\r\nFOR 
+INSERT\r\nTO authenticated\r\nWITH CHECK (\r\n  
+church_id IN (\r\n    SELECT church_id\r\n    
+FROM user_church_roles\r\n    WHERE user_id = 
+auth.uid()\r\n    AND is_active = true\r\n    
+AND role_id IN (\r\n      SELECT id FROM 
+roles\r\n      WHERE name IN ('admin', 
+'treasurer')\r\n    )\r\n  
+)\r\n)","ParameterOIDs":null}
+2026/01/02 20:20:21 PG Send: {"Type":"Bind","Des
+tinationPortal":"","PreparedStatement":"","Param
+eterFormatCodes":null,"Parameters":[],"ResultFor
+matCodes":[]}
+2026/01/02 20:20:21 PG Send: 
+{"Type":"Describe","ObjectType":"P","Name":""}
+2026/01/02 20:20:21 PG Send: 
+{"Type":"Execute","Portal":"","MaxRows":0}
+2026/01/02 20:20:21 PG Send: 
+{"Type":"Parse","Name":"","Query":"CREATE 
+POLICY \"Users can update cash breakdown for 
+their churches\"\r\nON cash_breakdown\r\nFOR 
+UPDATE\r\nTO authenticated\r\nUSING (\r\n  
+church_id IN (\r\n    SELECT church_id\r\n    
+FROM user_church_roles\r\n    WHERE user_id = 
+auth.uid()\r\n    AND is_active = true\r\n    
+AND role_id IN (\r\n      SELECT id FROM 
+roles\r\n      WHERE name IN ('admin', 
+'treasurer')\r\n    )\r\n  )\r\n)\r\nWITH CHECK 
+(\r\n  church_id IN (\r\n    SELECT 
+church_id\r\n    FROM user_church_roles\r\n    
+WHERE user_id = auth.uid()\r\n    AND is_active 
+= true\r\n    AND role_id IN (\r\n      SELECT 
+id FROM roles\r\n      WHERE name IN ('admin', 
+'treasurer')\r\n    )\r\n  
+)\r\n)","ParameterOIDs":null}
+2026/01/02 20:20:21 PG Send: {"Type":"Bind","Des
+tinationPortal":"","PreparedStatement":"","Param
+eterFormatCodes":null,"Parameters":[],"ResultFor
+matCodes":[]}
+2026/01/02 20:20:21 PG Send: 
+{"Type":"Describe","ObjectType":"P","Name":""}
+2026/01/02 20:20:21 PG Send: 
+{"Type":"Execute","Portal":"","MaxRows":0}
+2026/01/02 20:20:21 PG Send: 
+{"Type":"Parse","Name":"","Query":"CREATE 
+POLICY \"Users can delete cash breakdown for 
+their churches\"\r\nON cash_breakdown\r\nFOR 
+DELETE\r\nTO authenticated\r\nUSING (\r\n  
+church_id IN (\r\n    SELECT church_id\r\n    
+FROM user_church_roles\r\n    WHERE user_id = 
+auth.uid()\r\n    AND is_active = true\r\n    
+AND role_id IN (\r\n      SELECT id FROM 
+roles\r\n      WHERE name = 'admin'\r\n    
+)\r\n  )\r\n)","ParameterOIDs":null}
+2026/01/02 20:20:21 PG Send: {"Type":"Bind","Des
+tinationPortal":"","PreparedStatement":"","Param
+eterFormatCodes":null,"Parameters":[],"ResultFor
+matCodes":[]}
+2026/01/02 20:20:21 PG Send: 
+{"Type":"Describe","ObjectType":"P","Name":""}
+2026/01/02 20:20:21 PG Send: 
+{"Type":"Execute","Portal":"","MaxRows":0}
+2026/01/02 20:20:21 PG Send: 
+{"Type":"Parse","Name":"","Query":"-- Step 8: 
+Add comment for documentation\r\nCOMMENT ON 
+COLUMN cash_breakdown.church_id IS 'Foreign key 
+to churches table for multi-church 
+support'","ParameterOIDs":null}
+2026/01/02 20:20:21 PG Send: {"Type":"Bind","Des
+tinationPortal":"","PreparedStatement":"","Param
+eterFormatCodes":null,"Parameters":[],"ResultFor
+matCodes":[]}
+2026/01/02 20:20:21 PG Send: 
+{"Type":"Describe","ObjectType":"P","Name":""}
+2026/01/02 20:20:21 PG Send: 
+{"Type":"Execute","Portal":"","MaxRows":0}
+2026/01/02 20:20:21 PG Send: 
+{"Type":"Parse","Name":"","Query":"INSERT INTO 
+supabase_migrations.schema_migrations(version, 
+name, statements) VALUES($1, $2, 
+$3)","ParameterOIDs":[25,25,1009]}
+2026/01/02 20:20:21 PG Send: {"Type":"Bind","Des
+tinationPortal":"","PreparedStatement":"","Param
+eterFormatCodes":[0,0,1],"Parameters":[{"text":"
+20250105"},{"text":"add_church_id_to_cash_breakd
+own"},{"binary":"0000000100000000000000190000000
+e00000001000001522d2d204d6967726174696f6e3a20416
+464206368757263685f696420746f20636173685f6272656
+16b646f776e207461626c6520666f72206d756c74692d636
+87572636820737570706f72740d0a2d2d205468697320656
+e7375726573206361736820627265616b646f776e2072656
+36f726473206172652070726f7065726c792069736f6c617
+46564206279206368757263680d0a0d0a2d2d20537465702
+0313a20416464206368757263685f696420636f6c756d6e2
+0286e756c6c61626c6520696e697469616c6c7920746f206
+16c6c6f77206578697374696e672064617461290d0a414c5
+44552205441424c4520636173685f627265616b646f776e0
+d0a41444420434f4c554d4e204946204e4f5420455849535
+453206368757263685f69642055554944205245464552454
+e43455320636875726368657328696429204f4e2044454c4
+5544520434153434144450000008e2d2d205374657020323
+a2043726561746520616e20696e64657820666f722062657
+474657220717565727920706572666f726d616e63650d0a4
+3524541544520494e444558204946204e4f5420455849535
+453206964785f636173685f627265616b646f776e5f63687
+57263685f69640d0a4f4e20636173685f627265616b646f7
+76e286368757263685f696429000002772d2d20537465702
+0333a20557064617465206578697374696e67207265636f7
+26473207769746820612064656661756c742063687572636
+82028696620616e79206578697374290d0a2d2d205468697
+320617373756d657320796f752068617665206174206c656
+17374206f6e652063687572636820696e207468652073797
+374656d0d0a2d2d20496620796f752068617665206578697
+374696e6720646174612c20796f75206d6179206e6565642
+0746f206d616e75616c6c792061737369676e20746865206
+36f7272656374206368757263685f69640d0a444f2024240
+d0a4445434c4152450d0a202064656661756c745f6368757
+263685f696420555549443b0d0a424547494e0d0a20202d2
+d2047657420746865206669727374206368757263685f696
+420746f207573652061732064656661756c7420666f72206
+578697374696e67207265636f7264730d0a202053454c454
+35420696420494e544f2064656661756c745f63687572636
+85f69642046524f4d206368757263686573204c494d49542
+0313b0d0a0d0a20202d2d204f6e6c7920757064617465206
+96620776520666f756e6420612063687572636820616e642
+0746865726520617265207265636f72647320776974686f7
+574206368757263685f69640d0a202049462064656661756
+c745f6368757263685f6964204953204e4f54204e554c4c2
+05448454e0d0a2020202055504441544520636173685f627
+265616b646f776e0d0a20202020534554206368757263685
+f6964203d2064656661756c745f6368757263685f69640d0
+a202020205748455245206368757263685f6964204953204
+e554c4c3b0d0a2020454e442049463b0d0a454e442024240
+00000832d2d205374657020343a204d616b6520636875726
+3685f6964204e4f54204e554c4c206166746572207570646
+174696e67206578697374696e67207265636f7264730d0a4
+14c544552205441424c4520636173685f627265616b646f7
+76e0d0a414c54455220434f4c554d4e206368757263685f6
+96420534554204e4f54204e554c4c000000742d2d2053746
+57020353a20456e61626c6520524c53206f6e20636173685
+f627265616b646f776e206966206e6f7420616c726561647
+920656e61626c65640d0a414c544552205441424c4520636
+173685f627265616b646f776e20454e41424c4520524f572
+04c4556454c2053454355524954590000008b2d2d2053746
+57020363a2044726f70206578697374696e6720706f6c696
+369657320696620746865792065786973740d0a44524f502
+0504f4c49435920494620455849535453202255736572732
+063616e2076696577206361736820627265616b646f776e2
+0666f7220746865697220636875726368657322204f4e206
+36173685f627265616b646f776e0000005c44524f5020504
+f4c494359204946204558495354532022557365727320636
+16e20696e73657274206361736820627265616b646f776e2
+0666f7220746865697220636875726368657322204f4e206
+36173685f627265616b646f776e0000005c44524f5020504
+f4c494359204946204558495354532022557365727320636
+16e20757064617465206361736820627265616b646f776e2
+0666f7220746865697220636875726368657322204f4e206
+36173685f627265616b646f776e0000005c44524f5020504
+f4c494359204946204558495354532022557365727320636
+16e2064656c657465206361736820627265616b646f776e2
+0666f7220746865697220636875726368657322204f4e206
+36173685f627265616b646f776e000001352d2d205374657
+020373a2043726561746520524c5320706f6c69636965732
+0666f72206368757263682069736f6c6174696f6e0d0a435
+24541544520504f4c494359202255736572732063616e207
+6696577206361736820627265616b646f776e20666f72207
+468656972206368757263686573220d0a4f4e20636173685
+f627265616b646f776e0d0a464f522053454c4543540d0a5
+44f2061757468656e746963617465640d0a5553494e47202
+80d0a20206368757263685f696420494e20280d0a2020202
+053454c454354206368757263685f69640d0a20202020465
+24f4d20757365725f6368757263685f726f6c65730d0a202
+02020574845524520757365725f6964203d20617574682e7
+5696428290d0a20202020414e442069735f6163746976652
+03d20747275650d0a2020290d0a290000016c43524541544
+520504f4c494359202255736572732063616e20696e73657
+274206361736820627265616b646f776e20666f722074686
+56972206368757263686573220d0a4f4e20636173685f627
+265616b646f776e0d0a464f5220494e534552540d0a544f2
+061757468656e746963617465640d0a57495448204348454
+34b20280d0a20206368757263685f696420494e20280d0a2
+020202053454c454354206368757263685f69640d0a20202
+02046524f4d20757365725f6368757263685f726f6c65730
+d0a20202020574845524520757365725f6964203d2061757
+4682e75696428290d0a20202020414e442069735f6163746
+97665203d20747275650d0a20202020414e4420726f6c655
+f696420494e20280d0a20202020202053454c45435420696
+42046524f4d20726f6c65730d0a202020202020574845524
+5206e616d6520494e20282761646d696e272c20277472656
+1737572657227290d0a20202020290d0a2020290d0a29000
+0026043524541544520504f4c49435920225573657273206
+3616e20757064617465206361736820627265616b646f776
+e20666f72207468656972206368757263686573220d0a4f4
+e20636173685f627265616b646f776e0d0a464f522055504
+44154450d0a544f2061757468656e746963617465640d0a5
+553494e4720280d0a20206368757263685f696420494e202
+80d0a2020202053454c454354206368757263685f69640d0
+a2020202046524f4d20757365725f6368757263685f726f6
+c65730d0a20202020574845524520757365725f6964203d2
+0617574682e75696428290d0a20202020414e442069735f6
+16374697665203d20747275650d0a20202020414e4420726
+f6c655f696420494e20280d0a20202020202053454c45435
+42069642046524f4d20726f6c65730d0a202020202020574
+8455245206e616d6520494e20282761646d696e272c20277
+4726561737572657227290d0a20202020290d0a2020290d0
+a290d0a5749544820434845434b20280d0a2020636875726
+3685f696420494e20280d0a2020202053454c45435420636
+8757263685f69640d0a2020202046524f4d20757365725f6
+368757263685f726f6c65730d0a202020205748455245207
+57365725f6964203d20617574682e75696428290d0a20202
+020414e442069735f616374697665203d20747275650d0a2
+0202020414e4420726f6c655f696420494e20280d0a20202
+020202053454c4543542069642046524f4d20726f6c65730
+d0a2020202020205748455245206e616d6520494e2028276
+1646d696e272c202774726561737572657227290d0a20202
+020290d0a2020290d0a290000015743524541544520504f4
+c494359202255736572732063616e2064656c65746520636
+1736820627265616b646f776e20666f72207468656972206
+368757263686573220d0a4f4e20636173685f627265616b6
+46f776e0d0a464f522044454c4554450d0a544f206175746
+8656e746963617465640d0a5553494e4720280d0a2020636
+8757263685f696420494e20280d0a2020202053454c45435
+4206368757263685f69640d0a2020202046524f4d2075736
+5725f6368757263685f726f6c65730d0a202020205748455
+24520757365725f6964203d20617574682e75696428290d0
+a20202020414e442069735f616374697665203d207472756
+50d0a20202020414e4420726f6c655f696420494e20280d0
+a20202020202053454c4543542069642046524f4d20726f6
+c65730d0a2020202020205748455245206e616d65203d202
+761646d696e270d0a20202020290d0a2020290d0a2900000
+0902d2d205374657020383a2041646420636f6d6d656e742
+0666f7220646f63756d656e746174696f6e0d0a434f4d4d4
+54e54204f4e20434f4c554d4e20636173685f627265616b6
+46f776e2e6368757263685f69642049532027466f7265696
+76e206b657920746f206368757263686573207461626c652
+0666f72206d756c74692d63687572636820737570706f727
+427"}],"ResultFormatCodes":[]}
+2026/01/02 20:20:21 PG Send: 
+{"Type":"Describe","ObjectType":"P","Name":""}
+2026/01/02 20:20:21 PG Send: 
+{"Type":"Execute","Portal":"","MaxRows":0}
+2026/01/02 20:20:21 PG Send: {"Type":"Sync"}
+2026/01/02 20:20:21 PG Recv: 
+{"Type":"ParseComplete"}
+2026/01/02 20:20:21 PG Recv: 
+{"Type":"BindComplete"}
+2026/01/02 20:20:21 PG Recv: {"Type":"NoData"}
+2026/01/02 20:20:21 PG Recv: {"Type":"ErrorRespo
+nse","Severity":"ERROR","SeverityUnlocalized":"E
+RROR","Code":"42P01","Message":"relation 
+\"cash_breakdown\" does not exist","Detail":"","
+Hint":"","Position":0,"InternalPosition":0,"Inte
+rnalQuery":"","Where":"","SchemaName":"","TableN
+ame":"","ColumnName":"","DataTypeName":"","Const
+raintName":"","File":"namespace.c","Line":636,"R
+outine":"RangeVarGetRelidExtended","UnknownField
+s":null}
+2026/01/02 20:20:21 PG Recv: 
+{"Type":"ReadyForQuery","TxStatus":"I"}
+2026/01/02 20:20:21 PG Send: 
+{"Type":"Terminate"}
+ERROR: relation "cash_breakdown" does not exist 
+(SQLSTATE 42P01)                 
+At statement: 0                                 
+                                 
+-- Migration: Add church_id to cash_breakdown 
+table for multi-church support     
+-- This ensures cash breakdown records are 
+properly isolated by church           
+                                                
+                                 
+-- Step 1: Add church_id column (nullable 
+initially to allow existing data)      
+ALTER TABLE cash_breakdown                      
+                                 
+ADD COLUMN IF NOT EXISTS church_id UUID 
+REFERENCES churches(id) ON DELETE CASCADE
