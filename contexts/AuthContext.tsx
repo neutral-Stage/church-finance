@@ -129,10 +129,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const hasRole = (role: string): boolean => {
     if (!user) return false
 
-    const userRole = user.role?.toLowerCase()
+    const userRole = user.role?.toLowerCase() || ''
+    const checkRole = role.toLowerCase()
 
-    // Exact role match only - each role should only see their own items
-    return userRole === role.toLowerCase()
+    // Map common role name variations
+    const roleMap: Record<string, string[]> = {
+      'admin': ['admin', 'administrator', 'super administrator', 'super admin', 'superadmin'],
+      'treasurer': ['treasurer', 'finance', 'financial officer'],
+      'viewer': ['viewer', 'member', 'user', 'read-only']
+    }
+
+    // Check if user's role matches the requested role (including variations)
+    const validRoles = roleMap[checkRole] || [checkRole]
+
+    // Admin role gets access to all permissions
+    if (roleMap['admin']?.includes(userRole)) {
+      return true // Admin has all permissions
+    }
+
+    // Treasurer gets access to viewer permissions
+    if (checkRole === 'viewer' && roleMap['treasurer']?.includes(userRole)) {
+      return true
+    }
+
+    return validRoles.includes(userRole)
   }
 
   // Initialize user state on mount (for UI only, not auth checking)
@@ -173,11 +193,14 @@ export function withAuth<P extends object>(Component: React.ComponentType<P>) {
   const AuthenticatedComponent = (props: P) => {
     const { loading } = useAuth()
 
+    // Only show loading during initial auth state determination
     if (loading) {
       return (
-        <div className="flex items-center justify-center min-h-screen">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-400"></div>
-          <span className="ml-3 text-white/70">Loading...</span>
+        <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+          <div className="flex flex-col items-center gap-4">
+            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-purple-400"></div>
+            <span className="text-white/70 text-sm">Loading your dashboard...</span>
+          </div>
         </div>
       )
     }

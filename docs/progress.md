@@ -28,10 +28,14 @@
 
 ## Phase 2: Advanced Financial Automation (New)
 - [x] **AI Receipt Scanner** (Complete)
-- [ ] **Narrative Financial Reports**
-    - [ ] Create "Generate AI Report" feature
-    - [ ] Implement detailed summary generation (income vs expense, trends)
-    - [ ] Add PDF export with AI commentary
-- [ ] **Smart Bank Reconciliation** (Optional/Advanced)
-    - [ ] Statement upload parsing
-    - [ ] Fuzzy matching logic
+- [x] **Narrative Financial Reports**
+    - [x] Create "Generate AI Report" feature
+    - [x] Implement detailed summary generation (income vs expense, trends)
+    - [x] Add PDF export with AI commentary
+- [x] **Cash & Bank Fund Separation**
+    - [x] Split fund balances (Cash vs Bank)
+    - [x] Update transactions with payment methods
+    - [x] Fix Cash Breakdown feature
+- [x] **Smart Bank Reconciliation** (Optional/Advanced)
+    - [x] Statement upload parsing (CSV)
+    - [x] Fuzzy matching logic

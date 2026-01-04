@@ -21,13 +21,16 @@ export async function POST(request: NextRequest) {
 
         // Parse request body
         const body = await request.json();
-        const { message, conversationHistory, churchId, stream = false, conversation_id } = body;
+        const { message, conversationHistory, churchId, stream = false, conversation_id, attachments } = body;
 
         if (!message || typeof message !== 'string') {
-            return NextResponse.json(
-                { error: 'Message is required' },
-                { status: 400 }
-            );
+            // Allow empty message if attachments exist
+            if (!attachments || attachments.length === 0) {
+                return NextResponse.json(
+                    { error: 'Message is required' },
+                    { status: 400 }
+                );
+            }
         }
 
         if (!churchId) {
@@ -61,8 +64,8 @@ export async function POST(request: NextRequest) {
                 .insert({
                     church_id: churchId,
                     user_id: user.id,
-                    title: message.substring(0, 50)
-                })
+                    title: (message || 'Image analysis').substring(0, 50)
+                } as { church_id: string; user_id: string; title: string })
                 .select()
                 .single();
 
@@ -76,6 +79,7 @@ export async function POST(request: NextRequest) {
             userId: user.id,
             conversationHistory: conversationHistory as ChatMessage[] | undefined,
             enableFunctions: true,
+            attachments: attachments as Array<{ name: string; type: string; data: string }> | undefined,
         };
 
         // Handle streaming response

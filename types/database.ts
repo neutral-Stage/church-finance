@@ -107,3 +107,24 @@ export type ReportsData = {
     advances: AdvanceWithFund[];
     funds: Fund[];
 };
+
+export type ReconciliationSession = {
+    id: string;
+    church_id: string;
+    statement_start_date: string | null;
+    statement_end_date: string | null;
+    status: 'in_progress' | 'completed';
+    created_at: string;
+    updated_at: string;
+};
+
+export type BankStatementItem = {
+    id: string;
+    session_id: string;
+    transaction_date: string;
+    amount: number;
+    description: string | null;
+    match_status: 'matched' | 'unmatched' | 'created';
+    matched_transaction_id: string | null;
+    created_at: string;
+};

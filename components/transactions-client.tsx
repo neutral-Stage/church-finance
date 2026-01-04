@@ -39,6 +39,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+// TRANSACTION_CATEGORIES moved up
 import {
   Plus,
   Search,
@@ -67,6 +68,7 @@ interface TransactionFormData {
   payment_method: 'cash' | 'bank'
   transaction_date: string
   receipt_number?: string
+  church_id?: string
 }
 
 const TRANSACTION_CATEGORIES = {
@@ -90,6 +92,247 @@ const TRANSACTION_CATEGORIES = {
     'Professional Services',
     'Other Expenses'
   ]
+}
+
+interface AddTransactionFormProps {
+  initialData?: Partial<TransactionFormData>
+  onSuccess: () => void
+  onCancel?: () => void
+}
+
+export function AddTransactionForm({ initialData = {}, onSuccess, onCancel }: AddTransactionFormProps) {
+  const { api, hasChurchSelected, selectedChurch } = useChurchApi()
+  const [submitting, setSubmitting] = useState(false)
+  const [funds, setFunds] = useState<Fund[]>([]) // Should fetch funds or accept as prop? Ideally prop, but for independence let's fetch or use context if available. 
+  // Actually, fetching inside might be safer for reuse.
+  // Or we can accept funds as prop. ReconciliationMatcher doesn't easily have funds.
+  // Let's rely on api call to get funds if not passed? 
+  // To keep it simple, let's assume funds are passed or we fetch them. 
+  // TransactionsClient has `funds`. 
+  // Let's make it fetch if empty? 
+  // Or better, just fetch them on mount.
+
+  // Actually, to avoid breaking changes, let's copy the state logic.
+  const [formData, setFormData] = useState<TransactionFormData>({
+    type: 'income',
+    fund_id: '',
+    amount: '',
+    description: '',
+    category: '',
+    payment_method: 'cash',
+    transaction_date: formatDateForInput(new Date()),
+    receipt_number: '',
+    ...initialData
+  } as TransactionFormData)
+
+  // Fetch funds if needed
+  useEffect(() => {
+    const loadFunds = async () => {
+      const response = await api.get('/api/funds')
+      if (response.success && response.data) {
+        setFunds(response.data)
+        // Set default fund if not set
+        if (!formData.fund_id && response.data.length > 0) {
+          setFormData(prev => ({ ...prev, fund_id: response.data[0].id }))
+        }
+      }
+    }
+    loadFunds()
+  }, [api])
+
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!hasChurchSelected) {
+      toast.error('Please select a church first')
+      return
+    }
+
+    try {
+      setSubmitting(true)
+      const transactionData = {
+        ...formData,
+        amount: parseFloat(formData.amount),
+        church_id: selectedChurch?.id
+      }
+
+      // We only support creating new transactions here for now? 
+      // Or editing? If initialData has ID, maybe? But initialData is partial form data.
+      // Let's assume creation mainly for Reconciliation.
+      const response = await api.post('/api/transactions', transactionData)
+
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to save transaction')
+      }
+
+      onSuccess()
+    } catch (err: any) {
+      toast.error(err.message || 'An error occurred')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleScanComplete = (data: any) => {
+    setFormData(prev => ({
+      ...prev,
+      amount: data.amount ? data.amount.toString() : prev.amount,
+      category: data.category || prev.category,
+      transaction_date: data.date ? formatDateForInput(new Date(data.date)) : prev.transaction_date,
+      description: data.vendor ? `${data.vendor} - ${data.description || 'Purchase'}` : (data.description || prev.description),
+      type: 'expense'
+    }))
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="mb-4">
+        <ReceiptUpload onScanComplete={handleScanComplete} className="mb-4" />
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="type" className="text-white">Type</Label>
+          <Select
+            value={formData.type}
+            onValueChange={(value: 'income' | 'expense') => {
+              setFormData(prev => ({ ...prev, type: value, category: '' }))
+            }}
+          >
+            <SelectTrigger className="bg-white/10 backdrop-blur-xl border border-white/20 text-white focus:border-white/40 focus:ring-1 focus:ring-white/20">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className="bg-black/80 backdrop-blur-xl border border-white/20">
+              <SelectItem value="income">Income</SelectItem>
+              <SelectItem value="expense">Expense</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="fund_id" className="text-white">Fund</Label>
+          <Select
+            value={formData.fund_id}
+            onValueChange={(value) => setFormData(prev => ({ ...prev, fund_id: value }))}
+          >
+            <SelectTrigger className="bg-white/10 backdrop-blur-xl border border-white/20 text-white focus:border-white/40 focus:ring-1 focus:ring-white/20">
+              <SelectValue placeholder="Select fund" />
+            </SelectTrigger>
+            <SelectContent className="bg-black/80 backdrop-blur-xl border border-white/20">
+              {funds.map((fund) => (
+                <SelectItem key={fund.id} value={fund.id}>
+                  {fund.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="amount" className="text-white">Amount</Label>
+          <Input
+            id="amount"
+            type="number"
+            step="0.01"
+            min="0"
+            placeholder="0.00"
+            value={formData.amount}
+            onChange={(e) => setFormData(prev => ({ ...prev, amount: e.target.value }))}
+            className="bg-white/10 backdrop-blur-xl border border-white/20 text-white placeholder:text-white/60 focus:border-white/40 focus:ring-1 focus:ring-white/20"
+            required
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="category" className="text-white">Category</Label>
+          <Select
+            value={formData.category}
+            onValueChange={(value) => setFormData(prev => ({ ...prev, category: value }))}
+          >
+            <SelectTrigger className="bg-white/10 backdrop-blur-xl border border-white/20 text-white focus:border-white/40 focus:ring-1 focus:ring-white/20">
+              <SelectValue placeholder="Select category" />
+            </SelectTrigger>
+            <SelectContent className="bg-black/80 backdrop-blur-xl border border-white/20">
+              {TRANSACTION_CATEGORIES[formData.type].map((category) => (
+                <SelectItem key={category} value={category}>
+                  {category}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="description" className="text-white">Description</Label>
+        <Input
+          id="description"
+          placeholder="Transaction description"
+          value={formData.description}
+          onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+          className="bg-white/10 backdrop-blur-xl border border-white/20 text-white placeholder:text-white/60 focus:border-white/40 focus:ring-1 focus:ring-white/20"
+          required
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="payment_method" className="text-white">Payment Method</Label>
+        <Select
+          value={formData.payment_method}
+          onValueChange={(value: 'cash' | 'bank') => setFormData(prev => ({ ...prev, payment_method: value }))}
+        >
+          <SelectTrigger className="bg-white/10 backdrop-blur-xl border border-white/20 text-white focus:border-white/40 focus:ring-1 focus:ring-white/20">
+            <SelectValue placeholder="Select payment method" />
+          </SelectTrigger>
+          <SelectContent className="bg-black/80 backdrop-blur-xl border border-white/20">
+            <SelectItem value="cash">Cash</SelectItem>
+            <SelectItem value="bank">Bank</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="transaction_date" className="text-white">Date</Label>
+          <Input
+            id="transaction_date"
+            type="date"
+            value={formData.transaction_date}
+            onChange={(e) => setFormData(prev => ({ ...prev, transaction_date: e.target.value }))}
+            className="bg-white/10 backdrop-blur-xl border border-white/20 text-white placeholder:text-white/60 focus:border-white/40 focus:ring-1 focus:ring-white/20"
+            required
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="receipt_number" className="text-white">Receipt Number</Label>
+          <Input
+            id="receipt_number"
+            placeholder="Receipt number (optional)"
+            value={formData.receipt_number}
+            onChange={(e) => setFormData(prev => ({ ...prev, receipt_number: e.target.value }))}
+            className="bg-white/10 backdrop-blur-xl border border-white/20 text-white placeholder:text-white/60 focus:border-white/40 focus:ring-1 focus:ring-white/20"
+          />
+        </div>
+      </div>
+
+      <DialogFooter>
+        {onCancel && (
+          <GlassButton
+            type="button"
+            variant="outline"
+            onClick={onCancel}
+          >
+            Cancel
+          </GlassButton>
+        )}
+        <GlassButton type="submit" disabled={submitting}>
+          {submitting ? 'Saving...' : 'Save'} Transaction
+        </GlassButton>
+      </DialogFooter>
+    </form>
+  )
 }
 
 interface TransactionsClientProps {
@@ -399,155 +642,31 @@ export function TransactionsClient({ initialData, permissions }: TransactionsCli
                   </DialogDescription>
                 </DialogHeader>
 
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  <div className="mb-4">
-                    <ReceiptUpload onScanComplete={handleScanComplete} className="mb-4" />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="type" className="text-white">Type</Label>
-                      <Select
-                        value={formData.type}
-                        onValueChange={(value: 'income' | 'expense') => {
-                          setFormData(prev => ({ ...prev, type: value, category: '' }))
-                        }}
-                      >
-                        <SelectTrigger className="bg-white/10 backdrop-blur-xl border border-white/20 text-white focus:border-white/40 focus:ring-1 focus:ring-white/20">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent className="bg-black/80 backdrop-blur-xl border border-white/20">
-                          <SelectItem value="income">Income</SelectItem>
-                          <SelectItem value="expense">Expense</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="fund_id" className="text-white">Fund</Label>
-                      <Select
-                        value={formData.fund_id}
-                        onValueChange={(value) => setFormData(prev => ({ ...prev, fund_id: value }))}
-                      >
-                        <SelectTrigger className="bg-white/10 backdrop-blur-xl border border-white/20 text-white focus:border-white/40 focus:ring-1 focus:ring-white/20">
-                          <SelectValue placeholder="Select fund" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-black/80 backdrop-blur-xl border border-white/20">
-                          {funds.map((fund) => (
-                            <SelectItem key={fund.id} value={fund.id}>
-                              {fund.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="amount" className="text-white">Amount</Label>
-                      <Input
-                        id="amount"
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        placeholder="0.00"
-                        value={formData.amount}
-                        onChange={(e) => setFormData(prev => ({ ...prev, amount: e.target.value }))}
-                        className="bg-white/10 backdrop-blur-xl border border-white/20 text-white placeholder:text-white/60 focus:border-white/40 focus:ring-1 focus:ring-white/20"
-                        required
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="category" className="text-white">Category</Label>
-                      <Select
-                        value={formData.category}
-                        onValueChange={(value) => setFormData(prev => ({ ...prev, category: value }))}
-                      >
-                        <SelectTrigger className="bg-white/10 backdrop-blur-xl border border-white/20 text-white focus:border-white/40 focus:ring-1 focus:ring-white/20">
-                          <SelectValue placeholder="Select category" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-black/80 backdrop-blur-xl border border-white/20">
-                          {TRANSACTION_CATEGORIES[formData.type].map((category) => (
-                            <SelectItem key={category} value={category}>
-                              {category}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="description" className="text-white">Description</Label>
-                    <Input
-                      id="description"
-                      placeholder="Transaction description"
-                      value={formData.description}
-                      onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                      className="bg-white/10 backdrop-blur-xl border border-white/20 text-white placeholder:text-white/60 focus:border-white/40 focus:ring-1 focus:ring-white/20"
-                      required
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="payment_method" className="text-white">Payment Method</Label>
-                    <Select
-                      value={formData.payment_method}
-                      onValueChange={(value: 'cash' | 'bank') => setFormData(prev => ({ ...prev, payment_method: value }))}
-                    >
-                      <SelectTrigger className="bg-white/10 backdrop-blur-xl border border-white/20 text-white focus:border-white/40 focus:ring-1 focus:ring-white/20">
-                        <SelectValue placeholder="Select payment method" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-black/80 backdrop-blur-xl border border-white/20">
-                        <SelectItem value="cash">Cash</SelectItem>
-                        <SelectItem value="bank">Bank</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="transaction_date" className="text-white">Date</Label>
-                      <Input
-                        id="transaction_date"
-                        type="date"
-                        value={formData.transaction_date}
-                        onChange={(e) => setFormData(prev => ({ ...prev, transaction_date: e.target.value }))}
-                        className="bg-white/10 backdrop-blur-xl border border-white/20 text-white placeholder:text-white/60 focus:border-white/40 focus:ring-1 focus:ring-white/20"
-                        required
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="receipt_number" className="text-white">Receipt Number</Label>
-                      <Input
-                        id="receipt_number"
-                        placeholder="Receipt number (optional)"
-                        value={formData.receipt_number}
-                        onChange={(e) => setFormData(prev => ({ ...prev, receipt_number: e.target.value }))}
-                        className="bg-white/10 backdrop-blur-xl border border-white/20 text-white placeholder:text-white/60 focus:border-white/40 focus:ring-1 focus:ring-white/20"
-                      />
-                    </div>
-                  </div>
-
-                  <DialogFooter>
-                    <GlassButton
-                      type="button"
-                      variant="outline"
-                      onClick={() => {
-                        setIsDialogOpen(false)
-                        setEditingTransaction(null)
-                        resetForm()
-                      }}
-                    >
-                      Cancel
-                    </GlassButton>
-                    <GlassButton type="submit" disabled={submitting}>
-                      {submitting ? 'Saving...' : editingTransaction ? 'Update' : 'Add'} Transaction
-                    </GlassButton>
-                  </DialogFooter>
-                </form>
+                <div className="p-6">
+                  <AddTransactionForm
+                    initialData={editingTransaction ? {
+                      type: editingTransaction.type as 'income' | 'expense',
+                      fund_id: editingTransaction.fund_id,
+                      amount: editingTransaction.amount.toString(),
+                      description: editingTransaction.description,
+                      category: editingTransaction.category,
+                      payment_method: editingTransaction.payment_method as 'cash' | 'bank',
+                      transaction_date: editingTransaction.transaction_date,
+                      receipt_number: editingTransaction.receipt_number || ''
+                    } : undefined}
+                    onSuccess={() => {
+                      setIsDialogOpen(false)
+                      setEditingTransaction(null)
+                      fetchTransactions()
+                      toast.success(editingTransaction ? 'Transaction updated' : 'Transaction added')
+                    }}
+                    onCancel={() => {
+                      setIsDialogOpen(false)
+                      setEditingTransaction(null)
+                      resetForm()
+                    }}
+                  />
+                </div>
               </DialogContent>
             </Dialog>
           )}

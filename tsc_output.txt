@@ -1,0 +1,120 @@
+﻿app/api/ai/chat/route.ts(64,25): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(values: never, options?: { count?: "exact" | "planned" | "estimated" | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "14.1"; }, never, never, null, "ai_conversations", never, "POST">', gave the following error.
+    Argument of type '{ church_id: string; user_id: string; title: string; }' is not assignable to parameter of type 'never'.
+  Overload 2 of 2, '(values: never[], options?: { count?: "exact" | "planned" | "estimated" | undefined; defaultToNull?: boolean | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "14.1"; }, never, never, null, "ai_conversations", never, "POST">', gave the following error.
+    Argument of type '{ church_id: string; user_id: string; title: string; }' is not assignable to parameter of type 'never[]'.
+      Type '{ church_id: string; user_id: string; title: string; }' is missing the following properties from type 'never[]': length, pop, push, concat, and 29 more.
+app/api/ai/chat/route.ts(73,45): error TS2339: Property 'id' does not exist on type 'never'.
+app/api/ai/chat/route.ts(161,10): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(values: never, options?: { count?: "exact" | "planned" | "estimated" | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "14.1"; }, never, never, null, "ai_messages", never, "POST">', gave the following error.
+    Argument of type '{ conversation_id: string; role: "user" | "assistant" | "system"; content: string; metadata: any; }' is not assignable to parameter of type 'never'.
+  Overload 2 of 2, '(values: never[], options?: { count?: "exact" | "planned" | "estimated" | undefined; defaultToNull?: boolean | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "14.1"; }, never, never, null, "ai_messages", never, "POST">', gave the following error.
+    Object literal may only specify known properties, and 'conversation_id' does not exist in type 'never[]'.
+app/api/ai/embeddings/route.ts(133,36): error TS2339: Property 'roles' does not exist on type 'never'.
+app/auth/callback/route.ts(20,18): error TS7006: Parameter 'cookiesToSet' implicitly has an 'any' type.
+app/auth/callback/route.ts(21,37): error TS7031: Binding element 'name' implicitly has an 'any' type.
+app/auth/callback/route.ts(21,43): error TS7031: Binding element 'value' implicitly has an 'any' type.
+app/auth/callback/route.ts(21,50): error TS7031: Binding element 'options' implicitly has an 'any' type.
+components/advanced-reports-client.tsx(152,21): error TS2345: Argument of type '{ transactions: { amount: number; category: string; church_id: string; created_at: string | null; created_by: string | null; description: string; fund_id: string; id: string; payment_method: string; receipt_number: string | null; transaction_date: string; type: string; fund: { ...; }; }[]; offerings: { ...; }[]; bil...' is not assignable to parameter of type 'SetStateAction<ReportsData>'.
+  Type '{ transactions: { amount: number; category: string; church_id: string; created_at: string | null; created_by: string | null; description: string; fund_id: string; id: string; payment_method: string; receipt_number: string | null; transaction_date: string; type: string; fund: { ...; }; }[]; offerings: { ...; }[]; bil...' is not assignable to type 'ReportsData'.
+    Types of property 'transactions' are incompatible.
+      Type '{ amount: number; category: string; church_id: string; created_at: string | null; created_by: string | null; description: string; fund_id: string; id: string; payment_method: string; receipt_number: string | null; transaction_date: string; type: string; fund: { ...; }; }[]' is not assignable to type 'TransactionWithFund[]'.
+        Type '{ amount: number; category: string; church_id: string; created_at: string | null; created_by: string | null; description: string; fund_id: string; id: string; payment_method: string; receipt_number: string | null; transaction_date: string; type: string; fund: { ...; }; }' is not assignable to type 'TransactionWithFund'.
+          Type '{ amount: number; category: string; church_id: string; created_at: string | null; created_by: string | null; description: string; fund_id: string; id: string; payment_method: string; receipt_number: string | null; transaction_date: string; type: string; fund: { ...; }; }' is not assignable to type '{ fund?: Fund | undefined; }'.
+            Types of property 'fund' are incompatible.
+              Type '{ church_id: string; created_at: string | null; current_balance: number | null; description: string | null; fund_type: string | null; id: string; is_active: boolean | null; name: string; target_amount: number | null; updated_at: string | null; }' is not assignable to type 'Fund'.
+                Type '{ church_id: string; created_at: string | null; current_balance: number | null; description: string | null; fund_type: string | null; id: string; is_active: boolean | null; name: string; target_amount: number | null; updated_at: string | null; }' is missing the following properties from type '{ cash_balance: number; bank_balance: number; }': cash_balance, bank_balance
+components/comprehensive-ledger-dialog.tsx(377,16): error TS2345: Argument of type '{ church_id: string; created_at: string | null; current_balance: number | null; description: string | null; fund_type: string | null; id: string; is_active: boolean | null; name: string; target_amount: number | null; updated_at: string | null; }[]' is not assignable to parameter of type 'SetStateAction<Fund[]>'.
+  Type '{ church_id: string; created_at: string | null; current_balance: number | null; description: string | null; fund_type: string | null; id: string; is_active: boolean | null; name: string; target_amount: number | null; updated_at: string | null; }[]' is not assignable to type 'Fund[]'.
+    Type '{ church_id: string; created_at: string | null; current_balance: number | null; description: string | null; fund_type: string | null; id: string; is_active: boolean | null; name: string; target_amount: number | null; updated_at: string | null; }' is not assignable to type 'Fund'.
+      Type '{ church_id: string; created_at: string | null; current_balance: number | null; description: string | null; fund_type: string | null; id: string; is_active: boolean | null; name: string; target_amount: number | null; updated_at: string | null; }' is missing the following properties from type '{ cash_balance: number; bank_balance: number; }': cash_balance, bank_balance
+components/member-contributions-client.tsx(49,24): error TS2339: Property 'location' does not exist on type '{ id: string; name: string; phone?: string | undefined; fellowship_name?: string | undefined; }'.
+components/member-contributions-client.tsx(285,43): error TS2339: Property 'location' does not exist on type '{ id: string; name: string; phone?: string | undefined; fellowship_name?: string | undefined; }'.
+components/member-contributions-client.tsx(288,79): error TS2339: Property 'location' does not exist on type '{ id: string; name: string; phone?: string | undefined; fellowship_name?: string | undefined; }'.
+components/member-contributions-client.tsx(291,43): error TS2339: Property 'job' does not exist on type '{ id: string; name: string; phone?: string | undefined; fellowship_name?: string | undefined; }'.
+components/member-contributions-client.tsx(294,79): error TS2339: Property 'job' does not exist on type '{ id: string; name: string; phone?: string | undefined; fellowship_name?: string | undefined; }'.
+components/member-contributions-client.tsx(409,35): error TS2339: Property 'location' does not exist on type '{ id: string; name: string; phone?: string | undefined; fellowship_name?: string | undefined; }'.
+components/member-contributions-client.tsx(411,49): error TS2339: Property 'location' does not exist on type '{ id: string; name: string; phone?: string | undefined; fellowship_name?: string | undefined; }'.
+components/members-client.tsx(184,19): error TS2339: Property 'job' does not exist on type 'Member'.
+components/members-client.tsx(185,24): error TS2339: Property 'location' does not exist on type 'Member'.
+components/members-client.tsx(238,12): error TS2339: Property 'job' does not exist on type 'Member'.
+components/members-client.tsx(323,63): error TS2339: Property 'job' does not exist on type 'Member'.
+components/members-client.tsx(381,31): error TS2339: Property 'job' does not exist on type 'Member'.
+components/members-client.tsx(384,35): error TS2339: Property 'job' does not exist on type 'Member'.
+components/members-client.tsx(391,31): error TS2339: Property 'location' does not exist on type 'Member'.
+components/members-client.tsx(394,35): error TS2339: Property 'location' does not exist on type 'Member'.
+components/reconciliation/ReconciliationMatcher.tsx(4,10): error TS2305: Module '"@supabase/auth-helpers-nextjs"' has no exported member 'createClientComponentClient'.
+components/reconciliation/ReconciliationMatcher.tsx(217,33): error TS2353: Object literal may only specify known properties, and 'date' does not exist in type 'Partial<TransactionFormData>'.
+components/reconciliation/ReconciliationUpload.tsx(11,10): error TS2305: Module '"@supabase/auth-helpers-nextjs"' has no exported member 'createClientComponentClient'.
+components/reports-client.tsx(100,9): error TS2322: Type '{ amount: number; category: string; church_id: string; created_at: string | null; created_by: string | null; description: string; fund_id: string; id: string; payment_method: string; receipt_number: string | null; transaction_date: string; type: string; fund: { ...; }; }[]' is not assignable to type 'TransactionWithFund[]'.
+  Type '{ amount: number; category: string; church_id: string; created_at: string | null; created_by: string | null; description: string; fund_id: string; id: string; payment_method: string; receipt_number: string | null; transaction_date: string; type: string; fund: { ...; }; }' is not assignable to type 'TransactionWithFund'.
+    Type '{ amount: number; category: string; church_id: string; created_at: string | null; created_by: string | null; description: string; fund_id: string; id: string; payment_method: string; receipt_number: string | null; transaction_date: string; type: string; fund: { ...; }; }' is not assignable to type '{ fund?: Fund | undefined; }'.
+      Types of property 'fund' are incompatible.
+        Type '{ church_id: string; created_at: string | null; current_balance: number | null; description: string | null; fund_type: string | null; id: string; is_active: boolean | null; name: string; target_amount: number | null; updated_at: string | null; }' is not assignable to type 'Fund'.
+          Type '{ church_id: string; created_at: string | null; current_balance: number | null; description: string | null; fund_type: string | null; id: string; is_active: boolean | null; name: string; target_amount: number | null; updated_at: string | null; }' is missing the following properties from type '{ cash_balance: number; bank_balance: number; }': cash_balance, bank_balance
+components/reports-client.tsx(102,9): error TS2322: Type '{ allocation_percentage: number | null; amount: number; approval_status: string | null; category: string | null; church_id: string; created_at: string | null; due_date: string; frequency: string; ... 9 more ...; fund: { ...; }; }[]' is not assignable to type 'BillWithFund[]'.
+  Type '{ allocation_percentage: number | null; amount: number; approval_status: string | null; category: string | null; church_id: string; created_at: string | null; due_date: string; frequency: string; ... 9 more ...; fund: { ...; }; }' is not assignable to type 'BillWithFund'.
+    Type '{ allocation_percentage: number | null; amount: number; approval_status: string | null; category: string | null; church_id: string; created_at: string | null; due_date: string; frequency: string; ... 9 more ...; fund: { ...; }; }' is not assignable to type '{ fund?: Fund | undefined; }'.
+      Types of property 'fund' are incompatible.
+        Type '{ church_id: string; created_at: string | null; current_balance: number | null; description: string | null; fund_type: string | null; id: string; is_active: boolean | null; name: string; target_amount: number | null; updated_at: string | null; }' is not assignable to type 'Fund'.
+          Type '{ church_id: string; created_at: string | null; current_balance: number | null; description: string | null; fund_type: string | null; id: string; is_active: boolean | null; name: string; target_amount: number | null; updated_at: string | null; }' is missing the following properties from type '{ cash_balance: number; bank_balance: number; }': cash_balance, bank_balance
+components/reports-client.tsx(103,9): error TS2322: Type '{ advance_date: string; amount: number; amount_returned: number | null; approved_by: string; church_id: string; created_at: string | null; expected_return_date: string; fund_id: string; ... 6 more ...; fund: { ...; }; }[]' is not assignable to type 'AdvanceWithFund[]'.
+  Type '{ advance_date: string; amount: number; amount_returned: number | null; approved_by: string; church_id: string; created_at: string | null; expected_return_date: string; fund_id: string; ... 6 more ...; fund: { ...; }; }' is not assignable to type 'AdvanceWithFund'.
+    Type '{ advance_date: string; amount: number; amount_returned: number | null; approved_by: string; church_id: string; created_at: string | null; expected_return_date: string; fund_id: string; ... 6 more ...; fund: { ...; }; }' is not assignable to type '{ fund?: Fund | undefined; }'.
+      Types of property 'fund' are incompatible.
+        Type '{ church_id: string; created_at: string | null; current_balance: number | null; description: string | null; fund_type: string | null; id: string; is_active: boolean | null; name: string; target_amount: number | null; updated_at: string | null; }' is not assignable to type 'Fund'.
+          Type '{ church_id: string; created_at: string | null; current_balance: number | null; description: string | null; fund_type: string | null; id: string; is_active: boolean | null; name: string; target_amount: number | null; updated_at: string | null; }' is missing the following properties from type '{ cash_balance: number; bank_balance: number; }': cash_balance, bank_balance
+components/reports-client.tsx(104,9): error TS2322: Type '{ church_id: string; created_at: string | null; current_balance: number | null; description: string | null; fund_type: string | null; id: string; is_active: boolean | null; name: string; target_amount: number | null; updated_at: string | null; }[]' is not assignable to type 'Fund[]'.
+  Type '{ church_id: string; created_at: string | null; current_balance: number | null; description: string | null; fund_type: string | null; id: string; is_active: boolean | null; name: string; target_amount: number | null; updated_at: string | null; }' is not assignable to type 'Fund'.
+    Type '{ church_id: string; created_at: string | null; current_balance: number | null; description: string | null; fund_type: string | null; id: string; is_active: boolean | null; name: string; target_amount: number | null; updated_at: string | null; }' is missing the following properties from type '{ cash_balance: number; bank_balance: number; }': cash_balance, bank_balance
+lib/notifications/server.ts(96,41): error TS2339: Property 'user_id' does not exist on type 'never'.
+lib/server-church-context.ts(58,15): error TS2339: Property 'selected_church_id' does not exist on type 'never'.
+lib/server-church-context.ts(60,66): error TS2339: Property 'selected_church_id' does not exist on type 'never'.
+lib/server-church-context.ts(95,33): error TS2345: Argument of type '{ p_user_id: string; }' is not assignable to parameter of type 'undefined'.
+lib/server-church-context.ts(102,29): error TS2339: Property 'map' does not exist on type 'never'.
+lib/server-data.ts(215,9): error TS2339: Property 'type' does not exist on type 'never'.
+lib/server-data.ts(216,9): error TS2339: Property 'transaction_date' does not exist on type 'never'.
+lib/server-data.ts(217,9): error TS2339: Property 'transaction_date' does not exist on type 'never'.
+lib/server-data.ts(224,9): error TS2339: Property 'type' does not exist on type 'never'.
+lib/server-data.ts(225,9): error TS2339: Property 'transaction_date' does not exist on type 'never'.
+lib/server-data.ts(226,9): error TS2339: Property 'transaction_date' does not exist on type 'never'.
+lib/server-data.ts(258,5): error TS2698: Spread types may only be created from object types.
+lib/server-data.ts(259,23): error TS2339: Property 'fund_id' does not exist on type 'never'.
+lib/server-data.ts(259,58): error TS2339: Property 'fund_id' does not exist on type 'never'.
+lib/server-data.ts(264,58): error TS2339: Property 'status' does not exist on type 'never'.
+lib/server-data.ts(267,7): error TS2698: Spread types may only be created from object types.
+lib/server-data.ts(268,18): error TS2339: Property 'fund_id' does not exist on type 'never'.
+lib/server-data.ts(268,46): error TS2339: Property 'fund_id' does not exist on type 'never'.
+lib/server-data.ts(273,68): error TS2339: Property 'status' does not exist on type 'never'.
+lib/server-data.ts(276,7): error TS2698: Spread types may only be created from object types.
+lib/server-data.ts(277,21): error TS2339: Property 'fund_id' does not exist on type 'never'.
+lib/server-data.ts(277,52): error TS2339: Property 'fund_id' does not exist on type 'never'.
+lib/server-data.ts(282,65): error TS2339: Property 'amount' does not exist on type 'never'.
+lib/server-data.ts(285,67): error TS2339: Property 'amount' does not exist on type 'never'.
+lib/server-data.ts(453,5): error TS2698: Spread types may only be created from object types.
+lib/server-data.ts(631,46): error TS2304: Cannot find name 'supabase'.
+lib/server-data.ts(633,7): error TS2353: Object literal may only specify known properties, and 'sort' does not exist in type '{ columns?: string | undefined; filter?: { column: string; value: any; } | undefined; order?: { column: string; ascending?: boolean | undefined; } | undefined; limit?: number | undefined; }'.
+lib/server-data.ts(648,21): error TS7053: Element implicitly has an 'any' type because expression of type 'string' can't be used to index type '{ breakdown_date: string; church_id: string; coins: number | null; created_at: string | null; denomination_1: number | null; denomination_10: number | null; denomination_100: number | null; ... 10 more ...; total_amount: number; }'.
+  No index signature with a parameter of type 'string' was found on type '{ breakdown_date: string; church_id: string; coins: number | null; created_at: string | null; denomination_1: number | null; denomination_10: number | null; denomination_100: number | null; ... 10 more ...; total_amount: number; }'.
+lib/server-data.ts(650,21): error TS2345: Argument of type '{ fund_type: string; denomination: number; count: any; }' is not assignable to parameter of type 'CashBreakdownData'.
+  Type '{ fund_type: string; denomination: number; count: any; }' is missing the following properties from type 'CashBreakdownData': id, total_amount
+lib/supabase-new.ts(37,14): error TS7006: Parameter 'cookiesToSet' implicitly has an 'any' type.
+lib/supabase-new.ts(38,33): error TS7031: Binding element 'name' implicitly has an 'any' type.
+lib/supabase-new.ts(38,39): error TS7031: Binding element 'value' implicitly has an 'any' type.
+lib/supabase-new.ts(38,46): error TS7031: Binding element 'options' implicitly has an 'any' type.
+lib/supabase-new.ts(63,14): error TS7006: Parameter 'cookiesToSet' implicitly has an 'any' type.
+lib/supabase-new.ts(64,33): error TS7031: Binding element 'name' implicitly has an 'any' type.
+lib/supabase-new.ts(64,39): error TS7031: Binding element 'value' implicitly has an 'any' type.
+lib/supabase-new.ts(64,46): error TS7031: Binding element 'options' implicitly has an 'any' type.
+lib/supabase-server.ts(25,16): error TS7006: Parameter 'cookiesToSet' implicitly has an 'any' type.
+lib/supabase-server.ts(27,37): error TS7031: Binding element 'name' implicitly has an 'any' type.
+lib/supabase-server.ts(27,43): error TS7031: Binding element 'value' implicitly has an 'any' type.
+lib/supabase-server.ts(27,50): error TS7031: Binding element 'options' implicitly has an 'any' type.
+lib/supabase-server.ts(44,17): error TS7006: Parameter 'url' implicitly has an 'any' type.
+lib/supabase-server.ts(84,15): error TS7006: Parameter 'url' implicitly has an 'any' type.
+lib/supabase-server.ts(114,17): error TS7006: Parameter 'url' implicitly has an 'any' type.
+lib/supabase.ts(106,16): error TS7006: Parameter 'cookiesToSet' implicitly has an 'any' type.
+lib/supabase.ts(108,37): error TS7031: Binding element 'name' implicitly has an 'any' type.
+lib/supabase.ts(108,43): error TS7031: Binding element 'value' implicitly has an 'any' type.
+lib/supabase.ts(108,50): error TS7031: Binding element 'options' implicitly has an 'any' type.
+lib/supabase.ts(124,17): error TS7006: Parameter 'url' implicitly has an 'any' type.

@@ -162,13 +162,15 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
     await signOut();
   };
 
+  // When user is not loaded yet, show items accessible to 'viewer' role
+  // Once user is loaded, filter based on actual role
   const filteredNavigation = navigation.filter((item) =>
-    item.roles.some((role) => hasRole(role))
+    user ? item.roles.some((role) => hasRole(role)) : item.roles.includes("viewer")
   );
 
-  const filteredAdminNavigation = adminNavigation.filter((item) =>
-    item.roles.some((role) => hasRole(role))
-  );
+  const filteredAdminNavigation = user
+    ? adminNavigation.filter((item) => item.roles.some((role) => hasRole(role)))
+    : [];
 
   if (!mounted) {
     return null;
@@ -308,19 +310,28 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
                 {user?.full_name
                   ?.split(" ")
                   .map((n: string) => n[0])
-                  .join("") || user?.email?.[0]?.toUpperCase()}
+                  .join("") || user?.email?.[0]?.toUpperCase() || "?"}
               </AvatarFallback>
             </Avatar>
             {(!isCollapsed || mobile) && (
               <div className="flex-1 min-w-0">
-                <p className="font-medium text-white truncate text-xs">
-                  {user?.full_name || user?.email}
-                </p>
-                <div className="mt-1">
-                  <p className="text-white/60 capitalize text-xs">
-                    {user?.role}
-                  </p>
-                </div>
+                {user ? (
+                  <>
+                    <p className="font-medium text-white truncate text-xs">
+                      {user.full_name || user.email}
+                    </p>
+                    <div className="mt-1">
+                      <p className="text-white/60 capitalize text-xs">
+                        {user.role}
+                      </p>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="h-3 bg-white/20 rounded animate-pulse w-20 mb-1"></div>
+                    <div className="h-2 bg-white/10 rounded animate-pulse w-12"></div>
+                  </>
+                )}
               </div>
             )}
           </div>
@@ -428,7 +439,7 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
                             {user?.full_name
                               ?.split(" ")
                               .map((n: string) => n[0])
-                              .join("") || user?.email?.[0]?.toUpperCase()}
+                              .join("") || user?.email?.[0]?.toUpperCase() || "?"}
                           </AvatarFallback>
                         </Avatar>
                       </Button>
@@ -477,8 +488,8 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
                       )}
                       <DropdownMenuSeparator className="bg-white/10" />
                       <DropdownMenuItem
-                        onClick={handleSignOut}
-                        className="hover:bg-red-500/20 text-red-300 hover:text-red-200"
+                        onSelect={handleSignOut}
+                        className="hover:bg-red-500/20 text-red-300 hover:text-red-200 cursor-pointer"
                       >
                         <LogOut className="mr-2 h-4 w-4" />
                         Sign Out

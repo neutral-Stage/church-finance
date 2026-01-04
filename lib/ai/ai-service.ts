@@ -84,6 +84,11 @@ export interface ChatOptions {
     userId: string;
     conversationHistory?: ChatMessage[];
     enableFunctions?: boolean;
+    attachments?: Array<{
+        name: string;
+        type: string;
+        data: string;
+    }>;
 }
 
 // Generate chat response with Groq
@@ -184,8 +189,22 @@ async function generateGeminiChatResponse(
         },
     });
 
+    // Prepare message parts
+    let messageParts: (string | { inlineData: { data: string; mimeType: string } })[] = [message];
+
+    if (options.attachments && options.attachments.length > 0) {
+        const attachmentParts = options.attachments.map(att => ({
+            inlineData: {
+                // Remove data URL prefix if present (e.g., "data:image/jpeg;base64,")
+                data: att.data.includes('base64,') ? att.data.split('base64,')[1] : att.data,
+                mimeType: att.type
+            }
+        }));
+        messageParts = [...messageParts, ...attachmentParts];
+    }
+
     // Send message and get response
-    const result = await chat.sendMessage(message);
+    const result = await chat.sendMessage(messageParts);
     const response = result.response;
 
     // Check for function calls in the response
@@ -240,6 +259,13 @@ export async function generateChatResponse(
     options: ChatOptions
 ): Promise<{ response: string; functionCalls?: Array<{ name: string; args: Record<string, unknown>; result: unknown }> }> {
     const config = getAIConfig();
+
+    // If attachments are present, we MUST use a model that supports vision/multimodal (Gemini)
+    if (options.attachments && options.attachments.length > 0) {
+        // Force Gemini for multimodal requests
+        // This assumes Gemini API key is available (checked in initializeGemini)
+        return generateGeminiChatResponse(message, options);
+    }
 
     switch (config.provider) {
         case 'groq':

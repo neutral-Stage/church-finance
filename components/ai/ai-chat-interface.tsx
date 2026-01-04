@@ -16,7 +16,10 @@ import {
     MicOff,
     TrendingUp,
     Search,
-    PlusCircle
+    PlusCircle,
+    Paperclip,
+    Image as ImageIcon,
+    Trash2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { VoiceInput } from './voice-input';
@@ -47,8 +50,44 @@ export function AIChatInterface({ churchId }: AIChatInterfaceProps) {
     const [inputValue, setInputValue] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [isVoiceMode, setIsVoiceMode] = useState(false);
+    const [attachments, setAttachments] = useState<{ file: File; preview: string; type: 'image' | 'file' }[]>([]);
     const scrollAreaRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const imageInputRef = useRef<HTMLInputElement>(null);
+
+    const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>, type: 'image' | 'file') => {
+        if (e.target.files && e.target.files.length > 0) {
+            const newAttachments = Array.from(e.target.files).map(file => ({
+                file,
+                preview: type === 'image' ? URL.createObjectURL(file) : '',
+                type
+            }));
+            setAttachments(prev => [...prev, ...newAttachments]);
+        }
+        // Reset input
+        e.target.value = '';
+    };
+
+    const removeAttachment = (index: number) => {
+        setAttachments(prev => {
+            const newAttachments = [...prev];
+            if (newAttachments[index].type === 'image') {
+                URL.revokeObjectURL(newAttachments[index].preview);
+            }
+            newAttachments.splice(index, 1);
+            return newAttachments;
+        });
+    };
+
+    const convertToBase64 = (file: File): Promise<string> => {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = () => resolve(reader.result as string);
+            reader.onerror = error => reject(error);
+        });
+    };
 
     // Auto-scroll to bottom when messages change
     useEffect(() => {
@@ -65,13 +104,13 @@ export function AIChatInterface({ churchId }: AIChatInterfaceProps) {
     }, [isOpen, isMinimized]);
 
     const sendMessage = useCallback(async (content: string) => {
-        if (!content.trim() || isLoading) return;
+        if ((!content.trim() && attachments.length === 0) || isLoading) return;
 
         // Add user message
         const userMessage: Message = {
             id: Date.now().toString(),
             role: 'user',
-            content: content.trim(),
+            content: content.trim() + (attachments.length > 0 ? `\n[Attached ${attachments.length} file(s)]` : ''),
             timestamp: new Date(),
         };
 
@@ -86,9 +125,17 @@ export function AIChatInterface({ churchId }: AIChatInterfaceProps) {
 
         setMessages(prev => [...prev, userMessage, loadingMessage]);
         setInputValue('');
+        setAttachments([]);
         setIsLoading(true);
 
         try {
+            // Process attachments
+            const processedAttachments = await Promise.all(attachments.map(async (att) => ({
+                name: att.file.name,
+                type: att.file.type,
+                data: await convertToBase64(att.file)
+            })));
+
             const response = await fetch('/api/ai/chat', {
                 method: 'POST',
                 headers: {
@@ -96,6 +143,7 @@ export function AIChatInterface({ churchId }: AIChatInterfaceProps) {
                 },
                 body: JSON.stringify({
                     message: content,
+                    attachments: processedAttachments,
                     churchId,
                     conversationHistory: messages.slice(-10).map(m => ({
                         role: m.role,
@@ -134,7 +182,7 @@ export function AIChatInterface({ churchId }: AIChatInterfaceProps) {
         } finally {
             setIsLoading(false);
         }
-    }, [churchId, isLoading, messages]);
+    }, [churchId, isLoading, messages, attachments]);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -263,37 +311,110 @@ export function AIChatInterface({ churchId }: AIChatInterfaceProps) {
                         ))}
                     </div>
 
+                    {/* Attachments Preview */}
+                    {attachments.length > 0 && (
+                        <div className="px-4 py-2 border-t flex gap-2 overflow-x-auto bg-gray-50 dark:bg-gray-900/50">
+                            {attachments.map((att, index) => (
+                                <div key={index} className="relative group flex-shrink-0">
+                                    {att.type === 'image' ? (
+                                        <div className="h-16 w-16 rounded-md border overflow-hidden relative">
+                                            <img src={att.preview} alt="preview" className="h-full w-full object-cover" />
+                                        </div>
+                                    ) : (
+                                        <div className="h-16 w-16 rounded-md border bg-white dark:bg-gray-800 flex items-center justify-center">
+                                            <Paperclip className="h-6 w-6 text-muted-foreground" />
+                                        </div>
+                                    )}
+                                    <button
+                                        onClick={() => removeAttachment(index)}
+                                        className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                                    >
+                                        <X className="h-3 w-3" />
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
                     {/* Input */}
                     <div className="p-4 border-t">
                         <form onSubmit={handleSubmit} className="flex gap-2">
-                            <div className="flex-1 relative">
-                                <Input
-                                    ref={inputRef}
-                                    value={inputValue}
-                                    onChange={(e) => setInputValue(e.target.value)}
-                                    placeholder={isVoiceMode ? "Listening..." : "Ask me anything..."}
-                                    disabled={isLoading || isVoiceMode}
-                                    className="pr-10"
-                                />
-                                <VoiceInput
-                                    isActive={isVoiceMode}
-                                    onToggle={() => setIsVoiceMode(!isVoiceMode)}
-                                    onTranscript={handleVoiceTranscript}
-                                    className="absolute right-2 top-1/2 -translate-y-1/2"
-                                />
+                            {/* Hidden Inputs */}
+                            <input
+                                type="file"
+                                ref={fileInputRef}
+                                className="hidden"
+                                onChange={(e) => handleFileSelect(e, 'file')}
+                            />
+                            <input
+                                type="file"
+                                ref={imageInputRef}
+                                className="hidden"
+                                accept="image/*"
+                                multiple
+                                onChange={(e) => handleFileSelect(e, 'image')}
+                            />
+
+                            {/* Toolbar */}
+                            <div className="flex flex-col gap-2 w-full">
+                                <div className="flex gap-2 relative">
+                                    <div className="flex items-center gap-1 absolute left-2 top-1/2 -translate-y-1/2 z-10">
+                                        <Button
+                                            type="button"
+                                            size="icon"
+                                            variant="ghost"
+                                            className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                                            onClick={() => imageInputRef.current?.click()}
+                                        >
+                                            <ImageIcon className="h-4 w-4" />
+                                        </Button>
+                                        <Button
+                                            type="button"
+                                            size="icon"
+                                            variant="ghost"
+                                            className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                                            onClick={() => fileInputRef.current?.click()}
+                                        >
+                                            <Paperclip className="h-4 w-4" />
+                                        </Button>
+                                    </div>
+
+                                    <Input
+                                        ref={inputRef}
+                                        value={inputValue}
+                                        onChange={(e) => setInputValue(e.target.value)}
+                                        placeholder={isVoiceMode ? "Listening..." : "Ask me anything..."}
+                                        disabled={isLoading || isVoiceMode}
+                                        className="pl-20 pr-10 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder:text-gray-400"
+                                    />
+                                    <VoiceInput
+                                        isActive={isVoiceMode}
+                                        onToggle={() => setIsVoiceMode(!isVoiceMode)}
+                                        onTranscript={handleVoiceTranscript}
+                                        className="absolute right-2 top-1/2 -translate-y-1/2"
+                                    />
+                                </div>
+                                <div className="flex justify-end">
+                                    <Button
+                                        type="submit"
+                                        size="sm" // Smaller button to save space if needed
+                                        disabled={(!inputValue.trim() && attachments.length === 0) || isLoading}
+                                        className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 w-full sm:w-auto"
+                                    >
+                                        {isLoading ? (
+                                            <div className="flex items-center gap-2">
+                                                <Loader2 className="h-4 w-4 animate-spin" />
+                                                Processing...
+                                            </div>
+                                        ) : (
+                                            <div className="flex items-center gap-2">
+                                                <Send className="h-4 w-4" />
+                                                Send Message
+                                            </div>
+                                        )}
+                                    </Button>
+                                </div>
                             </div>
-                            <Button
-                                type="submit"
-                                size="icon"
-                                disabled={!inputValue.trim() || isLoading}
-                                className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
-                            >
-                                {isLoading ? (
-                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                ) : (
-                                    <Send className="h-4 w-4" />
-                                )}
-                            </Button>
                         </form>
                     </div>
                 </>
