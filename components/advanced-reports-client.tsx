@@ -16,7 +16,8 @@ import { AdvancedFilters, type FilterConfig } from '@/components/reports/Advance
 import { ReportExporter } from '@/components/reports/ReportExporter'
 import { AdvancedAnalysis } from '@/components/reports/AdvancedAnalysis'
 import { ReportSettings } from '@/components/reports/ReportSettings'
-import type { ReportsData } from '@/lib/server-data'
+import type { ReportsData } from '@/types/database'
+
 
 interface AdvancedReportsClientProps {
   initialData: ReportsData
@@ -278,6 +279,11 @@ export default function AdvancedReportsClient({ initialData, initialDateRange }:
         t.category && filterConfig.transactionFilters.categories.includes(t.category)
       )
     }
+    if (filterConfig.transactionFilters.paymentMethods.length > 0) {
+      filteredTransactions = filteredTransactions.filter(t =>
+        t.payment_method && filterConfig.transactionFilters.paymentMethods.includes(t.payment_method)
+      )
+    }
     if (filterConfig.transactionFilters.amountRange.min !== null) {
       filteredTransactions = filteredTransactions.filter(t =>
         t.amount >= filterConfig.transactionFilters.amountRange.min!
@@ -512,8 +518,8 @@ export default function AdvancedReportsClient({ initialData, initialDateRange }:
                                 <Badge
                                   variant={transaction.type === 'income' ? 'success' : 'destructive'}
                                   className={`${transaction.type === 'income'
-                                      ? 'bg-green-500/20 text-green-300 border-green-500/30'
-                                      : 'bg-red-500/20 text-red-300 border-red-500/30'
+                                    ? 'bg-green-500/20 text-green-300 border-green-500/30'
+                                    : 'bg-red-500/20 text-red-300 border-red-500/30'
                                     } backdrop-blur-sm`}
                                 >
                                   {transaction.type}

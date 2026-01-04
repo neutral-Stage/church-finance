@@ -44,6 +44,8 @@ interface ReportData {
         id: string;
         name: string;
         current_balance: number | null;
+        cash_balance: number | null;
+        bank_balance: number | null;
         description?: string | null;
     }>;
 }
@@ -134,8 +136,9 @@ ADVANCES:
 - Outstanding Advances: ${outstandingAdvances.length}
 - Total Outstanding Balance: ৳${totalAdvanceBalance.toLocaleString()}
 
-FUND BALANCES:
-${data.funds.map(f => `- ${f.name}: ৳${(f.current_balance || 0).toLocaleString()}`).join('\n')}
+
+    FUND BALANCES:
+    ${data.funds.map(f => `- ${f.name}: Total: ৳${(f.current_balance || 0).toLocaleString()} (Cash: ৳${(f.cash_balance || 0).toLocaleString()}, Bank: ৳${(f.bank_balance || 0).toLocaleString()})`).join('\n')}
 
 Generate a professional narrative report with the following sections. Each section should be 2-3 paragraphs with specific insights:
 

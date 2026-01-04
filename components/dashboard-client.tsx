@@ -53,7 +53,7 @@ export function DashboardClient({ initialData, permissions, serverUser }: Dashbo
   // Initialize client-side auth state with server user data on mount
   // Use useRef to track if we've already set the server user to prevent infinite loops
   const hasSetServerUser = useRef(false)
-  
+
   useEffect(() => {
     if (serverUser && (!user || user.id !== serverUser.id) && !hasSetServerUser.current) {
       setServerUser(serverUser)
@@ -194,15 +194,30 @@ export function DashboardClient({ initialData, permissions, serverUser }: Dashbo
                   </Text>
                 </GlassCardHeader>
                 <GlassCardContent className="space-y-3">
-                  <Grid cols={2} gap="lg">
-                    <div className="bg-green-500/20 p-3 rounded-lg backdrop-blur-sm">
-                      <Text size="base" weight="medium" className="text-green-300">
+                  <Grid cols={2} gap="sm">
+                    {/* Balances Row */}
+                    <div className="bg-blue-500/20 p-2.5 rounded-lg backdrop-blur-sm">
+                      <Text size="sm" weight="medium" className="text-blue-200">
+                        <AnimatedCounter value={fund.cash_balance} />
+                      </Text>
+                      <Text size="xs" className="text-blue-200/70">Cash Bal</Text>
+                    </div>
+                    <div className="bg-indigo-500/20 p-2.5 rounded-lg backdrop-blur-sm">
+                      <Text size="sm" weight="medium" className="text-indigo-200">
+                        <AnimatedCounter value={fund.bank_balance} />
+                      </Text>
+                      <Text size="xs" className="text-indigo-200/70">Bank Bal</Text>
+                    </div>
+
+                    {/* Flows Row */}
+                    <div className="bg-green-500/20 p-2.5 rounded-lg backdrop-blur-sm">
+                      <Text size="sm" weight="medium" className="text-green-300">
                         <AnimatedCounter value={totalIncome} />
                       </Text>
                       <Text size="xs" className="text-green-200/70">Income</Text>
                     </div>
-                    <div className="bg-red-500/20 p-3 rounded-lg backdrop-blur-sm">
-                      <Text size="base" weight="medium" className="text-red-300">
+                    <div className="bg-red-500/20 p-2.5 rounded-lg backdrop-blur-sm">
+                      <Text size="sm" weight="medium" className="text-red-300">
                         <AnimatedCounter value={expenses} />
                       </Text>
                       <Text size="xs" className="text-red-200/70">Expenses</Text>

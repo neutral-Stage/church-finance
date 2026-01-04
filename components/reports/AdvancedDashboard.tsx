@@ -17,7 +17,7 @@ import {
 } from 'lucide-react'
 import { AnimatedCounter } from '@/components/ui/animated-counter'
 import { formatCurrency } from '@/lib/utils'
-import type { ReportsData } from '@/lib/server-data'
+import type { ReportsData } from '@/types/database'
 import type { FilterConfig } from './AdvancedFilters'
 
 interface AdvancedDashboardProps {
@@ -160,7 +160,7 @@ export function AdvancedDashboard({ data, dateRange, filters, comparisonData }: 
         previousValue: previousIncome - previousExpenses,
         format: 'currency',
         trend: netIncome > (previousIncome - previousExpenses) ? 'up' :
-               netIncome < (previousIncome - previousExpenses) ? 'down' : 'neutral',
+          netIncome < (previousIncome - previousExpenses) ? 'down' : 'neutral',
         icon: DollarSign,
         color: netIncome >= 0 ? 'text-green-600' : 'text-red-600',
         description: 'Income minus expenses'
@@ -171,7 +171,7 @@ export function AdvancedDashboard({ data, dateRange, filters, comparisonData }: 
         previousValue: previousOfferings,
         format: 'currency',
         trend: totalOfferings > previousOfferings ? 'up' :
-               totalOfferings < previousOfferings ? 'down' : 'neutral',
+          totalOfferings < previousOfferings ? 'down' : 'neutral',
         icon: Building,
         color: 'text-blue-600',
         description: 'All offering collections'
@@ -302,8 +302,8 @@ export function AdvancedDashboard({ data, dateRange, filters, comparisonData }: 
               )}
               <span className={
                 changePercentage > 0 ? 'text-green-600' :
-                changePercentage < 0 ? 'text-red-600' :
-                'text-gray-600'
+                  changePercentage < 0 ? 'text-red-600' :
+                    'text-gray-600'
               }>
                 {Math.abs(changePercentage).toFixed(1)}% from previous period
               </span>
@@ -417,21 +417,33 @@ export function AdvancedDashboard({ data, dateRange, filters, comparisonData }: 
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {fundDistribution.map((fund, index) => (
-                    <div key={fund.name} className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div
-                          className="w-3 h-3 rounded-full"
-                          style={{ backgroundColor: colors[index % colors.length] }}
-                        />
-                        <span className="text-sm font-medium">{fund.name}</span>
+                  {fundDistribution.map((fund, index) => {
+                    const originalFund = data.funds.find(f => f.name === fund.name);
+                    const cash = originalFund?.cash_balance || 0;
+                    const bank = originalFund?.bank_balance || 0;
+
+                    return (
+                      <div key={fund.name} className="flex flex-col space-y-1 p-2 rounded-lg hover:bg-white/5 transition-colors">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <div
+                              className="w-3 h-3 rounded-full"
+                              style={{ backgroundColor: colors[index % colors.length] }}
+                            />
+                            <span className="text-sm font-medium">{fund.name}</span>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-sm font-bold">{formatCurrency(fund.value)}</div>
+                            <div className="text-xs text-muted-foreground">{fund.percentage.toFixed(1)}%</div>
+                          </div>
+                        </div>
+                        <div className="flex justify-between text-xs pl-5 pr-1 text-muted-foreground/80">
+                          <span>Cash: {formatCurrency(cash)}</span>
+                          <span>Bank: {formatCurrency(bank)}</span>
+                        </div>
                       </div>
-                      <div className="text-right">
-                        <div className="text-sm font-bold">{formatCurrency(fund.value)}</div>
-                        <div className="text-xs text-muted-foreground">{fund.percentage.toFixed(1)}%</div>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </CardContent>
             </Card>

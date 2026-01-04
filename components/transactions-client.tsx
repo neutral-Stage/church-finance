@@ -673,6 +673,7 @@ export function TransactionsClient({ initialData, permissions }: TransactionsCli
                     <TableHead className="text-white/80">Description</TableHead>
                     <TableHead className="text-white/80">Category</TableHead>
                     <TableHead className="text-white/80">Fund</TableHead>
+                    <TableHead className="text-white/80">Payment</TableHead>
                     <TableHead className="text-white/80">Type</TableHead>
                     <TableHead className="text-right text-white/80">Amount</TableHead>
                     <TableHead className="text-white/80">Receipt Number</TableHead>
@@ -692,6 +693,7 @@ export function TransactionsClient({ initialData, permissions }: TransactionsCli
                       </TableCell>
                       <TableCell className="text-white/80">{transaction.category}</TableCell>
                       <TableCell className="text-white/80">{transaction.fund?.name}</TableCell>
+                      <TableCell className="text-white/80 capitalize">{transaction.payment_method}</TableCell>
                       <TableCell>
                         <Badge
                           variant={transaction.type === 'income' ? 'default' : 'secondary'}

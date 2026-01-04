@@ -293,6 +293,8 @@ export const getDashboardData = cache(async (): Promise<DashboardData> => {
     created_at: fund.created_at,
     created_by: fund.created_by,
     current_balance: fund.current_balance || 0,
+    cash_balance: fund.cash_balance || 0,
+    bank_balance: fund.bank_balance || 0,
     description: fund.description,
     fund_type: fund.fund_type,
     is_active: fund.is_active ?? true,
@@ -625,10 +627,35 @@ export const getCashBreakdownData = cache(
       return [];
     }
 
-    // Note: The database schema for 'cash_breakdown' is currently incompatible with the frontend expectations.
-    // The DB uses a wide table (denomination_1000, etc.) while the frontend expects normalized rows with fund_type.
-    // Returning empty array to prevent crash until schema/frontend is realigned.
-    return [];
+    // Fetch from existing wide table
+    const { data, error } = await safeSelect(supabase, "cash_breakdown", {
+      filter: { column: "church_id", value: selectedChurch.id },
+      sort: { column: "breakdown_date", ascending: false } // Get latest
+    });
+
+    if (error || !data || data.length === 0) {
+      return [];
+    }
+
+    const latest = data[0];
+    const denominations = [1000, 500, 200, 100, 50, 20, 10, 5, 2, 1];
+    const result: CashBreakdownData[] = [];
+
+    // Map wide columns to normalized array using 'General Cash' as fund type
+    // This bridges the gap until the schema is fully normalized
+    denominations.forEach(denom => {
+      const key = `denomination_${denom}`;
+      const count = latest[key] || 0;
+      if (count >= 0) {
+        result.push({
+          fund_type: "General Cash",
+          denomination: denom,
+          count: count
+        });
+      }
+    });
+
+    return result;
   }
 );
 

@@ -14,8 +14,13 @@ export type Enums<T extends keyof Database['public']['Enums']> = Database['publi
 
 // Restored Custom Types
 export type Church = Tables<'churches'>;
-export type Fund = Tables<'funds'>;
-export type Transaction = Tables<'transactions'>;
+export type Fund = Tables<'funds'> & {
+    cash_balance: number;
+    bank_balance: number;
+};
+export type Transaction = Tables<'transactions'> & {
+    payment_method: 'cash' | 'bank' | string;
+};
 export type Bill = Tables<'bills'>;
 export type Advance = Tables<'advances'>;
 export type Offering = Tables<'offerings'>;
@@ -37,6 +42,8 @@ export type FundSummary = {
     name: string;
     fund_type: string;
     current_balance: number;
+    cash_balance: number;
+    bank_balance: number;
     total_income: number;
     total_expenses: number;
     total_offerings?: number;
@@ -92,3 +99,11 @@ export type CashBreakdownData = {
 };
 
 export type NotificationData = Notification;
+
+export type ReportsData = {
+    transactions: TransactionWithFund[];
+    offerings: Tables<'offerings'>[];
+    bills: BillWithFund[];
+    advances: AdvanceWithFund[];
+    funds: Fund[];
+};

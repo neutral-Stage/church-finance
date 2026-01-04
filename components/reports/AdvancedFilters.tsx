@@ -254,6 +254,32 @@ export function AdvancedFilters({
       </div>
 
       <div>
+        <Label className="text-sm font-medium">Payment Methods</Label>
+        <div className="mt-2 flex flex-wrap gap-2">
+          {paymentMethods.map(method => (
+            <div key={method} className="flex items-center space-x-2">
+              <Checkbox
+                id={`payment-method-${method}`}
+                checked={filters.transactionFilters.paymentMethods.includes(method)}
+                onCheckedChange={(checked) => {
+                  if (checked) {
+                    updateFilters('transactionFilters', {
+                      paymentMethods: [...filters.transactionFilters.paymentMethods, method]
+                    })
+                  } else {
+                    updateFilters('transactionFilters', {
+                      paymentMethods: filters.transactionFilters.paymentMethods.filter(m => m !== method)
+                    })
+                  }
+                }}
+              />
+              <Label htmlFor={`payment-method-${method}`} className="capitalize">{method}</Label>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div>
         <Label className="text-sm font-medium">Categories</Label>
         <Select
           value=""
