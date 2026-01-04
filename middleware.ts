@@ -1,36 +1,74 @@
+import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function middleware(request: NextRequest) {
+  let response = NextResponse.next({
+    request: {
+      headers: request.headers,
+    },
+  })
+
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return request.cookies.get(name)?.value
+        },
+        set(name: string, value: string, options: CookieOptions) {
+          request.cookies.set({
+            name,
+            value,
+            ...options,
+          })
+          response = NextResponse.next({
+            request: {
+              headers: request.headers,
+            },
+          })
+          response.cookies.set({
+            name,
+            value,
+            ...options,
+          })
+        },
+        remove(name: string, options: CookieOptions) {
+          request.cookies.set({
+            name,
+            value: '',
+            ...options,
+          })
+          response = NextResponse.next({
+            request: {
+              headers: request.headers,
+            },
+          })
+          response.cookies.set({
+            name,
+            value: '',
+            ...options,
+          })
+        },
+      },
+    }
+  )
+
+  // This refreshes the session if expired - required for Server Components
+  const { data: { user } } = await supabase.auth.getUser()
+  const isAuthenticated = !!user
+
   // Define route patterns
   const isAuthPage = request.nextUrl.pathname.startsWith('/auth/')
   const isHomePage = request.nextUrl.pathname === '/'
+  const isComponentsPage = request.nextUrl.pathname.startsWith('/components')
+
+  // List of protected routes
   const isProtectedRoute = request.nextUrl.pathname.startsWith('/dashboard') ||
     request.nextUrl.pathname.startsWith('/admin') ||
-    ['/transactions', '/bills', '/advances', '/offerings', '/ledger-entries', '/funds', '/members'].some(
+    ['/transactions', '/bills', '/advances', '/offerings', '/ledger-entries', '/funds', '/members', '/reports'].some(
       route => request.nextUrl.pathname.startsWith(route)
     )
-
-  // Skip auth check for truly public routes (not auth pages, not home, not protected)
-  if (!isAuthPage && !isHomePage && !isProtectedRoute) {
-    return NextResponse.next()
-  }
-
-  // Check for authenticated session using minimal cookie
-  let isAuthenticated = false
-  try {
-    const authCookie = request.cookies.get('church-auth-minimal')
-    if (authCookie?.value) {
-      const authData = JSON.parse(authCookie.value)
-      // Check if token is still valid
-      if (authData.expires_at && authData.expires_at > Math.floor(Date.now() / 1000)) {
-        isAuthenticated = !!authData.user_id
-      }
-    }
-  } catch (error) {
-    // Auth check failed, treat as unauthenticated
-    console.log('Middleware auth check error:', error)
-    isAuthenticated = false
-  }
 
   // Redirect unauthenticated users away from protected routes
   if (isProtectedRoute && !isAuthenticated) {
@@ -48,12 +86,12 @@ export async function middleware(request: NextRequest) {
 
   // Redirect unauthenticated users from homepage to login
   if (isHomePage && !isAuthenticated) {
-    // Allow access to homepage for unauthenticated users
-    // They can see the landing page but will be redirected by client-side logic if they become authenticated
-    return NextResponse.next()
+    const redirectUrl = request.nextUrl.clone()
+    redirectUrl.pathname = '/auth/login'
+    return NextResponse.redirect(redirectUrl)
   }
 
-  return NextResponse.next()
+  return response
 }
 
 export const config = {
@@ -64,7 +102,7 @@ export const config = {
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
      * - api/ (API routes)
-     * - Static assets (images, etc.)
+     * - related assets
      */
     '/((?!_next/static|_next/image|favicon.ico|api/|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],

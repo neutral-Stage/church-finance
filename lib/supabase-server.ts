@@ -13,7 +13,7 @@ if (!supabaseUrl || !supabaseAnonKey) {
 export const createServerClient = async () => {
   const { cookies } = await import('next/headers')
   const cookieStore = cookies()
-  
+
   const supabaseClient = createSSRServerClient<Database>(
     supabaseUrl,
     supabaseAnonKey,
@@ -54,25 +54,7 @@ export const createServerClient = async () => {
     }
   )
 
-  // Check for custom auth cookie if no standard user exists
-  const { data: { user } } = await supabaseClient.auth.getUser()
-  if (!user) {
-    const authCookie = cookieStore.get(`sb-${supabaseUrl.split('//')[1].split('.')[0]}-auth-token`)
-    if (authCookie?.value) {
-      try {
-        const authData = JSON.parse(decodeURIComponent(authCookie.value))
-        if (authData.access_token && authData.expires_at > Math.floor(Date.now() / 1000)) {
-          // Set the session manually
-          await supabaseClient.auth.setSession({
-            access_token: authData.access_token,
-            refresh_token: authData.refresh_token
-          })
-        }
-      } catch (error) {
-        console.warn('Error parsing custom auth cookie:', error)
-      }
-    }
-  }
+  // Check for custom auth cookie logic removed as @supabase/ssr handles this automatically
 
   return supabaseClient
 }
@@ -80,11 +62,11 @@ export const createServerClient = async () => {
 // Server-side client for admin operations (no realtime)
 export const createAdminClient = () => {
   const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-  
+
   if (!supabaseServiceKey) {
     throw new Error('Missing Supabase service role key')
   }
-  
+
   return createSSRServerClient<Database>(supabaseUrl, supabaseServiceKey, {
     cookies: {
       getAll() {
@@ -142,25 +124,7 @@ export const createApiRouteClient = async (request: NextRequest) => {
     }
   )
 
-  // Check for custom auth cookie if no standard user exists
-  const { data: { user } } = await supabaseClient.auth.getUser()
-  if (!user) {
-    const authCookie = request.cookies.get(`sb-${supabaseUrl.split('//')[1].split('.')[0]}-auth-token`)
-    if (authCookie?.value) {
-      try {
-        const authData = JSON.parse(decodeURIComponent(authCookie.value))
-        if (authData.access_token && authData.expires_at > Math.floor(Date.now() / 1000)) {
-          // Set the session manually
-          await supabaseClient.auth.setSession({
-            access_token: authData.access_token,
-            refresh_token: authData.refresh_token
-          })
-        }
-      } catch (error) {
-        console.warn('Error parsing custom auth cookie in API route:', error)
-      }
-    }
-  }
+  // Check for custom auth cookie logic removed as @supabase/ssr handles this automatically
 
   return supabaseClient
 }

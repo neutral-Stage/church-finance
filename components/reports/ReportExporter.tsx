@@ -9,9 +9,11 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Input } from '@/components/ui/input'
-import { Download, FileText, Table, BarChart3, Settings } from 'lucide-react'
+import { Download, FileText, Table, BarChart3, Settings, Sparkles } from 'lucide-react'
 import { toast } from 'sonner'
 import { AdvancedExcelExporter, AdvancedPDFExporter, CSVExporter } from '@/lib/advanced-exports'
+import { NarrativeReportDialog } from '@/components/reports/NarrativeReportDialog'
+import { useChurch } from '@/contexts/ChurchContext'
 import type { ReportsData } from '@/lib/server-data'
 
 export type ExportFormat = 'excel' | 'pdf' | 'csv'
@@ -33,7 +35,9 @@ interface ExportConfig {
 }
 
 export function ReportExporter({ data, dateRange }: ReportExporterProps) {
+  const { selectedChurch } = useChurch()
   const [exportDialogOpen, setExportDialogOpen] = useState(false)
+  const [narrativeDialogOpen, setNarrativeDialogOpen] = useState(false)
   const [exporting, setExporting] = useState(false)
   const [exportConfig, setExportConfig] = useState<ExportConfig>({
     format: 'excel',
@@ -44,6 +48,37 @@ export function ReportExporter({ data, dateRange }: ReportExporterProps) {
     fileName: `church-finance-report-${dateRange.startDate}-to-${dateRange.endDate}`,
     notes: ''
   })
+
+  // Handle PDF export from narrative dialog
+  const handleNarrativePDFExport = (narrative: {
+    executiveSummary: string
+    incomeAnalysis: string
+    expenseAnalysis: string
+    fundPerformance: string
+    trendsAndInsights: string
+    recommendations: string
+    generatedAt: string
+  }) => {
+    try {
+      const pdfExporter = new AdvancedPDFExporter(data, dateRange)
+      const pdfBuffer = pdfExporter.generateNarrativeReport(narrative)
+      const blob = new Blob([pdfBuffer], { type: 'application/pdf' })
+
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `ai-narrative-report-${dateRange.startDate}-to-${dateRange.endDate}.pdf`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(url)
+
+      toast.success('AI Narrative Report exported as PDF!')
+    } catch (error) {
+      console.error('PDF export failed:', error)
+      toast.error('Failed to export PDF. Please try again.')
+    }
+  }
 
   const reportTypes = [
     { value: 'comprehensive', label: 'Comprehensive Report', description: 'Complete financial overview with all data' },
@@ -182,158 +217,182 @@ export function ReportExporter({ data, dateRange }: ReportExporterProps) {
   }
 
   return (
-    <Dialog open={exportDialogOpen} onOpenChange={setExportDialogOpen}>
-      <DialogTrigger asChild>
-        <Button className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700">
-          <Download className="mr-2 h-4 w-4" />
-          Advanced Export
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Settings className="h-5 w-5" />
-            Advanced Report Export
-          </DialogTitle>
-          <DialogDescription>
-            Configure your report export with advanced options for format, content, and delivery.
-          </DialogDescription>
-        </DialogHeader>
+    <>
+      {/* AI Narrative Report Dialog */}
+      {selectedChurch && (
+        <NarrativeReportDialog
+          open={narrativeDialogOpen}
+          onOpenChange={setNarrativeDialogOpen}
+          data={data}
+          dateRange={dateRange}
+          churchId={selectedChurch.id}
+          onExportPDF={handleNarrativePDFExport}
+        />
+      )}
 
-        <div className="space-y-6">
-          {/* Export Format Selection */}
-          <div className="space-y-3">
-            <Label className="text-sm font-medium">Export Format</Label>
-            <div className="grid grid-cols-1 gap-3">
-              {exportFormats.map((format) => (
-                <div
-                  key={format.value}
-                  className={`border rounded-lg p-4 cursor-pointer transition-all ${
-                    exportConfig.format === format.value
-                      ? 'border-blue-500 bg-blue-50/50'
-                      : 'border-gray-200 hover:border-gray-300'
-                  }`}
-                  onClick={() => updateConfig({ format: format.value as ExportFormat })}
-                >
-                  <div className="flex items-start gap-3">
-                    <format.icon className={`h-5 w-5 mt-0.5 ${
-                      exportConfig.format === format.value ? 'text-blue-600' : 'text-gray-500'
-                    }`} />
-                    <div className="flex-1">
-                      <div className="font-medium">{format.label}</div>
-                      <div className="text-sm text-gray-600">{format.description}</div>
+      {/* Action Buttons */}
+      <div className="flex gap-2">
+        <Button
+          onClick={() => setNarrativeDialogOpen(true)}
+          className="bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700"
+          disabled={!selectedChurch}
+        >
+          <Sparkles className="mr-2 h-4 w-4" />
+          AI Report
+        </Button>
+
+        <Dialog open={exportDialogOpen} onOpenChange={setExportDialogOpen}>
+          <DialogTrigger asChild>
+            <Button className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700">
+              <Download className="mr-2 h-4 w-4" />
+              Advanced Export
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Settings className="h-5 w-5" />
+                Advanced Report Export
+              </DialogTitle>
+              <DialogDescription>
+                Configure your report export with advanced options for format, content, and delivery.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-6">
+              {/* Export Format Selection */}
+              <div className="space-y-3">
+                <Label className="text-sm font-medium">Export Format</Label>
+                <div className="grid grid-cols-1 gap-3">
+                  {exportFormats.map((format) => (
+                    <div
+                      key={format.value}
+                      className={`border rounded-lg p-4 cursor-pointer transition-all ${exportConfig.format === format.value
+                          ? 'border-blue-500 bg-blue-50/50'
+                          : 'border-gray-200 hover:border-gray-300'
+                        }`}
+                      onClick={() => updateConfig({ format: format.value as ExportFormat })}
+                    >
+                      <div className="flex items-start gap-3">
+                        <format.icon className={`h-5 w-5 mt-0.5 ${exportConfig.format === format.value ? 'text-blue-600' : 'text-gray-500'
+                          }`} />
+                        <div className="flex-1">
+                          <div className="font-medium">{format.label}</div>
+                          <div className="text-sm text-gray-600">{format.description}</div>
+                        </div>
+                        {exportConfig.format === format.value && (
+                          <Badge variant="secondary" className="bg-blue-100 text-blue-700">Selected</Badge>
+                        )}
+                      </div>
                     </div>
-                    {exportConfig.format === format.value && (
-                      <Badge variant="secondary" className="bg-blue-100 text-blue-700">Selected</Badge>
-                    )}
+                  ))}
+                </div>
+              </div>
+
+              {/* Report Type Selection */}
+              <div className="space-y-3">
+                <Label className="text-sm font-medium">Report Type</Label>
+                <Select
+                  value={exportConfig.reportType}
+                  onValueChange={(value) => updateConfig({ reportType: value as ReportType })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select report type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {reportTypes.map((type) => (
+                      <SelectItem key={type.value} value={type.value}>
+                        <div>
+                          <div className="font-medium">{type.label}</div>
+                          <div className="text-xs text-gray-500">{type.description}</div>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Advanced Options */}
+              {exportConfig.format === 'excel' && (
+                <div className="space-y-3">
+                  <Label className="text-sm font-medium">Excel Options</Label>
+                  <div className="space-y-2">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="includeCharts"
+                        checked={exportConfig.includeCharts}
+                        onCheckedChange={(checked) => updateConfig({ includeCharts: !!checked })}
+                      />
+                      <Label htmlFor="includeCharts" className="text-sm">Include charts and visualizations</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="includeRawData"
+                        checked={exportConfig.includeRawData}
+                        onCheckedChange={(checked) => updateConfig({ includeRawData: !!checked })}
+                      />
+                      <Label htmlFor="includeRawData" className="text-sm">Include raw data sheets</Label>
+                    </div>
                   </div>
                 </div>
-              ))}
-            </div>
-          </div>
+              )}
 
-          {/* Report Type Selection */}
-          <div className="space-y-3">
-            <Label className="text-sm font-medium">Report Type</Label>
-            <Select
-              value={exportConfig.reportType}
-              onValueChange={(value) => updateConfig({ reportType: value as ReportType })}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select report type" />
-              </SelectTrigger>
-              <SelectContent>
-                {reportTypes.map((type) => (
-                  <SelectItem key={type.value} value={type.value}>
-                    <div>
-                      <div className="font-medium">{type.label}</div>
-                      <div className="text-xs text-gray-500">{type.description}</div>
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Advanced Options */}
-          {exportConfig.format === 'excel' && (
-            <div className="space-y-3">
-              <Label className="text-sm font-medium">Excel Options</Label>
+              {/* File Name */}
               <div className="space-y-2">
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="includeCharts"
-                    checked={exportConfig.includeCharts}
-                    onCheckedChange={(checked) => updateConfig({ includeCharts: !!checked })}
-                  />
-                  <Label htmlFor="includeCharts" className="text-sm">Include charts and visualizations</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="includeRawData"
-                    checked={exportConfig.includeRawData}
-                    onCheckedChange={(checked) => updateConfig({ includeRawData: !!checked })}
-                  />
-                  <Label htmlFor="includeRawData" className="text-sm">Include raw data sheets</Label>
+                <Label htmlFor="fileName" className="text-sm font-medium">File Name</Label>
+                <Input
+                  id="fileName"
+                  value={exportConfig.fileName}
+                  onChange={(e) => updateConfig({ fileName: e.target.value })}
+                  placeholder="Enter file name"
+                />
+              </div>
+
+
+              {/* Notes */}
+              <div className="space-y-2">
+                <Label htmlFor="notes" className="text-sm font-medium">Notes (optional)</Label>
+                <Textarea
+                  id="notes"
+                  placeholder="Add any notes about this export..."
+                  value={exportConfig.notes}
+                  onChange={(e) => updateConfig({ notes: e.target.value })}
+                />
+              </div>
+
+              {/* Export Summary */}
+              <div className="bg-gray-50 rounded-lg p-4 space-y-2">
+                <div className="font-medium text-sm">Export Summary</div>
+                <div className="text-sm text-gray-600 space-y-1">
+                  <div>Format: {exportFormats.find(f => f.value === exportConfig.format)?.label}</div>
+                  <div>Type: {reportTypes.find(t => t.value === exportConfig.reportType)?.label}</div>
+                  <div>Estimated size: {getEstimatedSize()}</div>
+                  <div>Records: {data.transactions.length + data.offerings.length + data.bills.length + data.advances.length} total</div>
                 </div>
               </div>
             </div>
-          )}
 
-          {/* File Name */}
-          <div className="space-y-2">
-            <Label htmlFor="fileName" className="text-sm font-medium">File Name</Label>
-            <Input
-              id="fileName"
-              value={exportConfig.fileName}
-              onChange={(e) => updateConfig({ fileName: e.target.value })}
-              placeholder="Enter file name"
-            />
-          </div>
-
-
-          {/* Notes */}
-          <div className="space-y-2">
-            <Label htmlFor="notes" className="text-sm font-medium">Notes (optional)</Label>
-            <Textarea
-              id="notes"
-              placeholder="Add any notes about this export..."
-              value={exportConfig.notes}
-              onChange={(e) => updateConfig({ notes: e.target.value })}
-            />
-          </div>
-
-          {/* Export Summary */}
-          <div className="bg-gray-50 rounded-lg p-4 space-y-2">
-            <div className="font-medium text-sm">Export Summary</div>
-            <div className="text-sm text-gray-600 space-y-1">
-              <div>Format: {exportFormats.find(f => f.value === exportConfig.format)?.label}</div>
-              <div>Type: {reportTypes.find(t => t.value === exportConfig.reportType)?.label}</div>
-              <div>Estimated size: {getEstimatedSize()}</div>
-              <div>Records: {data.transactions.length + data.offerings.length + data.bills.length + data.advances.length} total</div>
-            </div>
-          </div>
-        </div>
-
-        <DialogFooter>
-          <Button variant="outline" onClick={() => setExportDialogOpen(false)}>
-            Cancel
-          </Button>
-          <Button onClick={handleExport} disabled={exporting}>
-            {exporting ? (
-              <>
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                Exporting...
-              </>
-            ) : (
-              <>
-                <Download className="mr-2 h-4 w-4" />
-                Export Report
-              </>
-            )}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setExportDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleExport} disabled={exporting}>
+                {exporting ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Exporting...
+                  </>
+                ) : (
+                  <>
+                    <Download className="mr-2 h-4 w-4" />
+                    Export Report
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
+    </>
   )
 }

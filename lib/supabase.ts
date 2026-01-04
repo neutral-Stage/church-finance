@@ -40,7 +40,7 @@ let sessionSynced = false
 // Function to sync client session with server session
 export const syncClientSession = async () => {
   if (sessionSynced) return true
-  
+
   try {
     // Check if we already have a valid session
     const { data: { session } } = await supabase.auth.getSession()
@@ -66,14 +66,14 @@ export const syncClientSession = async () => {
           access_token: sessionData.session.access_token,
           refresh_token: sessionData.session.refresh_token
         })
-        
+
         if (!error) {
           sessionSynced = true
           return true
         }
       }
     }
-    
+
     return false
   } catch (error) {
     console.warn('Failed to sync client session:', error)
@@ -94,7 +94,7 @@ export const createAuthenticatedClient = async () => {
 export const createServerClient = async () => {
   const { cookies } = await import('next/headers')
   const cookieStore = cookies()
-  
+
   const supabaseClient = createSSRServerClient<Database>(
     supabaseUrl,
     supabaseAnonKey,
@@ -134,25 +134,7 @@ export const createServerClient = async () => {
     }
   )
 
-  // Check for custom auth cookie if no standard user exists
-  const { data: { user } } = await supabaseClient.auth.getUser()
-  if (!user) {
-    const authCookie = cookieStore.get(`sb-${supabaseUrl.split('//')[1].split('.')[0]}-auth-token`)
-    if (authCookie?.value) {
-      try {
-        const authData = JSON.parse(decodeURIComponent(authCookie.value))
-        if (authData.access_token && authData.expires_at > Math.floor(Date.now() / 1000)) {
-          // Set the session manually
-          await supabaseClient.auth.setSession({
-            access_token: authData.access_token,
-            refresh_token: authData.refresh_token
-          })
-        }
-      } catch (error) {
-        console.warn('Error parsing custom auth cookie:', error)
-      }
-    }
-  }
+  // Check for custom auth cookie logic removed as @supabase/ssr handles this automatically
 
   return supabaseClient
 }
@@ -171,15 +153,15 @@ export const signIn = async (email: string, password: string) => {
     })
 
     const result = await response.json()
-    
+
     if (!response.ok) {
       return { data: null, error: result.error || 'Authentication failed' }
     }
-    
+
     if (!result.success) {
       return { data: null, error: result.error || 'Authentication failed' }
     }
-    
+
     return { data: { user: result.user }, error: null }
   } catch (error) {
     console.error('Sign in error:', error)
@@ -209,11 +191,11 @@ export const signOut = async () => {
     })
 
     const result = await response.json()
-    
+
     if (!response.ok) {
       return { error: result.error || 'Sign out failed' }
     }
-    
+
     return { error: null }
   } catch (error) {
     console.error('Sign out error:', error)

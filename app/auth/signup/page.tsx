@@ -68,25 +68,49 @@ export default function SignupPage(): JSX.Element {
     }
 
     try {
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
         options: {
           data: {
             name: formData.name,
             role: formData.role
-          }
+          },
+          emailRedirectTo: `${window.location.origin}/auth/callback`
         }
       })
 
       if (error) {
         setError(error.message)
       } else {
-        setSuccess(true)
-        // Redirect to login after 3 seconds
-        setTimeout(() => {
-          router.push('/auth/login')
-        }, 3000)
+        // If we have a session, the user is signed in (email confirmation disabled)
+        if (data.session) {
+          setSuccess(true)
+          setTimeout(() => {
+            router.push('/dashboard')
+            router.refresh()
+          }, 2000)
+        } else if (data.user && !data.session) {
+          // No session returned - try explicit sign in (works if email confirmation is disabled but session wasn't returned)
+          const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+            email: formData.email,
+            password: formData.password
+          })
+
+          if (signInData.session) {
+            setSuccess(true)
+            setTimeout(() => {
+              router.push('/dashboard')
+              router.refresh()
+            }, 2000)
+          } else {
+            // Email confirmation truly required
+            setSuccess(true)
+            setTimeout(() => {
+              router.push('/auth/login?verified=false')
+            }, 3000)
+          }
+        }
       }
     } catch {
       setError('An unexpected error occurred')

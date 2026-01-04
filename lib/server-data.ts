@@ -422,8 +422,6 @@ export interface Member {
   name: string;
   phone?: string;
   fellowship_name?: string;
-  job?: string;
-  location?: string;
   church_id: string;
   created_at: string;
   updated_at: string;
@@ -627,19 +625,10 @@ export const getCashBreakdownData = cache(
       return [];
     }
 
-    // Now we can safely assume user is authenticated and has a church selected
-    const supabase = await createServerClient();
-
-    const { data, error } = await supabase
-      .from("cash_breakdown")
-      .select("*")
-      .eq("church_id", selectedChurch.id)
-      .order("fund_type")
-      .order("denomination", { ascending: false });
-
-    if (error)
-      throw new Error(`Failed to fetch cash breakdown: ${error.message}`);
-    return (data || []) as unknown as CashBreakdownData[];
+    // Note: The database schema for 'cash_breakdown' is currently incompatible with the frontend expectations.
+    // The DB uses a wide table (denomination_1000, etc.) while the frontend expects normalized rows with fund_type.
+    // Returning empty array to prevent crash until schema/frontend is realigned.
+    return [];
   }
 );
 
@@ -704,8 +693,6 @@ export interface MemberContribution {
     name: string;
     phone?: string;
     fellowship_name?: string;
-    job?: string;
-    location?: string;
   };
   contributions: {
     id: string;
@@ -758,8 +745,6 @@ export const getMemberContributionsData = cache(
           name,
           phone,
           fellowship_name,
-          job,
-          location,
           church_id
         )
       )
@@ -804,8 +789,6 @@ export const getMemberContributionsData = cache(
             name: member.name,
             phone: member.phone || undefined,
             fellowship_name: member.fellowship_name || undefined,
-            job: member.job || undefined,
-            location: member.location || undefined,
           },
           contributions: [],
           total_amount: 0,

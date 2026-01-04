@@ -10,41 +10,67 @@ import type { ChurchWithRole } from "@/types/database";
 // Cache for the duration of the request
 export const getSelectedChurch = cache(async (): Promise<ChurchWithRole | null> => {
   try {
-    // Try to get selected church from cookies first
+    // 1. Try to get selected church from cookies first
     const cookieStore = await cookies();
     const selectedChurchCookie = cookieStore.get('selectedChurch');
 
-    console.log('[ServerChurchContext] getSelectedChurch - Cookie exists:', !!selectedChurchCookie);
+    // console.log('[ServerChurchContext] getSelectedChurch - Cookie exists:', !!selectedChurchCookie);
 
     if (selectedChurchCookie) {
-      console.log('[ServerChurchContext] Cookie value (first 100 chars):', selectedChurchCookie.value.substring(0, 100));
-
       try {
         const churchData = JSON.parse(selectedChurchCookie.value);
-        console.log('[ServerChurchContext] Parsed church data:', {
-          id: churchData.id,
-          name: churchData.name,
-          type: churchData.type
-        });
-
         // Validate that this is a proper church object
         if (churchData && churchData.id && churchData.name) {
-          console.log('[ServerChurchContext] ✓ Returning valid church:', churchData.id, churchData.name);
+          // console.log('[ServerChurchContext] ✓ Returning valid church from cookie:', churchData.name);
           return churchData as ChurchWithRole;
-        } else {
-          console.warn('[ServerChurchContext] ✗ Invalid church data structure:', churchData);
         }
       } catch (error) {
         console.error('[ServerChurchContext] ✗ Failed to parse selectedChurch cookie:', error);
       }
-    } else {
-      console.log('[ServerChurchContext] ✗ No selectedChurch cookie found');
     }
 
-    // No cookie found - return null to show empty state
-    // The client-side context will auto-select and set the cookie
-    console.log('[ServerChurchContext] Returning null - EmptyChurchState will be shown');
-    return null;
+    // 2. Fallback: Check database for user preference
+    // console.log('[ServerChurchContext] Cookie missing or invalid, checking database preferences...');
+
+    // Get all available churches first (we need the full object with roles)
+    const availableChurches = await getAvailableChurches();
+
+    if (availableChurches.length === 0) {
+      console.log('[ServerChurchContext] No available churches found for user');
+      return null;
+    }
+
+    // Get current user to check preferences
+    const supabase = await createServerClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) return null;
+
+    // Fetch user preference
+    const { data: pref } = await supabase
+      .from('user_preferences')
+      .select('selected_church_id')
+      .eq('user_id', user.id)
+      .single();
+
+    let selectedChurch: ChurchWithRole | undefined;
+
+    if (pref?.selected_church_id) {
+      // Find the preferred church in the available list
+      selectedChurch = availableChurches.find(c => c.id === pref.selected_church_id);
+      if (selectedChurch) {
+        console.log('[ServerChurchContext] ✓ Found preferred church in DB:', selectedChurch.name);
+      }
+    }
+
+    // 3. Fallback: Default to first available church if no preference or preference not found
+    if (!selectedChurch) {
+      selectedChurch = availableChurches[0];
+      console.log('[ServerChurchContext] ✓ Defaulting to first available church:', selectedChurch.name);
+    }
+
+    return selectedChurch || null;
+
   } catch (error) {
     console.error('[ServerChurchContext] Error getting selected church:', error);
     return null;
