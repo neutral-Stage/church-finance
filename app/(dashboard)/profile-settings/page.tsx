@@ -92,14 +92,16 @@ export default function ProfileSettings() {
         })
 
       if (dbError) {
+        console.error('Database update error:', dbError)
         throw dbError
       }
 
       // Refresh user data in context
       await refreshUser()
       toast.success('Profile updated successfully!')
-    } catch {
-      toast.error('Failed to update profile. Please try again.')
+    } catch (error) {
+      console.error('Profile update failed:', error)
+      toast.error(error instanceof Error ? error.message : 'Failed to update profile. Please try again.')
     } finally {
       setLoading(false)
     }
