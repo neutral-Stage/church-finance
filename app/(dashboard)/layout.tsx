@@ -162,15 +162,18 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
     await signOut();
   };
 
-  // When user is not loaded yet, show items accessible to 'viewer' role
+  // When loading or user not loaded yet, show skeleton navigation
   // Once user is loaded, filter based on actual role
-  const filteredNavigation = navigation.filter((item) =>
-    user ? item.roles.some((role) => hasRole(role)) : item.roles.includes("viewer")
-  );
+  // This prevents navigation items from disappearing/reappearing
+  const isUserLoaded = user !== null;
 
-  const filteredAdminNavigation = user
+  const filteredNavigation = isUserLoaded
+    ? navigation.filter((item) => item.roles.some((role) => hasRole(role)))
+    : navigation; // Show all during loading - will be filtered once user loads
+
+  const filteredAdminNavigation = isUserLoaded
     ? adminNavigation.filter((item) => item.roles.some((role) => hasRole(role)))
-    : [];
+    : []; // Don't show admin items until we know user is admin
 
   if (!mounted) {
     return null;

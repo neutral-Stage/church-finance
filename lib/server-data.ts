@@ -211,7 +211,7 @@ export const getDashboardData = cache(async (): Promise<DashboardData> => {
 
   // Filter for monthly data in memory
   const monthlyIncomeResult = {
-    data: allTransactionsForStats?.filter(t =>
+    data: (allTransactionsForStats as any[] || []).filter((t: any) =>
       t.type === "income" &&
       t.transaction_date >= `${currentMonth}-01` &&
       t.transaction_date < nextMonth
@@ -220,7 +220,7 @@ export const getDashboardData = cache(async (): Promise<DashboardData> => {
   };
 
   const monthlyExpensesResult = {
-    data: allTransactionsForStats?.filter(t =>
+    data: (allTransactionsForStats as any[] || []).filter((t: any) =>
       t.type === "expense" &&
       t.transaction_date >= `${currentMonth}-01` &&
       t.transaction_date < nextMonth
@@ -254,35 +254,35 @@ export const getDashboardData = cache(async (): Promise<DashboardData> => {
   const fundsMap = new Map((allFundsResult.data || []).map(fund => [fund.id, fund]));
 
   // Manually join transactions with funds
-  const recentTransactions: TransactionWithFund[] = (transactionsResult.data || []).map(transaction => ({
+  const recentTransactions: TransactionWithFund[] = ((transactionsResult.data || []) as any[]).map((transaction: any) => ({
     ...transaction,
     fund: transaction.fund_id ? fundsMap.get(transaction.fund_id) : undefined
   }));
 
   // Filter and join bills
-  const upcomingBills: BillWithFund[] = (allBillsResult.data || [])
-    .filter(bill => ["pending", "overdue"].includes(bill.status || ""))
+  const upcomingBills: BillWithFund[] = ((allBillsResult.data || []) as any[])
+    .filter((bill: any) => ["pending", "overdue"].includes(bill.status || ""))
     .slice(0, 5)
-    .map(bill => ({
+    .map((bill: any) => ({
       ...bill,
       fund: bill.fund_id ? fundsMap.get(bill.fund_id) : undefined
     }));
 
   // Filter and join advances
-  const outstandingAdvances: AdvanceWithFund[] = (allAdvancesResult.data || [])
-    .filter(advance => ["outstanding", "partial"].includes(advance.status || ""))
+  const outstandingAdvances: AdvanceWithFund[] = ((allAdvancesResult.data || []) as any[])
+    .filter((advance: any) => ["outstanding", "partial"].includes(advance.status || ""))
     .slice(0, 5)
-    .map(advance => ({
+    .map((advance: any) => ({
       ...advance,
       fund: advance.fund_id ? fundsMap.get(advance.fund_id) : undefined
     }));
 
   // Calculate monthly totals
   const totalIncome =
-    monthlyIncomeResult.data?.reduce((sum, t) => sum + Number(t.amount), 0) ||
+    monthlyIncomeResult.data?.reduce((sum: number, t: any) => sum + Number(t.amount), 0) ||
     0;
   const totalExpenses =
-    monthlyExpensesResult.data?.reduce((sum, t) => sum + Number(t.amount), 0) ||
+    monthlyExpensesResult.data?.reduce((sum: number, t: any) => sum + Number(t.amount), 0) ||
     0;
 
   // Transform fund data to match FundSummary type
@@ -449,7 +449,7 @@ export const getMembersData = cache(async (): Promise<Member[]> => {
     .order("name");
 
   if (error) throw new Error(`Failed to fetch members: ${error.message}`);
-  return (data || []).map(member => ({
+  return ((data || []) as any[]).map((member: any) => ({
     ...member,
     church_id: selectedChurch.id
   })) as Member[];
@@ -627,30 +627,35 @@ export const getCashBreakdownData = cache(
       return [];
     }
 
+    // Create supabase client with user context
+    const supabase = await createServerClient();
+
     // Fetch from existing wide table
     const { data, error } = await safeSelect(supabase, "cash_breakdown", {
       filter: { column: "church_id", value: selectedChurch.id },
-      sort: { column: "breakdown_date", ascending: false } // Get latest
+      order: { column: "breakdown_date", ascending: false } // Get latest
     });
 
     if (error || !data || data.length === 0) {
       return [];
     }
 
-    const latest = data[0];
+    const latest = data[0] as Record<string, any>;
     const denominations = [1000, 500, 200, 100, 50, 20, 10, 5, 2, 1];
     const result: CashBreakdownData[] = [];
 
     // Map wide columns to normalized array using 'General Cash' as fund type
     // This bridges the gap until the schema is fully normalized
-    denominations.forEach(denom => {
+    denominations.forEach((denom, index) => {
       const key = `denomination_${denom}`;
       const count = latest[key] || 0;
       if (count >= 0) {
         result.push({
+          id: `${latest.church_id}-${denom}-${index}`,
           fund_type: "General Cash",
           denomination: denom,
-          count: count
+          count: count,
+          total_amount: denom * count
         });
       }
     });
