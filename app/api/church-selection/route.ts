@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@/lib/supabase-server'
+import { createServerClient, createAdminClient } from '@/lib/supabase-server'
 import { cookies } from 'next/headers'
 import { revalidatePath } from 'next/cache'
 import { ChurchWithRole } from '@/types/database'
+import { getUserPermissions } from '@/lib/permission-helpers'
 
 // Force dynamic rendering since this route uses cookies
 export const dynamic = 'force-dynamic';
@@ -30,33 +31,58 @@ export async function POST(request: NextRequest) {
     const cookieStore = await cookies()
 
     if (church) {
-      // Validate that the user has access to this church
-      const { data: userChurchRole, error: roleError } = await supabase
-        .from('user_church_roles')
-        .select(`
-          id,
-          church_id,
-          role_id,
-          is_active,
-          churches!inner(
-            id,
-            name,
-            type,
-            is_active
-          ),
-          roles!inner(
-            id,
-            name,
-            display_name
-          )
-        `)
-        .eq('user_id', user.id)
-        .eq('church_id', church.id)
-        .eq('is_active', true)
-        .single()
+      // Check if user is super_admin (can select any church)
+      const permissions = await getUserPermissions(supabase as any, user.id)
+      const isSuperAdmin = permissions.isSuperAdmin
 
-      if (roleError || !userChurchRole) {
-        console.error('[ChurchSelection API] POST - Access denied:', roleError)
+      let hasAccess = false
+
+      if (isSuperAdmin) {
+        // Super admins can access any church - just verify the church exists
+        const adminClient = createAdminClient()
+        const { data: churchExists, error: churchError } = await adminClient
+          .from('churches')
+          .select('id')
+          .eq('id', church.id)
+          .eq('is_active', true)
+          .single()
+
+        hasAccess = !!churchExists && !churchError
+        console.log('[ChurchSelection API] POST - Super admin access check:', { hasAccess, churchId: church.id })
+      } else {
+        // Regular users must have explicit role
+        const { data: userChurchRole, error: roleError } = await supabase
+          .from('user_church_roles')
+          .select(`
+            id,
+            church_id,
+            role_id,
+            is_active,
+            churches!inner(
+              id,
+              name,
+              type,
+              is_active
+            ),
+            roles!inner(
+              id,
+              name,
+              display_name
+            )
+          `)
+          .eq('user_id', user.id)
+          .eq('church_id', church.id)
+          .eq('is_active', true)
+          .single()
+
+        hasAccess = !!userChurchRole && !roleError
+        if (roleError) {
+          console.error('[ChurchSelection API] POST - Role check error:', roleError)
+        }
+      }
+
+      if (!hasAccess) {
+        console.error('[ChurchSelection API] POST - Access denied for church:', church.id)
         return NextResponse.json({ error: 'Access denied to selected church' }, { status: 403 })
       }
 
@@ -138,16 +164,37 @@ export async function GET() {
       try {
         const churchData = JSON.parse(selectedChurchCookie.value)
 
-        // Validate that this church is still accessible to the user
-        const { data: userChurchRole, error: roleError } = await supabase
-          .from('user_church_roles')
-          .select('id')
-          .eq('user_id', user.id)
-          .eq('church_id', churchData.id)
-          .eq('is_active', true)
-          .single()
+        // Check if user is super_admin (can access any church)
+        const permissions = await getUserPermissions(supabase as any, user.id)
+        const isSuperAdmin = permissions.isSuperAdmin
 
-        if (roleError || !userChurchRole) {
+        let hasAccess = false
+
+        if (isSuperAdmin) {
+          // Super admins can access any active church
+          const adminClient = createAdminClient()
+          const { data: churchExists, error: churchError } = await adminClient
+            .from('churches')
+            .select('id')
+            .eq('id', churchData.id)
+            .eq('is_active', true)
+            .single()
+
+          hasAccess = !!churchExists && !churchError
+        } else {
+          // Regular users must have explicit role
+          const { data: userChurchRole, error: roleError } = await supabase
+            .from('user_church_roles')
+            .select('id')
+            .eq('user_id', user.id)
+            .eq('church_id', churchData.id)
+            .eq('is_active', true)
+            .single()
+
+          hasAccess = !!userChurchRole && !roleError
+        }
+
+        if (!hasAccess) {
           // Church is no longer accessible, clear the cookie
           console.log('[ChurchSelection API] GET - Church no longer accessible, clearing cookie')
           cookieStore.delete('selectedChurch')

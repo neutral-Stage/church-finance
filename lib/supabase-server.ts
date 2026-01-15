@@ -1,4 +1,5 @@
-import { createServerClient as createSSRServerClient } from '@supabase/ssr'
+import { createServerClient as createSSRServerClient, CookieOptions } from '@supabase/ssr'
+import { createClient, SupabaseClient } from '@supabase/supabase-js'
 import { Database } from '@/types/database'
 import { NextRequest } from 'next/server'
 
@@ -7,6 +8,12 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
 if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing Supabase environment variables')
+}
+
+interface CookieToSet {
+  name: string
+  value: string
+  options?: CookieOptions
 }
 
 // Server-side client for user authentication with cookies (no realtime)
@@ -22,9 +29,9 @@ export const createServerClient = async () => {
         getAll() {
           return cookieStore.getAll()
         },
-        setAll(cookiesToSet) {
+        setAll(cookiesToSet: CookieToSet[]) {
           try {
-            cookiesToSet.forEach(({ name, value, options }) => {
+            cookiesToSet.forEach(({ name, value, options }: CookieToSet) => {
               cookieStore.set(name, value, {
                 ...options,
                 httpOnly: true,
@@ -41,10 +48,10 @@ export const createServerClient = async () => {
         },
       },
       global: {
-        fetch: (url, options = {}) => {
+        fetch: (url: RequestInfo | URL, options: RequestInit = {}) => {
           return fetch(url, {
             ...options,
-            signal: AbortSignal.timeout(30000), // 30 second timeout
+            signal: AbortSignal.timeout(30000),
           })
         }
       },
@@ -54,37 +61,34 @@ export const createServerClient = async () => {
     }
   )
 
-  // Check for custom auth cookie logic removed as @supabase/ssr handles this automatically
-
   return supabaseClient
 }
 
-// Server-side client for admin operations (no realtime)
-export const createAdminClient = () => {
+// Server-side client for admin operations (bypasses RLS with service role)
+export const createAdminClient = (): SupabaseClient<Database> => {
   const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
   if (!supabaseServiceKey) {
     throw new Error('Missing Supabase service role key')
   }
 
-  return createSSRServerClient<Database>(supabaseUrl, supabaseServiceKey, {
-    cookies: {
-      getAll() {
-        return []
-      },
-      setAll() {
-        // No-op for admin client
-      },
-    },
+  console.log('[AdminClient] Creating admin client with service role key...')
+
+  const client = createClient<Database>(supabaseUrl, supabaseServiceKey, {
     auth: {
       autoRefreshToken: false,
-      persistSession: false
+      persistSession: false,
+      detectSessionInUrl: false
     },
     global: {
-      fetch: (url, options = {}) => {
+      headers: {
+        // Explicitly set the Authorization header with service role key
+        'Authorization': `Bearer ${supabaseServiceKey}`
+      },
+      fetch: (url: RequestInfo | URL, options: RequestInit = {}) => {
         return fetch(url, {
           ...options,
-          signal: AbortSignal.timeout(30000), // 30 second timeout
+          signal: AbortSignal.timeout(30000),
         })
       }
     },
@@ -92,6 +96,9 @@ export const createAdminClient = () => {
       schema: 'public'
     }
   })
+
+  console.log('[AdminClient] Admin client created successfully')
+  return client
 }
 
 // API Route client for handling cookies from request/response
@@ -111,10 +118,10 @@ export const createApiRouteClient = async (request: NextRequest) => {
         },
       },
       global: {
-        fetch: (url, options = {}) => {
+        fetch: (url: RequestInfo | URL, options: RequestInit = {}) => {
           return fetch(url, {
             ...options,
-            signal: AbortSignal.timeout(30000), // 30 second timeout
+            signal: AbortSignal.timeout(30000),
           })
         }
       },
@@ -123,8 +130,6 @@ export const createApiRouteClient = async (request: NextRequest) => {
       }
     }
   )
-
-  // Check for custom auth cookie logic removed as @supabase/ssr handles this automatically
 
   return supabaseClient
 }

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@/lib/supabase-server'
+import { createServerClient, createAdminClient } from '@/lib/supabase-server'
 import { safeSelect } from '@/lib/supabase-helpers'
 import { requireAdminAccess } from '@/lib/permission-helpers'
 
@@ -46,14 +46,17 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: authCheck.error }, { status })
     }
 
+    // Use admin client to bypass RLS for fetching all churches
+    const adminClient = createAdminClient()
+
     // Get URL parameters for filtering
     const url = new URL(request.url)
     const churchType = url.searchParams.get('type')
     const isActive = url.searchParams.get('active')
     const search = url.searchParams.get('search')
 
-    // Fetch all churches
-    let churchesQuery = supabase
+    // Fetch all churches using admin client
+    let churchesQuery = adminClient
       .from('churches')
       .select('*')
       .order('created_at', { ascending: false })
@@ -85,38 +88,38 @@ export async function GET(request: NextRequest) {
     const churchIds = churches.map((c: any) => c.id)
 
     // Fetch fund summaries
-    const fundSummariesResult = await safeSelect(supabase, 'funds');
+    const fundSummariesResult = await safeSelect(adminClient, 'funds');
     const fundSummaries = fundSummariesResult.data?.filter((fund: any) => churchIds.includes(fund.church_id)) || [];
 
     // Fetch recent transactions (last 30 days)
     const thirtyDaysAgo = new Date()
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
 
-    const recentTransactionsResult = await safeSelect(supabase, 'transactions');
+    const recentTransactionsResult = await safeSelect(adminClient, 'transactions');
     const recentTransactions = recentTransactionsResult.data?.filter((tx: any) =>
       new Date(tx.created_at) >= thirtyDaysAgo
     ) || [];
 
     // Fetch recent offerings (last 30 days)
-    const recentOfferingsResult = await safeSelect(supabase, 'offerings');
+    const recentOfferingsResult = await safeSelect(adminClient, 'offerings');
     const recentOfferings = recentOfferingsResult.data?.filter((offering: any) =>
       new Date(offering.created_at || '') >= thirtyDaysAgo
     ) || [];
 
     // Fetch pending bills
-    const pendingBillsResult = await safeSelect(supabase, 'bills');
+    const pendingBillsResult = await safeSelect(adminClient, 'bills');
     const pendingBills = pendingBillsResult.data?.filter((bill: any) =>
       bill.status === 'pending'
     ) || [];
 
     // Fetch outstanding advances
-    const outstandingAdvancesResult = await safeSelect(supabase, 'advances');
+    const outstandingAdvancesResult = await safeSelect(adminClient, 'advances');
     const outstandingAdvances = outstandingAdvancesResult.data?.filter((advance: any) =>
       advance.status === 'approved'
     ) || [];
 
     // Fetch user counts per church
-    const userChurchCountsResult = await safeSelect(supabase, 'user_church_roles');
+    const userChurchCountsResult = await safeSelect(adminClient, 'user_church_roles');
     const userChurchCounts = userChurchCountsResult.data?.filter((role: any) =>
       role.is_active === true
     ) || [];

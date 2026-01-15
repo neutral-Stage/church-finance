@@ -313,7 +313,7 @@ export default function ChurchesAdminPage() {
       title: 'Delete Church',
       description: `Are you sure you want to delete "${church.name}"? This action cannot be undone and will deactivate the church.`,
       variant: 'destructive',
-      onConfirm: () => {}
+      onConfirm: () => { }
     })
 
     if (!confirmed) return
@@ -668,9 +668,8 @@ export default function ChurchesAdminPage() {
                 {/* Net Position */}
                 <div className="flex items-center justify-between p-2 bg-slate-800/30 rounded">
                   <span className="text-xs text-gray-400">Net Position:</span>
-                  <span className={`text-sm font-bold ${
-                    netPosition > 0 ? 'text-green-400' : netPosition < 0 ? 'text-red-400' : 'text-gray-400'
-                  }`}>
+                  <span className={`text-sm font-bold ${netPosition > 0 ? 'text-green-400' : netPosition < 0 ? 'text-red-400' : 'text-gray-400'
+                    }`}>
                     {formatCurrency(netPosition)}
                   </span>
                 </div>
@@ -1026,7 +1025,7 @@ export default function ChurchesAdminPage() {
 
       {/* Create Church Dialog */}
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-        <DialogContent className="bg-slate-800 border-slate-700 text-white max-w-2xl">
+        <DialogContent className="bg-slate-800 border-slate-700 text-white max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Plus className="w-5 h-5" />
@@ -1158,7 +1157,7 @@ export default function ChurchesAdminPage() {
 
       {/* Edit Church Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="bg-slate-800 border-slate-700 text-white max-w-2xl">
+        <DialogContent className="bg-slate-800 border-slate-700 text-white max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Edit className="w-5 h-5" />
