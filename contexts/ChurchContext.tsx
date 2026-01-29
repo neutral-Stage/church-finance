@@ -107,12 +107,19 @@ export function ChurchProvider({ children }: ChurchProviderProps) {
             })
 
             if (data.church && (!storedChurch || data.church.id !== storedChurch.id)) {
-              // Server has a different church selected, sync with it
-              console.log('[ChurchContext] Server has different church, syncing to client:', data.church.id)
-              setSelectedChurchState(data.church)
-              churchApi.setSelectedChurch(data.church)
-              localStorage.setItem('selectedChurch', JSON.stringify(data.church))
-              sessionStorage.setItem('churchSyncCompleted', 'true')
+              const justSynced = sessionStorage.getItem('churchSyncCompleted') === 'true'
+
+              if (justSynced && storedChurch) {
+                console.log('[ChurchContext] Server differs but client just synced. Trusting client:', storedChurch.id)
+                // Don't overwrite client state with potentially stale server state
+              } else {
+                // Server has a different church selected, sync with it
+                console.log('[ChurchContext] Server has different church, syncing to client:', data.church.id)
+                setSelectedChurchState(data.church)
+                churchApi.setSelectedChurch(data.church)
+                localStorage.setItem('selectedChurch', JSON.stringify(data.church))
+                sessionStorage.setItem('churchSyncCompleted', 'true')
+              }
             } else if (!data.church && storedChurch) {
               // Client has church but server doesn't - sync client to server
               // Only sync once per session to prevent infinite loops

@@ -130,10 +130,10 @@ export function AddTransactionForm({ initialData = {}, onSuccess, onCancel }: Ad
     const loadFunds = async () => {
       const response = await api.get('/api/funds')
       if (response.success && response.data) {
-        setFunds(response.data)
+        setFunds(response.data.funds || [])
         // Set default fund if not set
-        if (!formData.fund_id && response.data.length > 0) {
-          setFormData(prev => ({ ...prev, fund_id: response.data[0].id }))
+        if (!formData.fund_id && response.data.funds && response.data.funds.length > 0) {
+          setFormData(prev => ({ ...prev, fund_id: response.data.funds[0].id }))
         }
       }
     }
@@ -348,7 +348,7 @@ interface TransactionsClientProps {
 export function TransactionsClient({ initialData, permissions }: TransactionsClientProps) {
   const { api, hasChurchSelected, selectedChurch } = useChurchApi()
   const [transactions, setTransactions] = useState<TransactionWithFund[]>(initialData.transactions)
-  const [funds] = useState<Fund[]>(initialData.funds) // Funds rarely change, so no real-time needed
+  const [funds] = useState<Fund[]>(initialData.funds || []) // Funds rarely change, so no real-time needed
   const [error, setError] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
   const [filterType, setFilterType] = useState<'all' | 'income' | 'expense'>('all')

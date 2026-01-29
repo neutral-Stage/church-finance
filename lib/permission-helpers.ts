@@ -97,6 +97,15 @@ export async function getUserPermissions(
       return perms?.admin?.global === true || perms?.admin?.churches?.read === true
     })
 
+    console.log('[PermissionHelper] getUserPermissions:', {
+      userId: currentUserId,
+      totalRoles: userRoles?.length,
+      activeRolesCount: activeRoles.length,
+      activeRolesList: activeRoles.map(r => ({ name: r.role_name, church: r.church_id })),
+      isSuperAdmin,
+      hasGlobalAdminAccess
+    })
+
     return {
       isAuthenticated: true,
       isSuperAdmin,

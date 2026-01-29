@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { useChurch } from '@/contexts/ChurchContext'
 import { Button } from '@/components/ui/button'
@@ -45,7 +45,7 @@ interface FundTransferForm {
 
 const FUND_TYPES = [
   'Mission Fund',
-  'Building Fund', 
+  'Building Fund',
   'Management Fund',
   'Special Fund',
   'Emergency Fund'
@@ -65,6 +65,7 @@ export default function FundsClient({ initialData }: FundsClientProps) {
   const [editingFund, setEditingFund] = useState<Fund | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [filterType, setFilterType] = useState('all')
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const { confirm, ConfirmationDialog } = useConfirmationDialog()
 
   const [form, setForm] = useState<FundForm>({
@@ -81,15 +82,26 @@ export default function FundsClient({ initialData }: FundsClientProps) {
     description: ''
   })
 
+  // Refetch data when selected church changes
+  // This ensures that if the page loads with the wrong church context (server vs client mismatch),
+  // it corrects itself once the client-side context initializes.
+  useEffect(() => {
+    if (selectedChurch?.id) {
+      fetchData()
+    }
+  }, [selectedChurch?.id])
+
   const fetchData = async () => {
+    if (!selectedChurch?.id) return
+
     try {
       const [fundsResponse, transactionsResponse] = await Promise.all([
-        fetch('/api/funds', {
+        fetch(`/api/funds?church_id=${selectedChurch.id}`, {
           method: 'GET',
           credentials: 'include',
           headers: { 'Content-Type': 'application/json' }
         }),
-        fetch('/api/transactions?limit=20', {
+        fetch(`/api/transactions?limit=20&church_id=${selectedChurch.id}`, {
           method: 'GET',
           credentials: 'include',
           headers: { 'Content-Type': 'application/json' }
@@ -100,7 +112,7 @@ export default function FundsClient({ initialData }: FundsClientProps) {
         const errorData = await fundsResponse.json()
         throw new Error(errorData.error || 'Failed to fetch funds')
       }
-      
+
       if (!transactionsResponse.ok) {
         const errorData = await transactionsResponse.json()
         throw new Error(errorData.error || 'Failed to fetch transactions')
@@ -119,10 +131,14 @@ export default function FundsClient({ initialData }: FundsClientProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
+    if (isSubmitting) return
+
     if (!form.name.trim()) {
       toast.error('Fund name is required')
       return
     }
+
+    setIsSubmitting(true)
 
     try {
       const requestData = {
@@ -139,12 +155,12 @@ export default function FundsClient({ initialData }: FundsClientProps) {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(requestData)
         })
-        
+
         if (!response.ok) {
           const errorData = await response.json()
           throw new Error(errorData.error || 'Failed to update fund')
         }
-        
+
         toast.success('Fund updated successfully')
       } else {
         const response = await fetch('/api/funds', {
@@ -153,15 +169,16 @@ export default function FundsClient({ initialData }: FundsClientProps) {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             ...requestData,
+            church_id: selectedChurch?.id,
             current_balance: 0
           })
         })
-        
+
         if (!response.ok) {
           const errorData = await response.json()
           throw new Error(errorData.error || 'Failed to create fund')
         }
-        
+
         toast.success('Fund created successfully')
       }
 
@@ -169,8 +186,10 @@ export default function FundsClient({ initialData }: FundsClientProps) {
       setEditingFund(null)
       resetForm()
       fetchData()
-    } catch {
-      toast.error('Failed to save fund')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to save fund')
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -203,7 +222,7 @@ export default function FundsClient({ initialData }: FundsClientProps) {
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' }
       })
-      
+
       if (!response.ok) {
         const errorData = await response.json()
         throw new Error(errorData.error || 'Failed to delete fund')
@@ -263,7 +282,7 @@ export default function FundsClient({ initialData }: FundsClientProps) {
           church_id: selectedChurch?.id
         })
       })
-      
+
       if (!response.ok) {
         const errorData = await response.json()
         throw new Error(errorData.error || 'Failed to transfer funds')
@@ -437,102 +456,103 @@ export default function FundsClient({ initialData }: FundsClientProps) {
                     Create Fund
                   </Button>
                 </DialogTrigger>
-              <DialogContent className="sm:max-w-[500px]">
-                <DialogHeader className="space-y-3 pb-6">
-                  <DialogTitle className="text-xl font-semibold bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent">
-                    {editingFund ? 'Edit Fund' : 'Create New Fund'}
-                  </DialogTitle>
-                  <DialogDescription className="text-white/70 text-sm leading-relaxed">
-                    {editingFund ? 'Update the fund details below.' : 'Create a new fund to track church finances.'}
-                  </DialogDescription>
-                </DialogHeader>
-                <form onSubmit={handleSubmit} className="space-y-6">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <DialogContent className="sm:max-w-[500px]">
+                  <DialogHeader className="space-y-3 pb-6">
+                    <DialogTitle className="text-xl font-semibold bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent">
+                      {editingFund ? 'Edit Fund' : 'Create New Fund'}
+                    </DialogTitle>
+                    <DialogDescription className="text-white/70 text-sm leading-relaxed">
+                      {editingFund ? 'Update the fund details below.' : 'Create a new fund to track church finances.'}
+                    </DialogDescription>
+                  </DialogHeader>
+                  <form onSubmit={handleSubmit} className="space-y-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="name" className="text-white/90 font-medium text-sm">
+                          Fund Name *
+                        </Label>
+                        <Input
+                          id="name"
+                          value={form.name}
+                          onChange={(e) => setForm({ ...form, name: e.target.value })}
+                          required
+                          className="glass-card-dark bg-white/10 backdrop-blur-xl border border-white/20 text-white placeholder:text-white/50 rounded-xl focus:border-white/40 focus:ring-white/20 hover:bg-white/15 transition-all duration-300"
+                          placeholder="Enter fund name"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="fund_type" className="text-white/90 font-medium text-sm">
+                          Fund Type *
+                        </Label>
+                        <Select value={form.fund_type} onValueChange={(value) => setForm({ ...form, fund_type: value })}>
+                          <SelectTrigger className="glass-card-dark bg-white/10 backdrop-blur-xl border border-white/20 text-white rounded-xl hover:bg-white/15 transition-all duration-300">
+                            <SelectValue placeholder="Select fund type" />
+                          </SelectTrigger>
+                          <SelectContent className="glass-card-dark bg-white/10 backdrop-blur-xl border border-white/20 rounded-xl">
+                            {FUND_TYPES.map((type) => (
+                              <SelectItem
+                                key={type}
+                                value={type}
+                                className="text-white hover:bg-white/20 focus:bg-white/20 rounded-lg transition-colors duration-200"
+                              >
+                                {type}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
                     <div className="space-y-2">
-                      <Label htmlFor="name" className="text-white/90 font-medium text-sm">
-                        Fund Name *
+                      <Label htmlFor="target_amount" className="text-white/90 font-medium text-sm">
+                        Target Amount (Optional)
                       </Label>
                       <Input
-                        id="name"
-                        value={form.name}
-                        onChange={(e) => setForm({ ...form, name: e.target.value })}
-                        required
+                        id="target_amount"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        placeholder="0.00"
+                        value={form.target_amount || ''}
+                        onChange={(e) => setForm({ ...form, target_amount: parseFloat(e.target.value) || undefined })}
                         className="glass-card-dark bg-white/10 backdrop-blur-xl border border-white/20 text-white placeholder:text-white/50 rounded-xl focus:border-white/40 focus:ring-white/20 hover:bg-white/15 transition-all duration-300"
-                        placeholder="Enter fund name"
                       />
                     </div>
+
                     <div className="space-y-2">
-                      <Label htmlFor="fund_type" className="text-white/90 font-medium text-sm">
-                        Fund Type *
+                      <Label htmlFor="description" className="text-white/90 font-medium text-sm">
+                        Description
                       </Label>
-                      <Select value={form.fund_type} onValueChange={(value) => setForm({ ...form, fund_type: value })}>
-                        <SelectTrigger className="glass-card-dark bg-white/10 backdrop-blur-xl border border-white/20 text-white rounded-xl hover:bg-white/15 transition-all duration-300">
-                          <SelectValue placeholder="Select fund type" />
-                        </SelectTrigger>
-                        <SelectContent className="glass-card-dark bg-white/10 backdrop-blur-xl border border-white/20 rounded-xl">
-                          {FUND_TYPES.map((type) => (
-                            <SelectItem
-                              key={type}
-                              value={type}
-                              className="text-white hover:bg-white/20 focus:bg-white/20 rounded-lg transition-colors duration-200"
-                            >
-                              {type}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <Textarea
+                        id="description"
+                        value={form.description}
+                        onChange={(e) => setForm({ ...form, description: e.target.value })}
+                        placeholder="Fund description and purpose..."
+                        rows={3}
+                        className="glass-card-dark bg-white/10 backdrop-blur-xl border border-white/20 text-white placeholder:text-white/50 rounded-xl focus:border-white/40 focus:ring-white/20 hover:bg-white/15 transition-all duration-300 resize-none"
+                      />
                     </div>
-                  </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="target_amount" className="text-white/90 font-medium text-sm">
-                      Target Amount (Optional)
-                    </Label>
-                    <Input
-                      id="target_amount"
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      placeholder="0.00"
-                      value={form.target_amount || ''}
-                      onChange={(e) => setForm({ ...form, target_amount: parseFloat(e.target.value) || undefined })}
-                      className="glass-card-dark bg-white/10 backdrop-blur-xl border border-white/20 text-white placeholder:text-white/50 rounded-xl focus:border-white/40 focus:ring-white/20 hover:bg-white/15 transition-all duration-300"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="description" className="text-white/90 font-medium text-sm">
-                      Description
-                    </Label>
-                    <Textarea
-                      id="description"
-                      value={form.description}
-                      onChange={(e) => setForm({ ...form, description: e.target.value })}
-                      placeholder="Fund description and purpose..."
-                      rows={3}
-                      className="glass-card-dark bg-white/10 backdrop-blur-xl border border-white/20 text-white placeholder:text-white/50 rounded-xl focus:border-white/40 focus:ring-white/20 hover:bg-white/15 transition-all duration-300 resize-none"
-                    />
-                  </div>
-
-                  <DialogFooter className="flex flex-col sm:flex-row gap-3 pt-6">
-                    <GlassButton
-                      type="button"
-                      variant="outline"
-                      onClick={() => setDialogOpen(false)}
-                      className="order-2 sm:order-1"
-                    >
-                      Cancel
-                    </GlassButton>
-                    <GlassButton
-                      type="submit"
-                      className="order-1 sm:order-2"
-                    >
-                      {editingFund ? 'Update' : 'Create'} Fund
-                    </GlassButton>
-                  </DialogFooter>
-                </form>
-              </DialogContent>
-            </Dialog>
+                    <DialogFooter className="flex flex-col sm:flex-row gap-3 pt-6">
+                      <GlassButton
+                        type="button"
+                        variant="outline"
+                        onClick={() => setDialogOpen(false)}
+                        className="order-2 sm:order-1"
+                      >
+                        Cancel
+                      </GlassButton>
+                      <GlassButton
+                        type="submit"
+                        disabled={isSubmitting}
+                        className="order-1 sm:order-2"
+                      >
+                        {isSubmitting ? 'Saving...' : (editingFund ? 'Update' : 'Create') + ' Fund'}
+                      </GlassButton>
+                    </DialogFooter>
+                  </form>
+                </DialogContent>
+              </Dialog>
             </div>
           )}
         </div>
@@ -665,7 +685,7 @@ export default function FundsClient({ initialData }: FundsClientProps) {
                       </p>
                       <p className="text-sm text-white/60">Current Balance</p>
                     </div>
-                    
+
                     {(fund as ExtendedFund).target_amount && (fund as ExtendedFund).target_amount! > 0 && (
                       <div>
                         <div className="flex justify-between text-sm mb-2">
@@ -675,7 +695,7 @@ export default function FundsClient({ initialData }: FundsClientProps) {
                           </span>
                         </div>
                         <div className="w-full bg-white/10 rounded-full h-2">
-                          <div 
+                          <div
                             className="bg-gradient-to-r from-green-400 to-emerald-500 h-2 rounded-full transition-all duration-500"
                             style={{ width: `${Math.min(100, ((fund.current_balance || 0) / ((fund as ExtendedFund).target_amount || 1)) * 100)}%` }}
                           />
@@ -685,7 +705,7 @@ export default function FundsClient({ initialData }: FundsClientProps) {
                         </p>
                       </div>
                     )}
-                    
+
                     {fund.description && (
                       <p className="text-sm text-white/60 line-clamp-3">
                         {fund.description}
