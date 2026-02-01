@@ -135,9 +135,12 @@ export default function OfferingsPage() {
       }
 
       // Process offerings data - offering_member is a single object from the join
-      const processedOfferings = offeringsData?.map((offering: Offering & { offering_member?: { member: Member } | null }) => ({
+      // Handle case where it might be returned as an array or object
+      const processedOfferings = offeringsData?.map((offering: any) => ({
         ...offering,
-        member: offering.offering_member?.member || null
+        member: Array.isArray(offering.offering_member)
+          ? offering.offering_member[0]?.member
+          : offering.offering_member?.member || null
       })) || []
 
       // Fetch funds for the selected church
@@ -270,8 +273,11 @@ export default function OfferingsPage() {
               .from('offering_member')
               .insert({
                 offering_id: editingOffering.id,
-                member_id: newMemberId
+                member_id: newMemberId,
+                amount: amount // Required field
               } as any)
+              .select()
+              .single()
 
             if (memberError) {
               throw new Error('Failed to associate member with offering')
@@ -337,21 +343,37 @@ export default function OfferingsPage() {
             .from('offering_member')
             .insert({
               offering_id: newOffering.id,
-              member_id: requestData.member_id
+              member_id: requestData.member_id,
+              amount: requestData.amount // Required field
             } as any)
+            .select()
+            .single()
 
           if (memberError) {
             // If member association fails, we should clean up the offering
             await supabase.from('offerings').delete().eq('id', newOffering.id)
-            console.error('Member association error:', memberError)
+            console.error('Member association error:', {
+              code: memberError.code,
+              message: memberError.message,
+              details: memberError.details,
+              hint: memberError.hint,
+              fullError: JSON.stringify(memberError, null, 2),
+              insertPayload: {
+                offering_id: newOffering.id,
+                member_id: requestData.member_id,
+                amount: requestData.amount
+              }
+            })
 
             // Provide specific error messages based on error type
             if (memberError.code === '23503') {
               throw new Error('Selected member is invalid or does not belong to this church. Please select a valid member.')
             } else if (memberError.code === '23505') {
               throw new Error('This offering already has a member assigned. Each offering can only have one member.')
+            } else if (memberError.code === '42501') {
+              throw new Error('Permission denied. Please contact your administrator.')
             } else {
-              throw new Error('Failed to associate member with offering. Please try again.')
+              throw new Error(`Failed to associate member with offering: ${memberError.message}`)
             }
           }
         }
