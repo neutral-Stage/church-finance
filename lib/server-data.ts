@@ -1107,24 +1107,34 @@ export const getReportsData = cache(
 );
 
 // User permissions helpers (server-side)
+// User permissions helpers (server-side)
 export const checkUserPermissions = async () => {
-  // Use requireAuth to ensure user is authenticated - will redirect if not
+  // Use requireAuth to ensure user is authenticated
   const user = await requireAuth();
+  const supabase = await createServerClient();
 
-  const roleHierarchy: Record<string, number> = {
-    viewer: 1,
-    treasurer: 2,
-    admin: 3,
-  };
+  // Use the robust permission helper
+  const { getUserPermissions } = await import('@/lib/permission-helpers');
+  const permissions = await getUserPermissions(supabase as any, user.id);
 
-  const hasRole = (role: string): boolean => {
-    return (roleHierarchy[user.role || 'viewer'] || 0) >= (roleHierarchy[role] || 0);
-  };
+  // Get selected church to check specific permissions
+  const selectedChurch = await getSelectedChurch();
+  const churchId = selectedChurch?.id;
+
+  // Define permissions based on the new helper
+  const isSuperAdmin = permissions.isSuperAdmin;
+  const isChurchAdmin = churchId ? permissions.hasPermission('admin.churches.update', churchId) : false;
+  const isTreasurer = churchId ? permissions.hasPermission('funds.update', churchId) : false;
+
+  // Determine capabilities
+  const canEdit = isSuperAdmin || isChurchAdmin || isTreasurer;
+  const canDelete = isSuperAdmin || isChurchAdmin;
+  const canApprove = isSuperAdmin || isChurchAdmin || isTreasurer;
 
   return {
-    canEdit: hasRole("treasurer"),
-    canDelete: hasRole("admin"),
-    canApprove: hasRole("treasurer"),
-    userRole: user.role,
+    canEdit,
+    canDelete,
+    canApprove,
+    userRole: isSuperAdmin ? 'super_admin' : (isChurchAdmin ? 'admin' : (isTreasurer ? 'treasurer' : 'viewer')),
   };
 };

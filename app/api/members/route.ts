@@ -37,14 +37,14 @@ export async function GET(request: NextRequest) {
     }
 
     const { data: members, error } = await query
-    
+
     if (error) {
       return NextResponse.json(
         { error: 'Failed to fetch members' },
         { status: 500 }
       )
     }
-    
+
     return NextResponse.json({ members })
   } catch {
     return NextResponse.json(
@@ -58,8 +58,8 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createServerClient()
-    const adminSupabase = createAdminClient()
-    
+    const { getUserPermissions } = await import('@/lib/permission-helpers')
+
     // Check authentication
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     if (authError || !user) {
@@ -68,9 +68,10 @@ export async function POST(request: NextRequest) {
         { status: 401 }
       )
     }
-    
+
     const body = await request.json()
-    
+    console.log('[Members API] Creating member:', body)
+
     const { name, phone, fellowship_name, job, location, church_id } = body
 
     if (!name?.trim()) {
@@ -87,8 +88,22 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
-    
-    const { data: member, error } = await (adminSupabase
+
+    // Check if user has access to create members in this church
+    const permissions = await getUserPermissions(supabase as any, user.id)
+    if (!permissions.hasPermission('admin.churches.update', church_id) &&
+      !permissions.hasPermission('offerings.create', church_id) &&
+      !permissions.isSuperAdmin) {
+      console.warn(`[Members API] User ${user.id} denied access to create member in church ${church_id}`)
+      return NextResponse.json(
+        { error: 'You do not have permission to create members in this church' },
+        { status: 403 }
+      )
+    }
+
+    // Use standard authenticated client - RLS policies handle permissions (including super_admin)
+    // This avoids issues where admin client might be misconfigured or fail RLS checks unexpectedly
+    const { data: member, error } = await (supabase
       .from('members') as any)
       .insert({
         name: name.trim(),
@@ -103,7 +118,7 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (error) {
-      console.error('Member creation error:', error)
+      console.error('[Members API] Member creation error:', error)
       // Check for specific database constraint errors
       if (error.code === '23503') {
         return NextResponse.json(
@@ -116,9 +131,10 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       )
     }
-    
+
     return NextResponse.json({ member }, { status: 201 })
-  } catch {
+  } catch (error) {
+    console.error('[Members API] Internal error:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -131,7 +147,7 @@ export async function PUT(request: NextRequest) {
   try {
     const supabase = await createServerClient()
     const adminSupabase = createAdminClient()
-    
+
     // Check authentication
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     if (authError || !user) {
@@ -140,34 +156,34 @@ export async function PUT(request: NextRequest) {
         { status: 401 }
       )
     }
-    
+
     const body = await request.json()
-    
+
     const { id, ...updates }: MemberUpdate & { id: string } = body
-    
+
     if (!id) {
       return NextResponse.json(
         { error: 'Member ID is required' },
         { status: 400 }
       )
     }
-    
+
     // Get current member
     const { data: currentMember, error: fetchError } = await supabase
       .from('members')
       .select('*')
       .eq('id', id)
       .single()
-    
+
     if (fetchError || !currentMember) {
       return NextResponse.json(
         { error: 'Member not found' },
         { status: 404 }
       )
     }
-    
+
     // Update member
-    const { data: member, error: updateError } = await (adminSupabase
+    const { data: member, error: updateError } = await (supabase
       .from('members') as any)
       .update({
         ...updates,
@@ -176,7 +192,7 @@ export async function PUT(request: NextRequest) {
       .eq('id', id)
       .select()
       .single()
-    
+
     if (updateError) {
       console.error('Member update error:', updateError)
       return NextResponse.json(
@@ -184,7 +200,7 @@ export async function PUT(request: NextRequest) {
         { status: 500 }
       )
     }
-    
+
     return NextResponse.json({ member })
   } catch {
     return NextResponse.json(
@@ -199,7 +215,7 @@ export async function DELETE(request: NextRequest) {
   try {
     const supabase = await createServerClient()
     const adminSupabase = createAdminClient()
-    
+
     // Check authentication
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     if (authError || !user) {
@@ -208,37 +224,37 @@ export async function DELETE(request: NextRequest) {
         { status: 401 }
       )
     }
-    
+
     const { searchParams } = new URL(request.url)
     const id = searchParams.get('id')
-    
+
     if (!id) {
       return NextResponse.json(
         { error: 'Member ID is required' },
         { status: 400 }
       )
     }
-    
+
     // Check if member exists
     const { data: member, error: fetchError } = await supabase
       .from('members')
       .select('*')
       .eq('id', id)
       .single()
-    
+
     if (fetchError || !member) {
       return NextResponse.json(
         { error: 'Member not found' },
         { status: 404 }
       )
     }
-    
+
     // Delete member
-    const { error: deleteError } = await adminSupabase
-      .from('members')
+    const { error: deleteError } = await (supabase
+      .from('members') as any)
       .delete()
       .eq('id', id)
-    
+
     if (deleteError) {
       console.error('Member deletion error:', deleteError)
       return NextResponse.json(
@@ -246,7 +262,7 @@ export async function DELETE(request: NextRequest) {
         { status: 500 }
       )
     }
-    
+
     return NextResponse.json({ message: 'Member deleted successfully' })
   } catch {
     return NextResponse.json(

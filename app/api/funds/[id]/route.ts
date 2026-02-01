@@ -58,6 +58,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
 
     const { data: fund, error: updateError } = await supabase
       .from('funds')
+      // @ts-ignore
       .update(updateData)
       .eq('id', id)
       .select()
@@ -121,7 +122,7 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
     // Check for existing transactions using generic RPC (SECURITY DEFINER bypasses RLS safely)
     // This avoids needing the potentially broken service role key
     const { data: hasTransactions, error: rpcError } = await supabase
-      .rpc('check_fund_has_transactions', { p_fund_id: id })
+      .rpc('check_fund_has_transactions', { p_fund_id: id } as any)
 
     if (rpcError) {
       console.error('Error checking transactions (RPC):', rpcError)
