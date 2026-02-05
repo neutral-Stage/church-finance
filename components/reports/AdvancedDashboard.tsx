@@ -276,7 +276,7 @@ export function AdvancedDashboard({ data, dateRange, filters, comparisonData }: 
             {metric.format === 'currency' ? (
               <AnimatedCounter
                 value={metric.value}
-                prefix="$"
+                prefix="৳"
                 suffix=""
               />
             ) : metric.format === 'percentage' ? (

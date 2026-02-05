@@ -530,7 +530,7 @@ export default function AdvancedReportsClient({ initialData, initialDateRange }:
                                 {transaction.description || 'No description'}
                               </td>
                               <td className="p-4 font-medium text-white/90">
-                                ${transaction.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                                ৳{transaction.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                               </td>
                               <td className="p-4 text-white/90">{transaction.payment_method || 'N/A'}</td>
                             </tr>
