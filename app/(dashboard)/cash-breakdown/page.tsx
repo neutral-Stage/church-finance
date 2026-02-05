@@ -18,5 +18,5 @@ export default async function CashBreakdownPage() {
 
   const cashBreakdownData = await getCashBreakdownData()
 
-  return <CashBreakdownClient initialData={cashBreakdownData} />
+  return <CashBreakdownClient initialData={cashBreakdownData} churchId={selectedChurch.id} />
 }

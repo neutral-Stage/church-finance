@@ -76,9 +76,10 @@ function AnimatedCounter({ value, duration = 2000 }: { value: number; duration?:
 
 interface CashBreakdownClientProps {
   initialData: CashBreakdownData[]
+  churchId: string
 }
 
-export default function CashBreakdownClient({ initialData }: CashBreakdownClientProps) {
+export default function CashBreakdownClient({ initialData, churchId }: CashBreakdownClientProps) {
   const [fundData, setFundData] = useState<FundData>({})
   const [saving, setSaving] = useState(false)
 
@@ -108,6 +109,7 @@ export default function CashBreakdownClient({ initialData }: CashBreakdownClient
       const { data, error } = await supabase
         .from('cash_breakdown')
         .select('*')
+        .eq('church_id', churchId)
         .order('fund_type')
         .order('denomination', { ascending: false })
 
@@ -140,6 +142,7 @@ export default function CashBreakdownClient({ initialData }: CashBreakdownClient
     try {
       setSaving(true)
       const updates: Array<{
+        church_id: string
         fund_type: string
         denomination: number
         count: number
@@ -148,6 +151,7 @@ export default function CashBreakdownClient({ initialData }: CashBreakdownClient
       Object.entries(fundData).forEach(([fundType, denominations]) => {
         Object.entries(denominations).forEach(([denomination, count]) => {
           updates.push({
+            church_id: churchId,
             fund_type: fundType,
             denomination: parseInt(denomination),
             count: count
@@ -158,7 +162,7 @@ export default function CashBreakdownClient({ initialData }: CashBreakdownClient
       const { error } = await supabase
         .from('cash_breakdown')
         .upsert(updates as any, {
-          onConflict: 'fund_type,denomination'
+          onConflict: 'church_id,fund_type,denomination'
         })
 
       if (error) throw error

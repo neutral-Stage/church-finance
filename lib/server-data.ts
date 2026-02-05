@@ -607,62 +607,7 @@ export const getOfferingsData = cache(async (): Promise<OfferingsData> => {
   };
 });
 
-// Cash breakdown data fetching
-export interface CashBreakdownData {
-  id: string;
-  fund_type: string;
-  denomination: number;
-  count: number;
-  total_amount: number;
-}
 
-export const getCashBreakdownData = cache(
-  async (): Promise<CashBreakdownData[]> => {
-    // Use requireAuth to ensure user is authenticated - will redirect if not
-    await requireAuth();
-
-    // Get selected church context
-    const selectedChurch = await getSelectedChurch();
-    if (!selectedChurch) {
-      return [];
-    }
-
-    // Create supabase client with user context
-    const supabase = await createServerClient();
-
-    // Fetch from existing wide table
-    const { data, error } = await safeSelect(supabase, "cash_breakdown", {
-      filter: { column: "church_id", value: selectedChurch.id },
-      order: { column: "breakdown_date", ascending: false } // Get latest
-    });
-
-    if (error || !data || data.length === 0) {
-      return [];
-    }
-
-    const latest = data[0] as Record<string, any>;
-    const denominations = [1000, 500, 200, 100, 50, 20, 10, 5, 2, 1];
-    const result: CashBreakdownData[] = [];
-
-    // Map wide columns to normalized array using 'General Cash' as fund type
-    // This bridges the gap until the schema is fully normalized
-    denominations.forEach((denom, index) => {
-      const key = `denomination_${denom}`;
-      const count = latest[key] || 0;
-      if (count >= 0) {
-        result.push({
-          id: `${latest.church_id}-${denom}-${index}`,
-          fund_type: "General Cash",
-          denomination: denom,
-          count: count,
-          total_amount: denom * count
-        });
-      }
-    });
-
-    return result;
-  }
-);
 
 // Funds with transactions data fetching
 export interface FundsPageData {
@@ -1138,3 +1083,28 @@ export const checkUserPermissions = async () => {
     userRole: isSuperAdmin ? 'super_admin' : (isChurchAdmin ? 'admin' : (isTreasurer ? 'treasurer' : 'viewer')),
   };
 };
+
+// Cash Breakdown Data Helpers
+export interface CashBreakdownData {
+  id: string;
+  church_id: string;
+  fund_type: string;
+  denomination: number;
+  count: number;
+}
+
+export const getCashBreakdownData = cache(async (): Promise<CashBreakdownData[]> => {
+  await requireAuth();
+  const selectedChurch = await getSelectedChurch();
+  if (!selectedChurch) return [];
+
+  const supabase = await createServerClient();
+  const { data } = await supabase
+    .from("cash_breakdown")
+    .select("*")
+    .eq("church_id", selectedChurch.id)
+    .order("fund_type")
+    .order("denomination", { ascending: false });
+
+  return (data || []) as CashBreakdownData[];
+});

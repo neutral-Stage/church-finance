@@ -213,6 +213,7 @@ export function ComprehensiveLedgerDialog({
   const [funds, setFunds] = useState<Fund[]>([])
   const [responsiblePartyInput, setResponsiblePartyInput] = useState('')
   const [uploadProgress, setUploadProgress] = useState<UploadProgress>({})
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
 
   const [entryForm, setEntryForm] = useState<EntryForm>({
     title: '',
@@ -283,19 +284,18 @@ export function ComprehensiveLedgerDialog({
           allocation_percentage: subgroup.allocation_percentage?.toString() || '',
           notes: subgroup.notes || '',
           bills: (subgroup.bills || []).map(bill => {
-            const doc = (bill as any).document_attachments?.[0]
-            const existingDoc = doc ? {
-              url: doc.file_path,
-              name: doc.file_name,
-              size: doc.file_size,
-              type: doc.file_type,
-              uploadedAt: doc.created_at || ''
+            const existingDoc = (bill as any).document_url ? {
+              url: (bill as any).document_url,
+              name: (bill as any).document_name,
+              size: (bill as any).document_size,
+              type: (bill as any).document_type,
+              uploadedAt: (bill as any).document_uploaded_at || ''
             } : null
 
             console.log(`📄 Subgroup bill ${bill.vendor_name} document:`, {
-              hasDocument: !!doc,
-              documentName: doc?.file_name,
-              documentSize: doc?.file_size,
+              hasDocument: !!existingDoc,
+              documentName: existingDoc?.name,
+              documentSize: existingDoc?.size,
               existingDoc
             })
 
@@ -314,19 +314,18 @@ export function ComprehensiveLedgerDialog({
           })
         })) : [],
         directBills: !hasSubgroups ? (entry.bills || []).map(bill => {
-          const doc = (bill as any).document_attachments?.[0]
-          const existingDoc = doc ? {
-            url: doc.file_path,
-            name: doc.file_name,
-            size: doc.file_size,
-            type: doc.file_type,
-            uploadedAt: doc.created_at || ''
+          const existingDoc = (bill as any).document_url ? {
+            url: (bill as any).document_url,
+            name: (bill as any).document_name,
+            size: (bill as any).document_size,
+            type: (bill as any).document_type,
+            uploadedAt: (bill as any).document_uploaded_at || ''
           } : null
 
           console.log(`📄 Direct bill ${bill.vendor_name} document:`, {
-            hasDocument: !!doc,
-            documentName: doc?.file_name,
-            documentSize: doc?.file_size,
+            hasDocument: !!existingDoc,
+            documentName: existingDoc?.name,
+            documentSize: existingDoc?.size,
             existingDoc
           })
 
@@ -706,10 +705,13 @@ export function ComprehensiveLedgerDialog({
       return
     }
 
-    if (!selectedChurch) {
+    if (!selectedChurch || !selectedChurch.id) {
+      console.error('❌ Church validation failed:', { selectedChurch, hasId: selectedChurch?.id })
       toast.error('Please select a church before creating ledger entries')
       return
     }
+
+    console.log('✅ Church validation passed:', { churchId: selectedChurch.id, churchName: selectedChurch.name })
 
     try {
       setLoading(true)
@@ -733,6 +735,8 @@ export function ComprehensiveLedgerDialog({
         total_amount: totalAmount,
         notes: entryForm.notes || null,
         metadata: { subgroupsEnabled: entryForm.subgroupsEnabled },
+        church_id: selectedChurch.id,
+        entry_type: 'expense',
         created_by: user.id,
         updated_at: new Date().toISOString()
       }
@@ -760,6 +764,14 @@ export function ComprehensiveLedgerDialog({
         entryId = editingEntry.id
         toast.success('Ledger entry updated successfully')
       } else {
+        console.log('📤 Creating new ledger entry with data:', {
+          title: entryData.title,
+          church_id: entryData.church_id,
+          entry_type: entryData.entry_type,
+          hasChurchId: !!entryData.church_id,
+          churchIdType: typeof entryData.church_id
+        })
+
         const response = await fetch('/api/ledger-entries', {
           method: 'POST',
           credentials: 'include',
@@ -967,13 +979,15 @@ export function ComprehensiveLedgerDialog({
     billIndex,
     isSubgroup,
     subgroupIndex,
-    uploadId
+    uploadId,
+    onRemove
   }: {
     bill: BillForm
     billIndex: number
     isSubgroup: boolean
     subgroupIndex?: number
     uploadId: string
+    onRemove?: () => void
   }) => {
     const [imageUrl, setImageUrl] = useState<string>('')
     const progress = uploadProgress[uploadId]
@@ -1035,7 +1049,11 @@ export function ComprehensiveLedgerDialog({
           // For new uploads, create object URL for preview
           const url = URL.createObjectURL(bill.document)
           if (isImageFile(bill.document.type)) {
-            window.open(url, '_blank')
+            // Create a persistent URL for the preview dialog
+            // We'll rely on the browser to clean this up when the page unloads or we can track it
+            // But for now, creating a new one is fine as user won't click too many times
+            const url = URL.createObjectURL(bill.document)
+            setPreviewUrl(url)
           } else {
             const a = document.createElement('a')
             a.href = url
@@ -1051,8 +1069,7 @@ export function ComprehensiveLedgerDialog({
           if (isImageFile(bill.existingDocument.type)) {
             const url = await getDocumentUrl(bill.existingDocument.url)
             if (url) {
-              window.open(url, '_blank')
-              toast.success('Document opened in new tab')
+              setPreviewUrl(url)
             } else {
               toast.error('Failed to load document URL')
             }
@@ -1079,14 +1096,11 @@ export function ComprehensiveLedgerDialog({
         if (isImageFile(bill.document.type)) {
           const url = URL.createObjectURL(bill.document)
           return (
-            <div className="relative group">
-              <Image
+            <div className="relative group" onClick={handleDocumentClick}>
+              <img
                 src={url}
                 alt={bill.document.name}
-                width={64}
-                height={64}
                 className="w-16 h-16 object-cover rounded-lg cursor-pointer hover:opacity-80 transition-opacity"
-                onClick={handleDocumentClick}
                 onLoad={() => URL.revokeObjectURL(url)}
               />
               <div className="absolute inset-0 bg-blue-500/20 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
@@ -1110,17 +1124,14 @@ export function ComprehensiveLedgerDialog({
       } else if (hasExistingDocument && bill.existingDocument) {
         if (isImageFile(bill.existingDocument.type) && imageUrl) {
           return (
-            <div className="relative group">
-              <Image
+            <div className="relative group" onClick={handleDocumentClick}>
+              <img
                 src={imageUrl}
                 alt={bill.existingDocument.name}
-                width={64}
-                height={64}
                 className="w-16 h-16 object-cover rounded-lg cursor-pointer hover:opacity-80 transition-opacity"
-                onClick={handleDocumentClick}
                 onError={(e) => {
                   console.error('❌ Image failed to load:', e)
-                  e.currentTarget.style.display = 'none'
+                  // e.currentTarget.style.display = 'none' // Don't hide completely, maybe show fallback?
                 }}
               />
               <div className="absolute inset-0 bg-green-500/20 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
@@ -1162,31 +1173,7 @@ export function ComprehensiveLedgerDialog({
       return (
         <div className="flex items-center gap-3 p-3 bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 transition-colors">
           {getDocumentPreview()}
-          <div className="flex-1">
-            <p
-              className="text-sm font-medium text-white cursor-pointer hover:text-blue-400 transition-colors flex items-center gap-2"
-              onClick={handleDocumentClick}
-              title="Click to view/download document"
-            >
-              {documentName}
-              {isExistingOnly && (
-                <span className="inline-flex items-center px-2 py-1 text-xs bg-green-500/20 text-green-400 rounded-full">
-                  Uploaded
-                </span>
-              )}
-              {hasNewDocument && (
-                <span className="inline-flex items-center px-2 py-1 text-xs bg-blue-500/20 text-blue-400 rounded-full">
-                  New
-                </span>
-              )}
-            </p>
-            <p className="text-xs text-white/60">
-              {(documentSize / 1024 / 1024).toFixed(2)} MB
-              {bill.existingDocument?.uploadedAt && (
-                <span className="ml-2">• {new Date(bill.existingDocument.uploadedAt).toLocaleDateString()}</span>
-              )}
-            </p>
-          </div>
+          <div className="flex-1"></div>
           {progress && (
             <div className="flex items-center gap-2">
               {progress.status === 'uploading' && (
@@ -1288,6 +1275,33 @@ export function ComprehensiveLedgerDialog({
           )
         }))
       }
+    }
+
+    const removeDocument = () => {
+      console.log('🗑️ Removing document for:', { billIndex, isSubgroup, subgroupIndex })
+      if (isSubgroup && subgroupIndex !== undefined) {
+        setEntryForm(prev => ({
+          ...prev,
+          subgroups: prev.subgroups.map((subgroup, sIdx) =>
+            sIdx === subgroupIndex
+              ? {
+                ...subgroup,
+                bills: subgroup.bills.map((b, bIdx) =>
+                  bIdx === billIndex ? { ...b, document: null, existingDocument: null } : b
+                )
+              }
+              : subgroup
+          )
+        }))
+      } else {
+        setEntryForm(prev => ({
+          ...prev,
+          directBills: prev.directBills.map((b, bIdx) =>
+            bIdx === billIndex ? { ...b, document: null, existingDocument: null } : b
+          )
+        }))
+      }
+      toast.success('Document removed')
     }
 
     const uploadId = isSubgroup ? `subgroup-${subgroupIndex}-bill-${billIndex}` : `direct-bill-${billIndex}`
@@ -1409,6 +1423,7 @@ export function ComprehensiveLedgerDialog({
                 isSubgroup={isSubgroup}
                 subgroupIndex={subgroupIndex}
                 uploadId={uploadId}
+                onRemove={removeDocument}
               />
               <input
                 type="file"
@@ -1445,402 +1460,420 @@ export function ComprehensiveLedgerDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="text-xl font-semibold text-white">
-            {editingEntry ? 'Edit Ledger Entry' : 'Create New Ledger Entry'}
-          </DialogTitle>
-        </DialogHeader>
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-semibold text-white">
+              {editingEntry ? 'Edit Ledger Entry' : 'Create New Ledger Entry'}
+            </DialogTitle>
+          </DialogHeader>
 
-        <div className="space-y-6">
-          {/* Basic Entry Information */}
-          <Card className="bg-white/5 backdrop-blur-sm border border-white/10">
-            <CardHeader>
-              <CardTitle className="text-white">Entry Details</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="title" className="text-white/90">Title *</Label>
-                  <Input
-                    id="title"
-                    value={entryForm.title}
-                    onChange={(e) => setEntryForm(prev => ({ ...prev, title: e.target.value }))}
-                    className="bg-white/10 border-white/20 text-white placeholder:text-white/50"
-                    placeholder="Enter entry title"
-                    required
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="status" className="text-white/90">Status</Label>
-                  <Select
-                    value={entryForm.status}
-                    onValueChange={(value) => setEntryForm(prev => ({ ...prev, status: value as 'draft' | 'active' | 'completed' | 'cancelled' }))}
-                  >
-                    <SelectTrigger className="bg-white/10 border-white/20 text-white">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="bg-gray-900 border-white/20">
-                      <SelectItem value="draft">Draft</SelectItem>
-                      <SelectItem value="active">Active</SelectItem>
-                      <SelectItem value="completed">Completed</SelectItem>
-                      <SelectItem value="cancelled">Cancelled</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label htmlFor="priority" className="text-white/90">Priority</Label>
-                  <Select
-                    value={entryForm.priority}
-                    onValueChange={(value) => setEntryForm(prev => ({ ...prev, priority: value as 'low' | 'medium' | 'high' | 'urgent' }))}
-                  >
-                    <SelectTrigger className="bg-white/10 border-white/20 text-white">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="bg-gray-900 border-white/20">
-                      <SelectItem value="low">Low</SelectItem>
-                      <SelectItem value="medium">Medium</SelectItem>
-                      <SelectItem value="high">High</SelectItem>
-                      <SelectItem value="urgent">Urgent</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label htmlFor="due-date" className="text-white/90">Default Due Date</Label>
-                  <Input
-                    id="due-date"
-                    type="date"
-                    value={entryForm.default_due_date}
-                    onChange={(e) => setEntryForm(prev => ({ ...prev, default_due_date: e.target.value }))}
-                    className="bg-white/10 border-white/20 text-white"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <Label htmlFor="description" className="text-white/90">Description</Label>
-                <Textarea
-                  id="description"
-                  value={entryForm.description}
-                  onChange={(e) => setEntryForm(prev => ({ ...prev, description: e.target.value }))}
-                  className="bg-white/10 border-white/20 text-white placeholder:text-white/50"
-                  placeholder="Enter entry description"
-                  rows={3}
-                />
-              </div>
-
-              {/* Responsible Parties */}
-              <div>
-                <Label className="text-white/90">Responsible Parties</Label>
-                <div className="flex gap-2 mt-2">
-                  <Input
-                    value={responsiblePartyInput}
-                    onChange={(e) => setResponsiblePartyInput(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addResponsibleParty())}
-                    className="bg-white/10 border-white/20 text-white placeholder:text-white/50"
-                    placeholder="Add responsible party"
-                  />
-                  <Button
-                    type="button"
-                    onClick={addResponsibleParty}
-                    className="bg-blue-600 hover:bg-blue-700"
-                  >
-                    <Plus className="w-4 h-4" />
-                  </Button>
-                </div>
-                {entryForm.responsible_parties.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {entryForm.responsible_parties.map((party, index) => (
-                      <Badge
-                        key={index}
-                        variant="secondary"
-                        className="bg-white/10 text-white border-white/20 flex items-center gap-1"
-                      >
-                        {party}
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removeResponsibleParty(index)}
-                          className="h-auto p-0 text-white/60 hover:text-white"
-                        >
-                          <X className="w-3 h-3" />
-                        </Button>
-                      </Badge>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <div>
-                <Label htmlFor="notes" className="text-white/90">Notes</Label>
-                <Textarea
-                  id="notes"
-                  value={entryForm.notes}
-                  onChange={(e) => setEntryForm(prev => ({ ...prev, notes: e.target.value }))}
-                  className="bg-white/10 border-white/20 text-white placeholder:text-white/50"
-                  placeholder="Additional notes..."
-                  rows={2}
-                />
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Enable Subgroup Toggle */}
-          <Card className="bg-white/5 backdrop-blur-sm border border-white/10">
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-lg font-medium text-white">Enable Subgroups</h3>
-                  <p className="text-sm text-white/60">
-                    {entryForm.subgroupsEnabled
-                      ? 'Bills are organized within subgroups'
-                      : 'Bills are added directly to the main entry'
-                    }
-                  </p>
-                </div>
-                <Switch
-                  checked={entryForm.subgroupsEnabled}
-                  onCheckedChange={handleSubgroupToggle}
-                  className="data-[state=checked]:bg-blue-600"
-                />
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Subgroups Section */}
-          {entryForm.subgroupsEnabled && (
+          <div className="space-y-6">
+            {/* Basic Entry Information */}
             <Card className="bg-white/5 backdrop-blur-sm border border-white/10">
               <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-white">Subgroups</CardTitle>
-                  <Button
-                    type="button"
-                    onClick={addSubgroup}
-                    className="bg-blue-600 hover:bg-blue-700"
-                  >
-                    <Plus className="w-4 h-4 mr-2" />
-                    Add Subgroup
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {entryForm.subgroups.map((subgroup, subgroupIndex) => (
-                  <Card key={subgroupIndex} className="bg-white/5 backdrop-blur-sm border border-white/10">
-                    <CardHeader className="pb-3">
-                      <div className="flex items-center justify-between">
-                        <CardTitle className="text-sm font-medium text-white">
-                          Subgroup {subgroupIndex + 1}
-                        </CardTitle>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removeSubgroup(subgroupIndex)}
-                          className="text-red-400 hover:text-red-300 hover:bg-red-500/20"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <Label className="text-white/90">Title *</Label>
-                          <Input
-                            value={subgroup.title}
-                            onChange={(e) => {
-                              setEntryForm(prev => ({
-                                ...prev,
-                                subgroups: prev.subgroups.map((sg, idx) =>
-                                  idx === subgroupIndex ? { ...sg, title: e.target.value } : sg
-                                )
-                              }))
-                            }}
-                            className="bg-white/10 border-white/20 text-white placeholder:text-white/50"
-                            placeholder="Enter subgroup title"
-                            required
-                          />
-                        </div>
-                        <div>
-                          <Label className="text-white/90">Status</Label>
-                          <Select
-                            value={subgroup.status}
-                            onValueChange={(value) => {
-                              setEntryForm(prev => ({
-                                ...prev,
-                                subgroups: prev.subgroups.map((sg, idx) =>
-                                  idx === subgroupIndex ? { ...sg, status: value as 'draft' | 'active' | 'completed' | 'cancelled' } : sg
-                                )
-                              }))
-                            }}
-                          >
-                            <SelectTrigger className="bg-white/10 border-white/20 text-white">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent className="bg-gray-900 border-white/20">
-                              <SelectItem value="draft">Draft</SelectItem>
-                              <SelectItem value="active">Active</SelectItem>
-                              <SelectItem value="completed">Completed</SelectItem>
-                              <SelectItem value="cancelled">Cancelled</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div>
-                          <Label className="text-white/90">Priority</Label>
-                          <Select
-                            value={subgroup.priority}
-                            onValueChange={(value) => {
-                              setEntryForm(prev => ({
-                                ...prev,
-                                subgroups: prev.subgroups.map((sg, idx) =>
-                                  idx === subgroupIndex ? { ...sg, priority: value as 'low' | 'medium' | 'high' | 'urgent' } : sg
-                                )
-                              }))
-                            }}
-                          >
-                            <SelectTrigger className="bg-white/10 border-white/20 text-white">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent className="bg-gray-900 border-white/20">
-                              <SelectItem value="low">Low</SelectItem>
-                              <SelectItem value="medium">Medium</SelectItem>
-                              <SelectItem value="high">High</SelectItem>
-                              <SelectItem value="urgent">Urgent</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div>
-                          <Label className="text-white/90">Allocation %</Label>
-                          <Input
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            max="100"
-                            value={subgroup.allocation_percentage}
-                            onChange={(e) => {
-                              setEntryForm(prev => ({
-                                ...prev,
-                                subgroups: prev.subgroups.map((sg, idx) =>
-                                  idx === subgroupIndex ? { ...sg, allocation_percentage: e.target.value } : sg
-                                )
-                              }))
-                            }}
-                            className="bg-white/10 border-white/20 text-white placeholder:text-white/50"
-                            placeholder="0.00"
-                          />
-                        </div>
-                      </div>
-
-                      <div>
-                        <Label className="text-white/90">Description</Label>
-                        <Textarea
-                          value={subgroup.description}
-                          onChange={(e) => {
-                            setEntryForm(prev => ({
-                              ...prev,
-                              subgroups: prev.subgroups.map((sg, idx) =>
-                                idx === subgroupIndex ? { ...sg, description: e.target.value } : sg
-                              )
-                            }))
-                          }}
-                          className="bg-white/10 border-white/20 text-white placeholder:text-white/50"
-                          placeholder="Enter subgroup description"
-                          rows={2}
-                        />
-                      </div>
-
-                      {/* Subgroup Bills */}
-                      <div>
-                        <div className="flex items-center justify-between mb-4">
-                          <h4 className="text-sm font-medium text-white">Bills</h4>
-                          <Button
-                            type="button"
-                            onClick={() => addBill(true, subgroupIndex)}
-                            size="sm"
-                            className="bg-green-600 hover:bg-green-700"
-                          >
-                            <Plus className="w-4 h-4 mr-1" />
-                            Add Bill
-                          </Button>
-                        </div>
-                        <div className="space-y-4">
-                          {subgroup.bills.map((bill, billIndex) =>
-                            <div key={`subgroup-${subgroupIndex}-bill-${billIndex}`}>
-                              {renderBillForm(bill, billIndex, true, subgroupIndex)}
-                            </div>
-                          )}
-                          {subgroup.bills.length === 0 && (
-                            <div className="text-center py-8 text-white/60">
-                              <p>No bills added yet</p>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-                {entryForm.subgroups.length === 0 && (
-                  <div className="text-center py-8 text-white/60">
-                    <p>No subgroups created yet</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Direct Bills Section */}
-          {!entryForm.subgroupsEnabled && (
-            <Card className="bg-white/5 backdrop-blur-sm border border-white/10">
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-white">Bills</CardTitle>
-                  <Button
-                    type="button"
-                    onClick={() => addBill(false)}
-                    className="bg-green-600 hover:bg-green-700"
-                  >
-                    <Plus className="w-4 h-4 mr-2" />
-                    Add Bill
-                  </Button>
-                </div>
+                <CardTitle className="text-white">Entry Details</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {entryForm.directBills.map((bill, billIndex) =>
-                  <div key={`direct-bill-${billIndex}`}>
-                    {renderBillForm(bill, billIndex, false)}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="title" className="text-white/90">Title *</Label>
+                    <Input
+                      id="title"
+                      value={entryForm.title}
+                      onChange={(e) => setEntryForm(prev => ({ ...prev, title: e.target.value }))}
+                      className="bg-white/10 border-white/20 text-white placeholder:text-white/50"
+                      placeholder="Enter entry title"
+                      required
+                    />
                   </div>
-                )}
-                {entryForm.directBills.length === 0 && (
-                  <div className="text-center py-8 text-white/60">
-                    <p>No bills added yet</p>
+                  <div>
+                    <Label htmlFor="status" className="text-white/90">Status</Label>
+                    <Select
+                      value={entryForm.status}
+                      onValueChange={(value) => setEntryForm(prev => ({ ...prev, status: value as 'draft' | 'active' | 'completed' | 'cancelled' }))}
+                    >
+                      <SelectTrigger className="bg-white/10 border-white/20 text-white">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-gray-900 border-white/20">
+                        <SelectItem value="draft">Draft</SelectItem>
+                        <SelectItem value="active">Active</SelectItem>
+                        <SelectItem value="completed">Completed</SelectItem>
+                        <SelectItem value="cancelled">Cancelled</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
-                )}
+                  <div>
+                    <Label htmlFor="priority" className="text-white/90">Priority</Label>
+                    <Select
+                      value={entryForm.priority}
+                      onValueChange={(value) => setEntryForm(prev => ({ ...prev, priority: value as 'low' | 'medium' | 'high' | 'urgent' }))}
+                    >
+                      <SelectTrigger className="bg-white/10 border-white/20 text-white">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-gray-900 border-white/20">
+                        <SelectItem value="low">Low</SelectItem>
+                        <SelectItem value="medium">Medium</SelectItem>
+                        <SelectItem value="high">High</SelectItem>
+                        <SelectItem value="urgent">Urgent</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="due-date" className="text-white/90">Default Due Date</Label>
+                    <Input
+                      id="due-date"
+                      type="date"
+                      value={entryForm.default_due_date}
+                      onChange={(e) => setEntryForm(prev => ({ ...prev, default_due_date: e.target.value }))}
+                      className="bg-white/10 border-white/20 text-white"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <Label htmlFor="description" className="text-white/90">Description</Label>
+                  <Textarea
+                    id="description"
+                    value={entryForm.description}
+                    onChange={(e) => setEntryForm(prev => ({ ...prev, description: e.target.value }))}
+                    className="bg-white/10 border-white/20 text-white placeholder:text-white/50"
+                    placeholder="Enter entry description"
+                    rows={3}
+                  />
+                </div>
+
+                {/* Responsible Parties */}
+                <div>
+                  <Label className="text-white/90">Responsible Parties</Label>
+                  <div className="flex gap-2 mt-2">
+                    <Input
+                      value={responsiblePartyInput}
+                      onChange={(e) => setResponsiblePartyInput(e.target.value)}
+                      onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addResponsibleParty())}
+                      className="bg-white/10 border-white/20 text-white placeholder:text-white/50"
+                      placeholder="Add responsible party"
+                    />
+                    <Button
+                      type="button"
+                      onClick={addResponsibleParty}
+                      className="bg-blue-600 hover:bg-blue-700"
+                    >
+                      <Plus className="w-4 h-4" />
+                    </Button>
+                  </div>
+                  {entryForm.responsible_parties.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {entryForm.responsible_parties.map((party, index) => (
+                        <Badge
+                          key={index}
+                          variant="secondary"
+                          className="bg-white/10 text-white border-white/20 flex items-center gap-1"
+                        >
+                          {party}
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeResponsibleParty(index)}
+                            className="h-auto p-0 text-white/60 hover:text-white"
+                          >
+                            <X className="w-3 h-3" />
+                          </Button>
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <Label htmlFor="notes" className="text-white/90">Notes</Label>
+                  <Textarea
+                    id="notes"
+                    value={entryForm.notes}
+                    onChange={(e) => setEntryForm(prev => ({ ...prev, notes: e.target.value }))}
+                    className="bg-white/10 border-white/20 text-white placeholder:text-white/50"
+                    placeholder="Additional notes..."
+                    rows={2}
+                  />
+                </div>
               </CardContent>
             </Card>
-          )}
 
-          {/* Action Buttons */}
-          <div className="flex justify-end gap-3 pt-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              className="bg-white/10 border-white/20 text-white hover:bg-white/20"
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleSave}
-              disabled={loading || !entryForm.title.trim()}
-              className="bg-blue-600 hover:bg-blue-700"
-            >
-              {loading ? 'Saving...' : editingEntry ? 'Update Entry' : 'Create Entry'}
-            </Button>
+            {/* Enable Subgroup Toggle */}
+            <Card className="bg-white/5 backdrop-blur-sm border border-white/10">
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-lg font-medium text-white">Enable Subgroups</h3>
+                    <p className="text-sm text-white/60">
+                      {entryForm.subgroupsEnabled
+                        ? 'Bills are organized within subgroups'
+                        : 'Bills are added directly to the main entry'
+                      }
+                    </p>
+                  </div>
+                  <Switch
+                    checked={entryForm.subgroupsEnabled}
+                    onCheckedChange={handleSubgroupToggle}
+                    className="data-[state=checked]:bg-blue-600"
+                  />
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Subgroups Section */}
+            {entryForm.subgroupsEnabled && (
+              <Card className="bg-white/5 backdrop-blur-sm border border-white/10">
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-white">Subgroups</CardTitle>
+                    <Button
+                      type="button"
+                      onClick={addSubgroup}
+                      className="bg-blue-600 hover:bg-blue-700"
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      Add Subgroup
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  {entryForm.subgroups.map((subgroup, subgroupIndex) => (
+                    <Card key={subgroupIndex} className="bg-white/5 backdrop-blur-sm border border-white/10">
+                      <CardHeader className="pb-3">
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="text-sm font-medium text-white">
+                            Subgroup {subgroupIndex + 1}
+                          </CardTitle>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeSubgroup(subgroupIndex)}
+                            className="text-red-400 hover:text-red-300 hover:bg-red-500/20"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <Label className="text-white/90">Title *</Label>
+                            <Input
+                              value={subgroup.title}
+                              onChange={(e) => {
+                                setEntryForm(prev => ({
+                                  ...prev,
+                                  subgroups: prev.subgroups.map((sg, idx) =>
+                                    idx === subgroupIndex ? { ...sg, title: e.target.value } : sg
+                                  )
+                                }))
+                              }}
+                              className="bg-white/10 border-white/20 text-white placeholder:text-white/50"
+                              placeholder="Enter subgroup title"
+                              required
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-white/90">Status</Label>
+                            <Select
+                              value={subgroup.status}
+                              onValueChange={(value) => {
+                                setEntryForm(prev => ({
+                                  ...prev,
+                                  subgroups: prev.subgroups.map((sg, idx) =>
+                                    idx === subgroupIndex ? { ...sg, status: value as 'draft' | 'active' | 'completed' | 'cancelled' } : sg
+                                  )
+                                }))
+                              }}
+                            >
+                              <SelectTrigger className="bg-white/10 border-white/20 text-white">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent className="bg-gray-900 border-white/20">
+                                <SelectItem value="draft">Draft</SelectItem>
+                                <SelectItem value="active">Active</SelectItem>
+                                <SelectItem value="completed">Completed</SelectItem>
+                                <SelectItem value="cancelled">Cancelled</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div>
+                            <Label className="text-white/90">Priority</Label>
+                            <Select
+                              value={subgroup.priority}
+                              onValueChange={(value) => {
+                                setEntryForm(prev => ({
+                                  ...prev,
+                                  subgroups: prev.subgroups.map((sg, idx) =>
+                                    idx === subgroupIndex ? { ...sg, priority: value as 'low' | 'medium' | 'high' | 'urgent' } : sg
+                                  )
+                                }))
+                              }}
+                            >
+                              <SelectTrigger className="bg-white/10 border-white/20 text-white">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent className="bg-gray-900 border-white/20">
+                                <SelectItem value="low">Low</SelectItem>
+                                <SelectItem value="medium">Medium</SelectItem>
+                                <SelectItem value="high">High</SelectItem>
+                                <SelectItem value="urgent">Urgent</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div>
+                            <Label className="text-white/90">Allocation %</Label>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              max="100"
+                              value={subgroup.allocation_percentage}
+                              onChange={(e) => {
+                                setEntryForm(prev => ({
+                                  ...prev,
+                                  subgroups: prev.subgroups.map((sg, idx) =>
+                                    idx === subgroupIndex ? { ...sg, allocation_percentage: e.target.value } : sg
+                                  )
+                                }))
+                              }}
+                              className="bg-white/10 border-white/20 text-white placeholder:text-white/50"
+                              placeholder="0.00"
+                            />
+                          </div>
+                        </div>
+
+                        <div>
+                          <Label className="text-white/90">Description</Label>
+                          <Textarea
+                            value={subgroup.description}
+                            onChange={(e) => {
+                              setEntryForm(prev => ({
+                                ...prev,
+                                subgroups: prev.subgroups.map((sg, idx) =>
+                                  idx === subgroupIndex ? { ...sg, description: e.target.value } : sg
+                                )
+                              }))
+                            }}
+                            className="bg-white/10 border-white/20 text-white placeholder:text-white/50"
+                            placeholder="Enter subgroup description"
+                            rows={2}
+                          />
+                        </div>
+
+                        {/* Subgroup Bills */}
+                        <div>
+                          <div className="flex items-center justify-between mb-4">
+                            <h4 className="text-sm font-medium text-white">Bills</h4>
+                            <Button
+                              type="button"
+                              onClick={() => addBill(true, subgroupIndex)}
+                              size="sm"
+                              className="bg-green-600 hover:bg-green-700"
+                            >
+                              <Plus className="w-4 h-4 mr-1" />
+                              Add Bill
+                            </Button>
+                          </div>
+                          <div className="space-y-4">
+                            {subgroup.bills.map((bill, billIndex) =>
+                              <div key={`subgroup-${subgroupIndex}-bill-${billIndex}`}>
+                                {renderBillForm(bill, billIndex, true, subgroupIndex)}
+                              </div>
+                            )}
+                            {subgroup.bills.length === 0 && (
+                              <div className="text-center py-8 text-white/60">
+                                <p>No bills added yet</p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                  {entryForm.subgroups.length === 0 && (
+                    <div className="text-center py-8 text-white/60">
+                      <p>No subgroups created yet</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Direct Bills Section */}
+            {!entryForm.subgroupsEnabled && (
+              <Card className="bg-white/5 backdrop-blur-sm border border-white/10">
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-white">Bills</CardTitle>
+                    <Button
+                      type="button"
+                      onClick={() => addBill(false)}
+                      className="bg-green-600 hover:bg-green-700"
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      Add Bill
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {entryForm.directBills.map((bill, billIndex) =>
+                    <div key={`direct-bill-${billIndex}`}>
+                      {renderBillForm(bill, billIndex, false)}
+                    </div>
+                  )}
+                  {entryForm.directBills.length === 0 && (
+                    <div className="text-center py-8 text-white/60">
+                      <p>No bills added yet</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Action Buttons */}
+            <div className="flex justify-end gap-3 pt-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+                className="bg-white/10 border-white/20 text-white hover:bg-white/20"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleSave}
+                disabled={loading || !entryForm.title.trim()}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                {loading ? 'Saving...' : editingEntry ? 'Update Entry' : 'Create Entry'}
+              </Button>
+            </div>
           </div>
-        </div>
-      </DialogContent>
-    </Dialog>
+        </DialogContent>
+      </Dialog>
+
+      {/* Image Preview Dialog */}
+      <Dialog open={!!previewUrl} onOpenChange={(open) => !open && setPreviewUrl(null)}>
+        <DialogContent className="max-w-screen-lg w-auto p-2 bg-transparent border-none shadow-none">
+          <div className="relative flex items-center justify-center">
+            {previewUrl && (
+              <img
+                src={previewUrl}
+                alt="Document Preview"
+                className="max-w-full max-h-[85vh] object-contain rounded-md"
+              />
+            )}
+
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   )
 }

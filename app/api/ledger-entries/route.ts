@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
   try {
     const supabase = await createServerClient();
     const adminSupabase = createAdminClient();
-    
+
     // Check authentication
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
@@ -71,11 +71,11 @@ export async function POST(request: NextRequest) {
         { status: 401 }
       );
     }
-    
+
     const body = await request.json();
-    const { 
-      title, 
-      description, 
+    const {
+      title,
+      description,
       status = 'draft',
       default_due_date,
       default_fund_id,
@@ -83,6 +83,8 @@ export async function POST(request: NextRequest) {
       priority = 'medium',
       approval_status = 'pending',
       notes,
+      church_id,
+      entry_type = 'expense',
       metadata = {}
     } = body;
 
@@ -94,10 +96,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (!church_id) {
+      return NextResponse.json(
+        { error: 'Church ID is required' },
+        { status: 400 }
+      );
+    }
+
     // Create the ledger entry
     const { data: ledgerEntry, error: ledgerError } = await (adminSupabase
       .from('ledger_entries') as any)
       .insert({
+        church_id,
+        entry_type,
         title,
         description: description || null,
         status,
@@ -115,8 +126,9 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (ledgerError) {
+      console.error('❌ database insert error:', ledgerError);
       return NextResponse.json(
-        { error: 'Failed to create ledger entry' },
+        { error: `Failed to create ledger entry: ${ledgerError.message}`, details: ledgerError },
         { status: 500 }
       );
     }
@@ -135,7 +147,7 @@ export async function PUT(request: NextRequest) {
   try {
     const supabase = await createServerClient();
     const adminSupabase = createAdminClient();
-    
+
     // Check authentication
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
@@ -144,13 +156,13 @@ export async function PUT(request: NextRequest) {
         { status: 401 }
       );
     }
-    
+
     const body = await request.json();
-    const { 
-      id, 
-      title, 
-      description, 
-      status, 
+    const {
+      id,
+      title,
+      description,
+      status,
       default_due_date,
       default_fund_id,
       responsible_parties,
@@ -213,16 +225,18 @@ export async function PUT(request: NextRequest) {
       .single();
 
     if (updateError) {
+      console.error('❌ Failed to update ledger entry:', updateError)
       return NextResponse.json(
-        { error: 'Failed to update ledger entry' },
+        { error: 'Failed to update ledger entry', details: updateError },
         { status: 500 }
       );
     }
 
     return NextResponse.json({ ledgerEntry });
-  } catch {
+  } catch (error) {
+    console.error('❌ Internal server error in PUT /api/ledger-entries:', error)
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Internal server error', details: error instanceof Error ? error.message : String(error) },
       { status: 500 }
     );
   }
@@ -233,7 +247,7 @@ export async function DELETE(request: Request) {
   try {
     const supabase = await createServerClient();
     const adminSupabase = createAdminClient();
-    
+
     // Check authentication
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
@@ -242,7 +256,7 @@ export async function DELETE(request: Request) {
         { status: 401 }
       );
     }
-    
+
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
 

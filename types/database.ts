@@ -15,8 +15,8 @@ export type Enums<T extends keyof Database['public']['Enums']> = Database['publi
 // Restored Custom Types
 export type Church = Tables<'churches'>;
 export type Fund = Tables<'funds'> & {
-    cash_balance: number;
-    bank_balance: number;
+    cash_balance?: number;
+    bank_balance?: number;
 };
 export type Transaction = Tables<'transactions'> & {
     payment_method: 'cash' | 'bank' | string;
