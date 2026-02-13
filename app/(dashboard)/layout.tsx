@@ -183,14 +183,14 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
     <div
       className={cn(
         "flex flex-col h-full bg-white/5 backdrop-blur-sm border-r border-white/10",
-        mobile ? "w-full" : "w-full"
+        mobile ? "w-full" : "w-full",
       )}
     >
       {/* Header */}
       <div
         className={cn(
           "flex items-center h-16 px-4 border-b border-white/10",
-          !mobile && isCollapsed ? "justify-center" : ""
+          !mobile && isCollapsed ? "justify-center" : "",
         )}
       >
         <div className="flex items-center">
@@ -211,7 +211,7 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
       <nav
         className={cn(
           "flex-1 py-4 space-y-2 overflow-y-auto",
-          mobile ? "px-6" : "px-3"
+          mobile ? "px-6" : "px-3",
         )}
       >
         {/* Main Navigation */}
@@ -230,14 +230,14 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
                     : "px-4 py-3",
                 isActive
                   ? "bg-white/20 text-white"
-                  : "text-white/80 hover:text-white hover:bg-white/10"
+                  : "text-white/80 hover:text-white hover:bg-white/10",
               )}
               title={!mobile && isCollapsed ? item.name : undefined}
             >
               <item.icon
                 className={cn(
                   "h-5 w-5 transition-all duration-300",
-                  !mobile && !isCollapsed ? "mr-3" : ""
+                  !mobile && !isCollapsed ? "mr-3" : "",
                 )}
               />
               {(!isCollapsed || mobile) && (
@@ -252,10 +252,12 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
         {/* Admin Section */}
         {filteredAdminNavigation.length > 0 && (
           <>
-            <div className={cn(
-              "border-t border-white/10 mt-4 pt-4",
-              !mobile && isCollapsed ? "mx-2" : "mx-3"
-            )}>
+            <div
+              className={cn(
+                "border-t border-white/10 mt-4 pt-4",
+                !mobile && isCollapsed ? "mx-2" : "mx-3",
+              )}
+            >
               {(!isCollapsed || mobile) && (
                 <h3 className="text-xs font-semibold text-white/60 uppercase tracking-wider mb-2 px-1">
                   Administration
@@ -277,14 +279,14 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
                         : "px-4 py-3",
                     isActive
                       ? "bg-white/20 text-white"
-                      : "text-white/80 hover:text-white hover:bg-white/10"
+                      : "text-white/80 hover:text-white hover:bg-white/10",
                   )}
                   title={!mobile && isCollapsed ? item.name : undefined}
                 >
                   <item.icon
                     className={cn(
                       "h-5 w-5 transition-all duration-300",
-                      !mobile && !isCollapsed ? "mr-3" : ""
+                      !mobile && !isCollapsed ? "mr-3" : "",
                     )}
                   />
                   {(!isCollapsed || mobile) && (
@@ -305,7 +307,7 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
           <div
             className={cn(
               "flex items-center transition-all duration-300",
-              !mobile && isCollapsed ? "justify-center" : "space-x-3"
+              !mobile && isCollapsed ? "justify-center" : "space-x-3",
             )}
           >
             <Avatar className="h-8 w-8 border-2 border-white/20">
@@ -313,7 +315,9 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
                 {user?.full_name
                   ?.split(" ")
                   .map((n: string) => n[0])
-                  .join("") || user?.email?.[0]?.toUpperCase() || "?"}
+                  .join("") ||
+                  user?.email?.[0]?.toUpperCase() ||
+                  "?"}
               </AvatarFallback>
             </Avatar>
             {(!isCollapsed || mobile) && (
@@ -345,13 +349,20 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <ChurchProvider>
+      {/* Skip to main content link for accessibility */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-purple-600 focus:text-white focus:rounded-lg focus:outline-none focus:ring-2 focus:ring-white"
+      >
+        Skip to main content
+      </a>
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 relative">
         <div className="flex h-screen">
           {/* Desktop Sidebar */}
           <div
             className={cn(
               "hidden lg:flex transition-[width] duration-300 ease-in-out will-change-[width]",
-              isCollapsed ? "w-20" : "w-64"
+              isCollapsed ? "w-20" : "w-64",
             )}
           >
             <Sidebar />
@@ -372,7 +383,9 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
           <div
             className={cn(
               "flex-1 lg:flex-none flex flex-col transition-[width] duration-300 ease-in-out will-change-[width] overflow-hidden",
-              isCollapsed ? "lg:w-[calc(100%-5rem)]" : "lg:w-[calc(100%-16rem)]"
+              isCollapsed
+                ? "lg:w-[calc(100%-5rem)]"
+                : "lg:w-[calc(100%-16rem)]",
             )}
           >
             {/* Header */}
@@ -385,6 +398,7 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
                     size="sm"
                     className="lg:hidden text-white hover:bg-white/10 p-2 rounded-lg"
                     onClick={() => setSidebarOpen(true)}
+                    aria-label="Open navigation menu"
                   >
                     <Menu className="h-5 w-5" />
                   </Button>
@@ -393,9 +407,18 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="hidden lg:flex text-white hover:bg-white/10 p-2 rounded-lg transition-all duration-300"
+                    className="hidden lg:flex text-white hover:bg-white/10 p-2 rounded-lg transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
                     onClick={toggleSidebar}
-                    title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        toggleSidebar();
+                      }
+                    }}
+                    aria-label={
+                      isCollapsed ? "Expand sidebar" : "Collapse sidebar"
+                    }
+                    aria-expanded={!isCollapsed}
                   >
                     {isCollapsed ? (
                       <ChevronRight className="h-4 w-4" />
@@ -407,7 +430,8 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
                   {/* Page title */}
                   <h1 className="text-lg font-semibold text-white">
                     {navigation.find((item) => item.href === pathname)?.name ||
-                      adminNavigation.find((item) => item.href === pathname)?.name ||
+                      adminNavigation.find((item) => item.href === pathname)
+                        ?.name ||
                       "Dashboard"}
                   </h1>
                 </div>
@@ -422,7 +446,8 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
                     variant="ghost"
                     size="sm"
                     onClick={() => setSearchOpen(true)}
-                    className="text-white/80 hover:text-white hover:bg-white/10 p-2 rounded-lg"
+                    className="text-white/80 hover:text-white hover:bg-white/10 p-2 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
+                    aria-label="Open search"
                   >
                     <Search className="h-4 w-4" />
                   </Button>
@@ -442,7 +467,9 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
                             {user?.full_name
                               ?.split(" ")
                               .map((n: string) => n[0])
-                              .join("") || user?.email?.[0]?.toUpperCase() || "?"}
+                              .join("") ||
+                              user?.email?.[0]?.toUpperCase() ||
+                              "?"}
                           </AvatarFallback>
                         </Avatar>
                       </Button>
@@ -504,7 +531,11 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
             </header>
 
             {/* Main Content */}
-            <main className="flex-1 overflow-auto">
+            <main
+              id="main-content"
+              className="flex-1 overflow-auto"
+              tabIndex={-1}
+            >
               <div className="bg-white/5 backdrop-blur-sm border border-white/10 p-6 min-h-full">
                 <ErrorBoundary>{children}</ErrorBoundary>
               </div>
@@ -512,7 +543,10 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
           </div>
 
           {/* Search Modal */}
-          <SearchModal isOpen={searchOpen} onClose={() => setSearchOpen(false)} />
+          <SearchModal
+            isOpen={searchOpen}
+            onClose={() => setSearchOpen(false)}
+          />
 
           {/* AI Chat Interface */}
           <AIChatWrapper />

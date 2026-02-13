@@ -1,36 +1,43 @@
-import { Suspense } from 'react'
-import { getMembersData, checkUserPermissions, requireAuth } from '@/lib/server-data'
-import { getSelectedChurch } from '@/lib/server-church-context'
-import { MembersClient } from '@/components/members-client'
-import { FullScreenLoader } from '@/components/ui/loader'
-import { EmptyChurchState } from '@/components/empty-church-state'
+import { Suspense } from "react";
+import {
+  getMembersData,
+  checkUserPermissions,
+  requireAuth,
+} from "@/lib/server-data";
+import { getSelectedChurch } from "@/lib/server-church-context";
+import { MembersClient } from "@/components/members-client";
+import { FullScreenLoader } from "@/components/ui/loader";
+import { EmptyChurchState } from "@/components/empty-church-state";
+import { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Members | Church Finance",
+  description: "Manage church members and their contribution records.",
+};
 
 // Force dynamic rendering since this page requires server-side authentication
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 // This is now a Server Component
 export default async function MembersPage() {
   // Require authentication first - will redirect if not authenticated
-  await requireAuth()
+  await requireAuth();
 
   // Get selected church - if no church is selected, show empty state
-  const selectedChurch = await getSelectedChurch()
+  const selectedChurch = await getSelectedChurch();
   if (!selectedChurch) {
-    return <EmptyChurchState />
+    return <EmptyChurchState />;
   }
 
   // All data fetching happens on the server with church context
   const [membersData, permissions] = await Promise.all([
     getMembersData(),
-    checkUserPermissions()
-  ])
+    checkUserPermissions(),
+  ]);
 
   return (
     <Suspense fallback={<FullScreenLoader message="Loading members..." />}>
-      <MembersClient
-        initialData={membersData}
-        permissions={permissions}
-      />
+      <MembersClient initialData={membersData} permissions={permissions} />
     </Suspense>
-  )
+  );
 }

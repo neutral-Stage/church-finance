@@ -1,7 +1,13 @@
 /** @type {import('next').NextConfig} */
+
+// Dynamic import for bundle analyzer to work with ESM
+const withBundleAnalyzer = (await import("@next/bundle-analyzer")).default({
+  enabled: process.env.ANALYZE === "true",
+});
+
 const nextConfig = {
   images: {
-    domains: ['wuiyqlrztxyfcdnoplvb.supabase.co'],
+    domains: ["wuiyqlrztxyfcdnoplvb.supabase.co"],
   },
   env: {
     CUSTOM_KEY: process.env.CUSTOM_KEY,
@@ -14,8 +20,10 @@ const nextConfig = {
     // Ignore specific warnings from websocket-factory.js
     config.ignoreWarnings = [
       {
-        module: /node_modules\/@supabase\/realtime-js\/dist\/module\/lib\/websocket-factory\.js/,
-        message: /Critical dependency: the request of a dependency is an expression/,
+        module:
+          /node_modules\/@supabase\/realtime-js\/dist\/module\/lib\/websocket-factory\.js/,
+        message:
+          /Critical dependency: the request of a dependency is an expression/,
       },
     ];
 
@@ -23,4 +31,4 @@ const nextConfig = {
   },
 };
 
-export default nextConfig;
+export default withBundleAnalyzer(nextConfig);
