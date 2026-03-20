@@ -65,8 +65,7 @@ export const getAvailableChurches = cache(async (): Promise<ChurchWithRole[]> =>
     }
 
     // Get user's churches through the RPC function
-    const { data: churches, error: churchesError } = await supabase
-      .rpc('get_user_churches', { p_user_id: user.id });
+    const { data: churches, error: churchesError } = await (supabase.rpc as any)('get_user_churches', { p_user_id: user.id });
 
     if (churchesError) {
       console.error('Error fetching user churches:', churchesError);

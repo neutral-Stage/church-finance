@@ -3,9 +3,9 @@ import { Database } from '@/types/database'
 import { NextRequest } from 'next/server'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+const supabasePublishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!
 
-if (!supabaseUrl || !supabaseAnonKey) {
+if (!supabaseUrl || !supabasePublishableKey) {
   throw new Error('Missing Supabase environment variables')
 }
 
@@ -16,13 +16,13 @@ export const createServerClient = async () => {
   
   const supabaseClient = createSSRServerClient<Database>(
     supabaseUrl,
-    supabaseAnonKey,
+    supabasePublishableKey,
     {
       cookies: {
         getAll() {
           return cookieStore.getAll()
         },
-        setAll(cookiesToSet) {
+        setAll(cookiesToSet: any[]) {
           try {
             cookiesToSet.forEach(({ name, value, options }) => {
               cookieStore.set(name, value, {
@@ -41,7 +41,7 @@ export const createServerClient = async () => {
         },
       },
       global: {
-        fetch: (url, options = {}) => {
+        fetch: (url: any, options: any = {}) => {
           return fetch(url, {
             ...options,
             signal: AbortSignal.timeout(30000), // 30 second timeout
@@ -79,13 +79,13 @@ export const createServerClient = async () => {
 
 // Server-side client for admin operations (no realtime)
 export const createAdminClient = () => {
-  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  const supabaseSecretKey = process.env.SUPABASE_SECRET_KEY
   
-  if (!supabaseServiceKey) {
-    throw new Error('Missing Supabase service role key')
+  if (!supabaseSecretKey) {
+    throw new Error('Missing Supabase secret key')
   }
   
-  return createSSRServerClient<Database>(supabaseUrl, supabaseServiceKey, {
+  return createSSRServerClient<Database>(supabaseUrl, supabaseSecretKey, {
     cookies: {
       getAll() {
         return []
@@ -99,7 +99,7 @@ export const createAdminClient = () => {
       persistSession: false
     },
     global: {
-      fetch: (url, options = {}) => {
+      fetch: (url: any, options: any = {}) => {
         return fetch(url, {
           ...options,
           signal: AbortSignal.timeout(30000), // 30 second timeout
@@ -116,7 +116,7 @@ export const createAdminClient = () => {
 export const createApiRouteClient = async (request: NextRequest) => {
   const supabaseClient = createSSRServerClient<Database>(
     supabaseUrl,
-    supabaseAnonKey,
+    supabasePublishableKey,
     {
       cookies: {
         getAll() {
@@ -129,7 +129,7 @@ export const createApiRouteClient = async (request: NextRequest) => {
         },
       },
       global: {
-        fetch: (url, options = {}) => {
+        fetch: (url: any, options: any = {}) => {
           return fetch(url, {
             ...options,
             signal: AbortSignal.timeout(30000), // 30 second timeout

@@ -3,21 +3,21 @@ import { createServerClient as createSSRServerClient } from '@supabase/ssr'
 import { Database } from '@/types/database'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+const supabasePublishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!
 
-if (!supabaseUrl || !supabaseAnonKey) {
+if (!supabaseUrl || !supabasePublishableKey) {
   throw new Error('Missing Supabase environment variables')
 }
 
 // Enhanced client-side client with session synchronization
-export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
+export const supabase = createClient<Database>(supabaseUrl, supabasePublishableKey, {
   auth: {
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: true
   },
   global: {
-    fetch: (url, options = {}) => {
+    fetch: (url: any, options: any = {}) => {
       return fetch(url, {
         ...options,
         signal: AbortSignal.timeout(30000), // 30 second timeout
@@ -97,13 +97,13 @@ export const createServerClient = async () => {
   
   const supabaseClient = createSSRServerClient<Database>(
     supabaseUrl,
-    supabaseAnonKey,
+    supabasePublishableKey,
     {
       cookies: {
         getAll() {
           return cookieStore.getAll()
         },
-        setAll(cookiesToSet) {
+        setAll(cookiesToSet: any[]) {
           try {
             cookiesToSet.forEach(({ name, value, options }) => {
               cookieStore.set(name, value, {
@@ -121,7 +121,7 @@ export const createServerClient = async () => {
         },
       },
       global: {
-        fetch: (url, options = {}) => {
+        fetch: (url: any, options: any = {}) => {
           return fetch(url, {
             ...options,
             signal: AbortSignal.timeout(30000), // 30 second timeout

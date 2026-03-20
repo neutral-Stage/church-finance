@@ -17,8 +17,8 @@ Set these environment variables in your deployment platform:
 ```bash
 # Supabase Configuration (Required)
 NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your_supabase_publishable_key
+SUPABASE_SECRET_KEY=your_supabase_secret_key
 
 # Authentication (Required)
 NEXTAUTH_SECRET=your_secure_random_string
@@ -38,8 +38,8 @@ Vercel is the easiest option for Next.js apps:
 4. Import your repository
 5. Configure environment variables in the Vercel dashboard:
    - `NEXT_PUBLIC_SUPABASE_URL`
-   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-   - `SUPABASE_SERVICE_ROLE_KEY`
+   - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
+   - `SUPABASE_SECRET_KEY`
    - `NEXTAUTH_SECRET`
    - `NEXTAUTH_URL` (set to your deployed URL, e.g., https://your-app.vercel.app)
 6. Deploy
@@ -51,8 +51,8 @@ npm i -g vercel@latest
 
 # Add environment variables
 vercel env add NEXT_PUBLIC_SUPABASE_URL
-vercel env add NEXT_PUBLIC_SUPABASE_ANON_KEY
-vercel env add SUPABASE_SERVICE_ROLE_KEY
+vercel env add NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+vercel env add SUPABASE_SECRET_KEY
 vercel env add NEXTAUTH_SECRET
 vercel env add NEXTAUTH_URL
 

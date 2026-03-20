@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Database } from "@/types/database";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!;
 
 if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error("Missing Supabase environment variables");
@@ -34,7 +34,7 @@ export function createSupabaseServerClient(
         const cookies = request.cookies.getAll();
         return cookies;
       },
-      setAll(cookiesToSet) {
+      setAll(cookiesToSet: any[]) {
         cookiesToSet.forEach(({ name, value, options }) => {
           response.cookies.set(name, value, {
             ...options,
@@ -60,7 +60,7 @@ export function createSupabaseMiddlewareClient(request: NextRequest) {
         const cookies = request.cookies.getAll();
         return cookies;
       },
-      setAll(cookiesToSet) {
+      setAll(cookiesToSet: any[]) {
         cookiesToSet.forEach(({ name, value, options }) => {
           response.cookies.set(name, value, {
             ...options,

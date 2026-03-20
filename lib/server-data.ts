@@ -211,7 +211,7 @@ export const getDashboardData = cache(async (): Promise<DashboardData> => {
 
   // Filter for monthly data in memory
   const monthlyIncomeResult = {
-    data: allTransactionsForStats?.filter(t =>
+    data: (allTransactionsForStats as any[] | null)?.filter((t: any) =>
       t.type === "income" &&
       t.transaction_date >= `${currentMonth}-01` &&
       t.transaction_date < nextMonth
@@ -220,7 +220,7 @@ export const getDashboardData = cache(async (): Promise<DashboardData> => {
   };
 
   const monthlyExpensesResult = {
-    data: allTransactionsForStats?.filter(t =>
+    data: (allTransactionsForStats as any[] | null)?.filter((t: any) =>
       t.type === "expense" &&
       t.transaction_date >= `${currentMonth}-01` &&
       t.transaction_date < nextMonth
@@ -254,13 +254,13 @@ export const getDashboardData = cache(async (): Promise<DashboardData> => {
   const fundsMap = new Map((allFundsResult.data || []).map(fund => [fund.id, fund]));
 
   // Manually join transactions with funds
-  const recentTransactions: TransactionWithFund[] = (transactionsResult.data || []).map(transaction => ({
+  const recentTransactions: TransactionWithFund[] = ((transactionsResult.data as any[]) || []).map(transaction => ({
     ...transaction,
     fund: transaction.fund_id ? fundsMap.get(transaction.fund_id) : undefined
   }));
 
   // Filter and join bills
-  const upcomingBills: BillWithFund[] = (allBillsResult.data || [])
+  const upcomingBills: BillWithFund[] = ((allBillsResult.data as any[]) || [])
     .filter(bill => ["pending", "overdue"].includes(bill.status || ""))
     .slice(0, 5)
     .map(bill => ({
@@ -269,7 +269,7 @@ export const getDashboardData = cache(async (): Promise<DashboardData> => {
     }));
 
   // Filter and join advances
-  const outstandingAdvances: AdvanceWithFund[] = (allAdvancesResult.data || [])
+  const outstandingAdvances: AdvanceWithFund[] = ((allAdvancesResult.data as any[]) || [])
     .filter(advance => ["outstanding", "partial"].includes(advance.status || ""))
     .slice(0, 5)
     .map(advance => ({
@@ -449,7 +449,7 @@ export const getMembersData = cache(async (): Promise<Member[]> => {
     .order("name");
 
   if (error) throw new Error(`Failed to fetch members: ${error.message}`);
-  return (data || []).map(member => ({
+  return ((data as any[]) || []).map(member => ({
     ...member,
     church_id: selectedChurch.id
   })) as Member[];
