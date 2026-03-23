@@ -31,43 +31,63 @@ export async function POST(request: NextRequest) {
 
     if (church) {
       // Validate that the user has access to this church
-      const { data: userChurchRole, error: roleError } = await supabase
+      let hasAccess = false;
+      
+      // 1. First check if user is a super admin
+      const { data: userChurchRoles } = await supabase
         .from('user_church_roles')
-        .select(`
-          id,
-          church_id,
-          role_id,
-          is_active,
-          churches!inner(
-            id,
-            name,
-            type,
-            is_active
-          ),
-          roles!inner(
-            id,
-            name,
-            display_name
-          )
-        `)
+        .select('role_id, is_active')
         .eq('user_id', user.id)
-        .eq('church_id', church.id)
         .eq('is_active', true)
-        .single()
 
-      if (roleError || !userChurchRole) {
-        console.error('[ChurchSelection API] POST - Access denied:', roleError)
+      if (userChurchRoles && userChurchRoles.length > 0) {
+        const { data: roles } = await supabase.from('roles').select('id, name')
+        const rolesMap = new Map((roles || []).map((r: any) => [r.id, r.name]))
+        
+        hasAccess = userChurchRoles.some((role: any) => {
+          return role.role_id && rolesMap.get(role.role_id) === 'super_admin'
+        })
+      }
+
+      // 2. If not super admin, rely on RLS on churches directly
+      if (!hasAccess) {
+        const { data: accessibleChurch } = await supabase
+          .from('churches')
+          .select('id')
+          .eq('id', church.id)
+          .eq('is_active', true)
+          .maybeSingle()
+          
+        hasAccess = !!accessibleChurch;
+      }
+
+      if (!hasAccess) {
+        console.error('[ChurchSelection API] POST - Access denied for church:', church.id)
         return NextResponse.json({ error: 'Access denied to selected church' }, { status: 403 })
       }
 
-      const cookieValue = JSON.stringify(church)
+      // To strictly guarantee we don't hit the 4096 byte cookie limit,
+      // extract only the essential properties needed by the UI and API.
+      const minimalChurch = {
+        id: church.id,
+        name: church.name,
+        type: church.type,
+        role_name: church.role_name || church.role?.name,
+        role_display_name: church.role_display_name || church.role?.display_name,
+        role: church.role ? {
+          name: church.role.name,
+          display_name: church.role.display_name
+        } : undefined
+      };
+      
+      const cookieValue = JSON.stringify(minimalChurch)
       console.log('[ChurchSelection API] POST - Setting cookie:', {
         churchId: church.id,
         cookieLength: cookieValue.length,
         cookiePreview: cookieValue.substring(0, 100)
       })
 
-      // Set the selected church cookie
+      // We set via both cookieStore and NextResponse to ensure compatibility with all Next.js 14+ versions
       cookieStore.set('selectedChurch', cookieValue, {
         httpOnly: false, // Allow client-side access for consistency
         secure: process.env.NODE_ENV === 'production',
@@ -88,8 +108,8 @@ export async function POST(request: NextRequest) {
 
       console.log('[ChurchSelection API] POST - ✓ Cookie set successfully for church:', church.id)
 
-      // Return response with cache headers to prevent caching
-      return NextResponse.json({
+      // Return response with explicit cookie headers to prevent Next.js Route Handler dropping them
+      const response = NextResponse.json({
         success: true,
         message: 'Church selection synchronized',
         church
@@ -100,6 +120,16 @@ export async function POST(request: NextRequest) {
           'Expires': '0'
         }
       })
+      
+      response.cookies.set('selectedChurch', cookieValue, {
+        httpOnly: false,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        path: '/',
+        maxAge: 60 * 60 * 24 * 30 // 30 days
+      })
+      
+      return response
     } else {
       console.log('[ChurchSelection API] POST - Clearing church cookie')
       // Clear the selected church cookie
@@ -108,10 +138,12 @@ export async function POST(request: NextRequest) {
       // Revalidate all dashboard pages to clear cached data
       revalidatePath('/(dashboard)', 'layout')
 
-      return NextResponse.json({
+      const response = NextResponse.json({
         success: true,
         message: 'Church selection cleared'
       })
+      response.cookies.delete('selectedChurch')
+      return response
     }
   } catch (error) {
     console.error('[ChurchSelection API] POST - Error:', error)
@@ -139,24 +171,48 @@ export async function GET() {
         const churchData = JSON.parse(selectedChurchCookie.value)
 
         // Validate that this church is still accessible to the user
-        const { data: userChurchRole, error: roleError } = await supabase
+        let hasAccess = false;
+        
+        // 1. First check if user is a super admin
+        const { data: userChurchRoles } = await supabase
           .from('user_church_roles')
-          .select('id')
+          .select('role_id, is_active')
           .eq('user_id', user.id)
-          .eq('church_id', churchData.id)
           .eq('is_active', true)
-          .single()
 
-        if (roleError || !userChurchRole) {
+        if (userChurchRoles && userChurchRoles.length > 0) {
+          const { data: roles } = await supabase.from('roles').select('id, name')
+          const rolesMap = new Map((roles || []).map((r: any) => [r.id, r.name]))
+          
+          hasAccess = userChurchRoles.some((role: any) => {
+            return role.role_id && rolesMap.get(role.role_id) === 'super_admin'
+          })
+        }
+
+        // 2. If not super admin, rely on RLS on churches directly
+        if (!hasAccess) {
+          const { data: accessibleChurch } = await supabase
+            .from('churches')
+            .select('id')
+            .eq('id', churchData.id)
+            .eq('is_active', true)
+            .maybeSingle()
+            
+          hasAccess = !!accessibleChurch;
+        }
+
+        if (!hasAccess) {
           // Church is no longer accessible, clear the cookie
           console.log('[ChurchSelection API] GET - Church no longer accessible, clearing cookie')
           cookieStore.delete('selectedChurch')
-          return NextResponse.json({ church: null }, {
+          const response = NextResponse.json({ church: null }, {
             headers: {
               'Cache-Control': 'no-store, no-cache, must-revalidate',
               'Pragma': 'no-cache'
             }
           })
+          response.cookies.delete('selectedChurch')
+          return response
         }
 
         console.log('[ChurchSelection API] GET - Returning church:', churchData.id)
@@ -170,12 +226,14 @@ export async function GET() {
         // Invalid cookie data, clear it
         console.log('[ChurchSelection API] GET - Invalid cookie data, clearing')
         cookieStore.delete('selectedChurch')
-        return NextResponse.json({ church: null }, {
+        const response = NextResponse.json({ church: null }, {
           headers: {
             'Cache-Control': 'no-store, no-cache, must-revalidate',
             'Pragma': 'no-cache'
           }
         })
+        response.cookies.delete('selectedChurch')
+        return response
       }
     }
 

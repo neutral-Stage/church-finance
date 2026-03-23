@@ -138,9 +138,19 @@ export function ChurchProvider({ children }: ChurchProviderProps) {
                   window.location.reload()
                 } else {
                   console.error('[ChurchContext] Failed to sync cookie to server:', syncResponse.status)
+                  // The server rejected this church selection (likely due to permissions or session errors).
+                  // Clear local state so the UI accurately shows no church is selected.
+                  localStorage.removeItem('selectedChurch')
+                  setSelectedChurchState(null)
+                  churchApi.setSelectedChurch(null)
                 }
               } else {
                 console.log('[ChurchContext] Already attempted sync this session, skipping to prevent loop')
+                // If we've already tried and failed to sync this session, clear local state
+                // to avoid the UI showing a church that the server has rejected
+                localStorage.removeItem('selectedChurch')
+                setSelectedChurchState(null)
+                churchApi.setSelectedChurch(null)
               }
             } else if (data.church && storedChurch && data.church.id === storedChurch.id) {
               // Server and client are already in sync

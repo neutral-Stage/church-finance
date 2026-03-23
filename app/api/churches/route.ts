@@ -46,11 +46,29 @@ export async function GET() {
     const activeRoles = userChurchRoles.filter(role => role.is_active)
     console.log('Churches API: Active roles:', activeRoles.length)
 
+    // Get roles first so we can check for super_admin
+    console.log('Churches API: Fetching roles...')
+    const { data: roles, error: rolesDataError } = await safeSelect(supabase, 'roles')
+
+    if (rolesDataError) {
+      console.error('Churches API: Error fetching roles:', rolesDataError)
+      return NextResponse.json({ error: 'Failed to fetch roles' }, { status: 500 })
+    }
+
+    const rolesMap = new Map((roles || []).map(role => [role.id, role]))
+    console.log('Churches API: Roles map created with', rolesMap.size, 'roles')
+
+    // Check if user is super admin
+    const isSuperAdmin = activeRoles.some(role => {
+      const roleData = role.role_id ? rolesMap.get(role.role_id) : null
+      return roleData?.name === 'super_admin'
+    })
+
     const churchIds = [...new Set(activeRoles.map(role => role.church_id).filter(Boolean))]
     console.log('Churches API: Church IDs from roles:', churchIds)
 
-    if (churchIds.length === 0) {
-      console.log('Churches API: No church IDs found in active roles')
+    if (churchIds.length === 0 && !isSuperAdmin) {
+      console.log('Churches API: No church IDs found in active roles and not super admin')
       return NextResponse.json({ churches: [] })
     }
 
@@ -69,28 +87,31 @@ export async function GET() {
     }
 
     const userChurches = allChurches?.filter(church =>
-      church.is_active && churchIds.includes(church.id)
+      church.is_active && (isSuperAdmin || churchIds.includes(church.id))
     ) || []
 
     console.log('Churches API: Filtered user churches:', userChurches.length)
 
-    // Get roles for user churches
-    console.log('Churches API: Fetching roles...')
-    const { data: roles, error: rolesDataError } = await safeSelect(supabase, 'roles')
-
-    if (rolesDataError) {
-      console.error('Churches API: Error fetching roles:', rolesDataError)
-      return NextResponse.json({ error: 'Failed to fetch roles' }, { status: 500 })
-    }
-
-    const rolesMap = new Map((roles || []).map(role => [role.id, role]))
-    console.log('Churches API: Roles map created with', rolesMap.size, 'roles')
+    // Find the super_admin role instance if present
+    const superAdminRoleInstance = activeRoles.find(role => {
+      const roleData = role.role_id ? rolesMap.get(role.role_id) : null
+      return roleData?.name === 'super_admin'
+    })
+    
+    const superAdminRoleData = superAdminRoleInstance?.role_id ? rolesMap.get(superAdminRoleInstance.role_id) : null
 
     // Build church data with role information
     const churchesWithRoles = userChurches.map(church => {
-      const churchRoles = activeRoles.filter(role => role.church_id === church.id)
-      const churchRole = churchRoles[0] // Take first active role
-      const roleData = churchRole?.role_id ? rolesMap.get(churchRole.role_id) : null
+      // First check for a specific role for this church
+      let churchRoles = activeRoles.filter(role => role.church_id === church.id)
+      let churchRole = churchRoles[0] // Take first active explicit role
+      let roleData = churchRole?.role_id ? rolesMap.get(churchRole.role_id) : null
+
+      // If no explicit role but user is super_admin, grant them super_admin access to this church
+      if (!churchRole && isSuperAdmin && superAdminRoleInstance) {
+        churchRole = superAdminRoleInstance;
+        roleData = superAdminRoleData;
+      }
 
       return {
         ...church,
