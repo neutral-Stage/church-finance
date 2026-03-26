@@ -294,15 +294,15 @@
   
   /* Enhanced animations */
   .animate-fade-in {
-    animation: fadeIn 0.5s ease-in-out;
+    animation: fadeIn 0.5s ease-in-out both;
   }
   
   .animate-slide-up {
-    animation: slideUp 0.6s ease-out;
+    animation: slideUp 0.6s ease-out both;
   }
   
   .animate-scale-in {
-    animation: scaleIn 0.4s ease-out;
+    animation: scaleIn 0.3s ease-out both;
   }
   
   /* Hover effects */
@@ -523,37 +523,37 @@
   
   /* Animation classes for all screen sizes */
   .animate-slide-in-from-bottom-4 {
-    animation: slideInFromBottom 0.6s ease-out;
+    animation: slideInFromBottom 0.5s ease-out both;
   }
   
   .animate-slide-in-from-top-4 {
-    animation: slideInFromTop 0.6s ease-out;
+    animation: slideInFromTop 0.5s ease-out both;
   }
   
   .animate-slide-in-from-left-mobile {
-    animation: slideInFromLeftMobile 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+    animation: slideInFromLeftMobile 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
   }
   
   .animate-slide-in-from-right-mobile {
-    animation: slideInFromRightMobile 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+    animation: slideInFromRightMobile 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
   }
 
   /* Mobile responsive breakpoints for animations */
   @media (max-width: 640px) {
     .animate-slide-in-from-bottom-4 {
-      animation: slideInFromBottom 0.6s ease-out;
+      animation: slideInFromBottom 0.5s ease-out both;
     }
     
     .animate-slide-in-from-top-4 {
-      animation: slideInFromTop 0.6s ease-out;
+      animation: slideInFromTop 0.5s ease-out both;
     }
     
     .animate-slide-in-from-left-mobile {
-      animation: slideInFromLeftMobile 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+      animation: slideInFromLeftMobile 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
     }
     
     .animate-slide-in-from-right-mobile {
-      animation: slideInFromRightMobile 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+      animation: slideInFromRightMobile 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
     }
   }
   

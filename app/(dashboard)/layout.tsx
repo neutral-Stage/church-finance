@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth, withAuth, type UserRole } from "@/contexts/AuthContext";
 import { ChurchProvider } from "@/contexts/ChurchContext";
@@ -143,15 +143,10 @@ const adminNavigation = [
 function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
-  const [mounted, setMounted] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const { user, signOut, hasRole } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   const toggleSidebar = () => {
     setIsCollapsed((prev) => !prev);
@@ -168,10 +163,6 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
   const filteredAdminNavigation = adminNavigation.filter((item) =>
     item.roles.some((role) => hasRole(role as UserRole))
   );
-
-  if (!mounted) {
-    return null;
-  }
 
   const Sidebar = ({ mobile = false }: { mobile?: boolean }) => (
     <div

@@ -170,38 +170,15 @@ export async function GET() {
       try {
         const churchData = JSON.parse(selectedChurchCookie.value)
 
-        // Validate that this church is still accessible to the user
-        let hasAccess = false;
-        
-        // 1. First check if user is a super admin
-        const { data: userChurchRoles } = await supabase
-          .from('user_church_roles')
-          .select('role_id, is_active')
-          .eq('user_id', user.id)
+        // Validate access via a single RLS-enforced query (RLS handles permissions at DB level)
+        const { data: accessibleChurch } = await supabase
+          .from('churches')
+          .select('id')
+          .eq('id', churchData.id)
           .eq('is_active', true)
+          .maybeSingle()
 
-        if (userChurchRoles && userChurchRoles.length > 0) {
-          const { data: roles } = await supabase.from('roles').select('id, name')
-          const rolesMap = new Map((roles || []).map((r: any) => [r.id, r.name]))
-          
-          hasAccess = userChurchRoles.some((role: any) => {
-            return role.role_id && rolesMap.get(role.role_id) === 'super_admin'
-          })
-        }
-
-        // 2. If not super admin, rely on RLS on churches directly
-        if (!hasAccess) {
-          const { data: accessibleChurch } = await supabase
-            .from('churches')
-            .select('id')
-            .eq('id', churchData.id)
-            .eq('is_active', true)
-            .maybeSingle()
-            
-          hasAccess = !!accessibleChurch;
-        }
-
-        if (!hasAccess) {
+        if (!accessibleChurch) {
           // Church is no longer accessible, clear the cookie
           console.log('[ChurchSelection API] GET - Church no longer accessible, clearing cookie')
           cookieStore.delete('selectedChurch')
