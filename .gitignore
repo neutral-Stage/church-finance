@@ -1,0 +1,90 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Testing
+/coverage
+
+# Next.js
+/.next/
+/out/
+
+# Production
+/build
+
+# Misc
+.DS_Store
+*.pem
+
+# Debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Local env files
+.env*.local
+.env
+.env.local.backup-*
+
+# Stray editor/tool artifacts
+*.bak
+*.new
+
+# Vercel
+.vercel
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+Thumbs.db
+
+# Internal / local-only (public repo keeps these untracked; see private mirror)
+scripts/
+supabase/
+.trae/
+app/api/debug-offerings/
+lib/notificationService.ts
+*.sql
+test-*.js
+test-*.ts
+test-*.html
+debug-*.sql
+fix_*.sql
+fix_*.ts
+headers.txt
+DB_STATE_REPORT.md
+IMPLEMENTATION_STATUS.md
+REFACTOR_SUMMARY.md
+SMOKE_TEST_CHECKLIST.md
+MULTI_CHURCH_SYSTEM.md
+PREMIUM_ADMIN_INTERFACES_GUIDE.md
+VERIFICATION_STEPS.md
+DEPLOYMENT.md
+debug-cookie-sync.md
+INFINITE_LOOP_FIX_VERIFICATION.md
+README_CHURCH_SYSTEM.md
+VERCEL_ENV_CHECKLIST.md
+ARCHITECTURAL_FIXES_SUMMARY.md
+DOCUMENT_HANDLING_SETUP.md
+COOKIE_SYNC_FIX_SUMMARY.md
+DEBUGGING_EMPTY_STATE.md
+CHURCH_CONTEXT_INTEGRATION_SUMMARY.md
+RLS_SECURITY_IMPROVEMENTS.md
+test-authentication-fix.md
+DEMO_SETUP.md
+supabase/.temp/
+
+# Local scratch / credentials (never commit)
+auth_cookies.txt
+cookies.txt
+.claude/

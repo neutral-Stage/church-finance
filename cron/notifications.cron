@@ -1,0 +1,31 @@
+# Church Finance Notification Generation Cron Jobs
+# 
+# This file contains cron job configurations for automatically generating
+# notifications based on database events.
+#
+# To install these cron jobs, run:
+#   crontab cron/notifications.cron
+#
+# To view current cron jobs:
+#   crontab -l
+#
+# To edit cron jobs:
+#   crontab -e
+
+# Generate all notifications every 15 minutes during business hours (8 AM - 6 PM)
+*/15 8-18 * * 1-5 cd /path/to/church-finance && node scripts/generate-notifications.js all >> logs/notifications.log 2>&1
+
+# Generate bill notifications every hour
+0 * * * * cd /path/to/church-finance && node scripts/generate-notifications.js bills >> logs/notifications.log 2>&1
+
+# Generate transaction notifications every 30 minutes during business hours
+*/30 8-18 * * 1-5 cd /path/to/church-finance && node scripts/generate-notifications.js transactions >> logs/notifications.log 2>&1
+
+# Generate offering notifications every Sunday at 2 PM (after service)
+0 14 * * 0 cd /path/to/church-finance && node scripts/generate-notifications.js offerings >> logs/notifications.log 2>&1
+
+# Clean up old notifications daily at 2 AM
+0 2 * * * cd /path/to/church-finance && node scripts/generate-notifications.js cleanup >> logs/notifications.log 2>&1
+
+# Generate all notifications every morning at 8 AM
+0 8 * * 1-5 cd /path/to/church-finance && node scripts/generate-notifications.js all >> logs/notifications.log 2>&1

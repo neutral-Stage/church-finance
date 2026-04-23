@@ -1,0 +1,245 @@
+import { createClient } from '@supabase/supabase-js'
+import { createServerClient as createSSRServerClient } from '@supabase/ssr'
+import { Database } from '@/types/database'
+import { isDemoMode } from '@/lib/demo/config'
+
+function getPublicSupabaseEnv(): { url: string; key: string } {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+  if (url && key) return { url, key }
+  if (isDemoMode()) {
+    return {
+      url: 'https://demo.invalid.supabase.co',
+      key: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0',
+    }
+  }
+  throw new Error('Missing Supabase environment variables')
+}
+
+const { url: supabaseUrl, key: supabasePublishableKey } = getPublicSupabaseEnv()
+
+// Enhanced client-side client with session synchronization
+export const supabase = createClient<Database>(supabaseUrl, supabasePublishableKey, {
+  auth: {
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: true
+  },
+  global: {
+    fetch: (url: any, options: any = {}) => {
+      return fetch(url, {
+        ...options,
+        signal: AbortSignal.timeout(30000), // 30 second timeout
+      })
+    }
+  },
+  db: {
+    schema: 'public'
+  },
+  realtime: {
+    params: {
+      eventsPerSecond: 10
+    }
+  }
+})
+
+// Initialize client session synchronization
+let sessionSynced = false
+
+// Function to sync client session with server session
+export const syncClientSession = async () => {
+  if (sessionSynced) return true
+  
+  try {
+    // Check if we already have a valid session
+    const { data: { session } } = await supabase.auth.getSession()
+    if (session?.access_token) {
+      sessionSynced = true
+      return true
+    }
+
+    // Fetch session from server
+    const response = await fetch('/api/auth/session', {
+      method: 'GET',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    })
+
+    if (response.ok) {
+      const sessionData = await response.json()
+      if (sessionData.session?.access_token) {
+        // Set the session on the client
+        const { error } = await supabase.auth.setSession({
+          access_token: sessionData.session.access_token,
+          refresh_token: sessionData.session.refresh_token
+        })
+        
+        if (!error) {
+          sessionSynced = true
+          return true
+        }
+      }
+    }
+    
+    return false
+  } catch (error) {
+    console.warn('Failed to sync client session:', error)
+    return false
+  }
+}
+
+// Enhanced client for CRUD operations with auto session sync
+export const createAuthenticatedClient = async () => {
+  const synced = await syncClientSession()
+  if (!synced) {
+    throw new Error('Authentication required. Please sign in again.')
+  }
+  return supabase
+}
+
+// Server-side client for user authentication with cookies
+export const createServerClient = async () => {
+  const { cookies } = await import('next/headers')
+  const cookieStore = cookies()
+  
+  const supabaseClient = createSSRServerClient<Database>(
+    supabaseUrl,
+    supabasePublishableKey,
+    {
+      cookies: {
+        getAll() {
+          return cookieStore.getAll()
+        },
+        setAll(cookiesToSet: any[]) {
+          try {
+            cookiesToSet.forEach(({ name, value, options }) => {
+              cookieStore.set(name, value, {
+                ...options,
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: 'lax'
+              })
+            })
+          } catch {
+            // The `setAll` method was called from a Server Component.
+            // This can be ignored if you have middleware refreshing
+            // user sessions.
+          }
+        },
+      },
+      global: {
+        fetch: (url: any, options: any = {}) => {
+          return fetch(url, {
+            ...options,
+            signal: AbortSignal.timeout(30000), // 30 second timeout
+          })
+        }
+      },
+      db: {
+        schema: 'public'
+      }
+    }
+  )
+
+  // Check for custom auth cookie if no standard user exists
+  const { data: { user } } = await supabaseClient.auth.getUser()
+  if (!user) {
+    const authCookie = cookieStore.get(`sb-${supabaseUrl.split('//')[1].split('.')[0]}-auth-token`)
+    if (authCookie?.value) {
+      try {
+        const authData = JSON.parse(decodeURIComponent(authCookie.value))
+        if (authData.access_token && authData.expires_at > Math.floor(Date.now() / 1000)) {
+          // Set the session manually
+          await supabaseClient.auth.setSession({
+            access_token: authData.access_token,
+            refresh_token: authData.refresh_token
+          })
+        }
+      } catch (error) {
+        console.warn('Error parsing custom auth cookie:', error)
+      }
+    }
+  }
+
+  return supabaseClient
+}
+
+
+// Auth helpers - Use server-side authentication for proper cookie handling
+export const signIn = async (email: string, password: string) => {
+  try {
+    // Make a request to our server-side auth endpoint
+    const response = await fetch('/api/auth/signin', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email, password }),
+    })
+
+    const result = await response.json()
+    
+    if (!response.ok) {
+      return { data: null, error: result.error || 'Authentication failed' }
+    }
+    
+    if (!result.success) {
+      return { data: null, error: result.error || 'Authentication failed' }
+    }
+    
+    return { data: { user: result.user }, error: null }
+  } catch (error) {
+    console.error('Sign in error:', error)
+    return { data: null, error: 'Network error during authentication' }
+  }
+}
+
+export const signUp = async (email: string, password: string, metadata?: Record<string, unknown>) => {
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: {
+      data: metadata
+    }
+  })
+  return { data, error }
+}
+
+export const signOut = async () => {
+  try {
+    // Make a request to our server-side auth endpoint for proper cookie cleanup
+    const response = await fetch('/api/auth/signout', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
+
+    const result = await response.json()
+    
+    if (!response.ok) {
+      return { error: result.error || 'Sign out failed' }
+    }
+    
+    return { error: null }
+  } catch (error) {
+    console.error('Sign out error:', error)
+    return { error: 'Network error during sign out' }
+  }
+}
+
+export const getCurrentUser = async () => {
+  // Try to sync session first
+  await syncClientSession()
+  const { data: { user }, error } = await supabase.auth.getUser()
+  return { user, error }
+}
+
+export const getSession = async () => {
+  // Try to sync session first
+  await syncClientSession()
+  const { data: { session }, error } = await supabase.auth.getSession()
+  return { session, error }
+}
