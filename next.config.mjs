@@ -4,6 +4,12 @@
 // projects don't need to edit this file. Falls back to the known production
 // host if the env var isn't available at build time.
 function resolveSupabaseImageHost() {
+  if (
+    process.env.NEXT_PUBLIC_DEMO_MODE === 'true' &&
+    !process.env.NEXT_PUBLIC_SUPABASE_URL
+  ) {
+    return 'demo.invalid.supabase.co';
+  }
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   if (url) {
     try {

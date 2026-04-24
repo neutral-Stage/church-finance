@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import Groq from 'groq-sdk'
 import { createServerClient } from '@/lib/supabase-server'
 import { safeSelect } from '@/lib/supabase-helpers'
+import { isDemoMode } from '@/lib/demo/config'
 
 export const dynamic = 'force-dynamic'
 
@@ -588,6 +589,14 @@ Keep responses concise but complete.`
 
 export async function POST(request: NextRequest) {
   try {
+    if (isDemoMode()) {
+      return NextResponse.json({
+        content:
+          'Demo mode: static reply only. Add GROQ_API_KEY and set NEXT_PUBLIC_DEMO_MODE=false for live AI with your database.',
+        demo: true,
+      })
+    }
+
     // Fast-fail if the service isn't configured on the server.
     let groq: Groq
     try {
