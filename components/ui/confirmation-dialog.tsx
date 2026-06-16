@@ -53,15 +53,15 @@ export function ConfirmationDialog({
         <DialogHeader className="space-y-3">
           <div className="flex items-center gap-3">
             {variant === "destructive" && (
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-500/20">
-                <AlertTriangle className="h-5 w-5 text-red-400" />
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-destructive/15">
+                <AlertTriangle className="h-5 w-5 text-destructive" />
               </div>
             )}
-            <DialogTitle className="text-lg font-semibold text-white/90">
+            <DialogTitle className="text-lg font-semibold">
               {title}
             </DialogTitle>
           </div>
-          <DialogDescription className="text-white/70 text-sm leading-relaxed">
+          <DialogDescription className="text-sm leading-relaxed">
             {description}
           </DialogDescription>
         </DialogHeader>
@@ -69,14 +69,12 @@ export function ConfirmationDialog({
           <Button
             variant="outline"
             onClick={handleCancel}
-            className="glass-button-outline"
           >
             {cancelText}
           </Button>
           <Button
             onClick={handleConfirm}
             variant={variant === "destructive" ? "destructive" : "default"}
-            className={variant === "destructive" ? "bg-red-600 hover:bg-red-700 text-white" : "glass-button"}
           >
             {confirmText}
           </Button>

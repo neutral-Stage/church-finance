@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import * as fixtures from '@/lib/demo/fixtures'
-import { DEMO_MINIMAL_AUTH, demoSelectedChurchJson, DEMO_USER_ID } from '@/lib/demo/constants'
+import { DEMO_MINIMAL_AUTH, demoSelectedChurchJson, DEMO_USER_ID, DEMO_CHURCH_ID } from '@/lib/demo/constants'
 
 /**
  * Short-circuit API routes in demo mode (Edge-safe: no Node-only APIs).
@@ -351,6 +351,207 @@ export function handleDemoApiRequest(request: NextRequest): NextResponse | null 
 
   if (pathname.startsWith('/api/notifications/generate')) {
     return json({ success: true, demo: true })
+  }
+
+  if (method === 'GET' && pathname === '/api/budgets') {
+    const year = new URL(request.url).searchParams.get('year')
+    let budgets = fixtures.getDemoBudgets()
+    if (year) budgets = budgets.filter((b) => b.year === parseInt(year, 10))
+    return json({ budgets, success: true })
+  }
+
+  if (method.match(/^(POST|PUT|DELETE)$/) && pathname === '/api/budgets') {
+    return json({ success: true, demo: true, budget: fixtures.getDemoBudgets()[0] })
+  }
+
+  if (method === 'GET' && pathname === '/api/admin/audit') {
+    return json({ entries: fixtures.getDemoAuditLog(), success: true })
+  }
+
+  if (pathname.startsWith('/api/import/')) {
+    if (method === 'GET') {
+      return json({ rows: fixtures.getDemoImportStaging(), success: true })
+    }
+    return json({ success: true, demo: true, imported: 0 })
+  }
+
+  if (method === 'GET' && pathname === '/api/giving-statements') {
+    return json({
+      success: true,
+      demo: true,
+      statement: { memberName: 'Demo Member', total: 1200, year: new Date().getFullYear() },
+    })
+  }
+
+  if (method === 'POST' && pathname === '/api/notifications/send') {
+    return json({ success: true, demo: true, sent: 0 })
+  }
+
+  if (pathname.startsWith('/api/onboarding')) {
+    return json({ success: true, demo: true })
+  }
+
+  if (pathname.startsWith('/api/invitations')) {
+    if (pathname === '/api/invitations/accept' && method === 'POST') {
+      return json({ success: true, demo: true, churchName: 'Grace Fellowship (Demo)' })
+    }
+    if (method === 'GET') {
+      return json({ success: true, demo: true, invitations: [] })
+    }
+    if (method === 'POST') {
+      return json({
+        success: true,
+        demo: true,
+        invitation: {
+          id: 'demo-invite-1',
+          email: 'invitee@example.com',
+          church_id: DEMO_CHURCH_ID,
+          expires_at: new Date(Date.now() + 7 * 86400000).toISOString(),
+        },
+      })
+    }
+    if (method === 'DELETE') {
+      return json({ success: true, demo: true })
+    }
+    return json({ success: true, demo: true, invitations: [] })
+  }
+
+  if (pathname.startsWith('/api/admin/platform')) {
+    return json({
+      success: true,
+      demo: true,
+      churches: [
+        {
+          id: DEMO_CHURCH_ID,
+          name: 'Grace Fellowship (Demo)',
+          type: 'church',
+          is_active: true,
+          plan_name: 'Free',
+          plan_status: 'free',
+          health: 'good',
+          last_activity_at: new Date().toISOString(),
+          member_count: 3,
+          total_balance: 125000,
+          transactions_last_30_days: 12,
+        },
+      ],
+      systemStats: {
+        total_churches: 1,
+        active_churches: 1,
+        suspended_churches: 0,
+        healthy_churches: 1,
+        at_risk_churches: 0,
+      },
+    })
+  }
+
+  if (pathname.startsWith('/api/billing')) {
+    if (pathname.includes('/status') && method === 'GET') {
+      return json({
+        success: true,
+        demo: true,
+        billing: {
+          churchId: 'demo',
+          planId: 'free',
+          planName: 'Free',
+          priceMonthlyCents: 0,
+          subscriptionStatus: null,
+          stripeCustomerId: null,
+          stripeConfigured: false,
+          usage: {
+            users: { usage: 2, limit: 3 },
+            transactions: { usage: 42, limit: 500 },
+            members: { usage: 18, limit: 250 },
+            churches: { usage: 1, limit: 1 },
+          },
+          features: {
+            auditExport: false,
+            scheduledReports: false,
+            prioritySupport: false,
+          },
+        },
+      })
+    }
+
+    return json({
+      success: true,
+      demo: true,
+      message: 'Stripe billing is not configured (demo mode)',
+      plan: { id: 'free', name: 'Free' },
+      subscription: null,
+    })
+  }
+
+  if (pathname.startsWith('/api/approvals')) {
+    if (method === 'GET') {
+      const demoBill = fixtures.getDemoBillsData().bills[0]
+      return json({
+        success: true,
+        demo: true,
+        count: 2,
+        items: [
+          {
+            id: demoBill?.id ?? 'demo-bill-1',
+            entity_type: 'bill',
+            title: demoBill?.vendor_name ?? 'Demo Vendor',
+            description: demoBill?.notes,
+            amount: demoBill?.amount ?? 0,
+            submitted_at: demoBill?.created_at ?? new Date().toISOString(),
+            metadata: { due_date: demoBill?.due_date, status: demoBill?.status },
+          },
+          {
+            id: '00000000-0000-4000-8000-000000000601',
+            entity_type: 'ledger_entry',
+            title: 'Youth camp ledger',
+            description: 'Pending ledger approval for camp expenses',
+            amount: 1500,
+            submitted_at: demoBill?.created_at ?? new Date().toISOString(),
+          },
+        ],
+      })
+    }
+    if (method === 'POST') {
+      return json({ success: true, demo: true, action: 'approve' })
+    }
+    return json({ success: true, demo: true, items: [] })
+  }
+
+  if (pathname.startsWith('/api/member-portal') && method === 'GET') {
+    const year = new Date().getFullYear()
+    return json({
+      success: true,
+      demo: true,
+      member: { id: 'demo-member-1', name: 'Demo Member' },
+      churchName: 'Grace Fellowship (Demo)',
+      year,
+      contributions: [
+        {
+          id: 'demo-offering-1',
+          service_date: `${year}-06-02`,
+          type: 'tithe',
+          amount: 220,
+          fund_name: 'General Fund',
+        },
+        {
+          id: 'demo-offering-2',
+          service_date: `${year}-05-18`,
+          type: 'special',
+          amount: 100,
+          fund_name: 'Building Fund',
+        },
+      ],
+      totalAmount: 320,
+    })
+  }
+
+  if (pathname.startsWith('/api/giving/online') && method === 'POST') {
+    return json({
+      success: true,
+      demo: true,
+      stripeConfigured: false,
+      paymentIntentId: `demo_pi_${Date.now()}`,
+      message: 'Donation recorded in demo mode. Configure Stripe for live payments.',
+    })
   }
 
   return null

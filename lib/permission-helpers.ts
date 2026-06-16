@@ -139,6 +139,35 @@ export async function getUserPermissions(
 }
 
 /**
+ * Require super_admin role (platform-level operations only)
+ */
+export async function requireSuperAdminAccess(
+  supabase: SupabaseClient<Database>
+): Promise<{ authorized: boolean; error?: string; userId?: string }> {
+  try {
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) {
+      return { authorized: false, error: 'Unauthorized - not authenticated' }
+    }
+
+    const permissions = await getUserPermissions(supabase, user.id)
+
+    if (!permissions.isAuthenticated) {
+      return { authorized: false, error: 'Unauthorized - not authenticated' }
+    }
+
+    if (!permissions.isSuperAdmin) {
+      return { authorized: false, error: 'Insufficient permissions - super admin access required' }
+    }
+
+    return { authorized: true, userId: user.id }
+  } catch (error) {
+    console.error('Error in requireSuperAdminAccess:', error)
+    return { authorized: false, error: 'Internal server error' }
+  }
+}
+
+/**
  * Middleware function to check if user has required admin permissions
  */
 export async function requireAdminAccess(

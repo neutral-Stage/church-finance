@@ -1,8 +1,8 @@
 'use client'
 
 import React from 'react'
-import { GlassCard, GlassCardContent } from '@/components/ui/glass-card'
-import { GlassButton } from '@/components/ui/glass-button'
+import { Card, CardContent } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
 import { LucideIcon } from 'lucide-react'
 
 interface AdminEmptyStateProps {
@@ -22,29 +22,27 @@ export function AdminEmptyState({
   actionLabel,
   onAction,
   isFiltered = false,
-  className = ''
+  className = '',
 }: AdminEmptyStateProps) {
   return (
-    <GlassCard variant="default" className={className}>
-      <GlassCardContent>
-        <div className="text-center py-12">
-          {Icon && <Icon className="w-16 h-16 text-gray-400 mx-auto mb-4" />}
-          <h3 className="text-xl font-medium text-white mb-2">{title}</h3>
-          <p className="text-gray-400 mb-6 max-w-md mx-auto">{description}</p>
+    <Card className={className}>
+      <CardContent>
+        <div className="py-12 text-center">
+          {Icon && <Icon className="mx-auto mb-4 h-16 w-16 text-muted-foreground" />}
+          <h3 className="mb-2 text-xl font-medium text-foreground">{title}</h3>
+          <p className="mx-auto mb-6 max-w-md text-muted-foreground">{description}</p>
 
           {!isFiltered && actionLabel && onAction && (
-            <GlassButton variant="primary" onClick={onAction}>
-              {actionLabel}
-            </GlassButton>
+            <Button onClick={onAction}>{actionLabel}</Button>
           )}
 
           {isFiltered && (
-            <p className="text-sm text-gray-500 mt-2">
+            <p className="mt-2 text-sm text-muted-foreground">
               Try adjusting your search terms or filters
             </p>
           )}
         </div>
-      </GlassCardContent>
-    </GlassCard>
+      </CardContent>
+    </Card>
   )
 }

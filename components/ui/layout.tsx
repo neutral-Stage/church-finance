@@ -253,9 +253,9 @@ const sectionVariants = cva(
       },
       background: {
         none: '',
-        glass: 'bg-white/5 backdrop-blur-xl border-y border-white/10',
-        'glass-card': 'bg-white/10 backdrop-blur-xl border border-white/20 rounded-xl',
-        gradient: 'bg-gradient-to-br from-primary/10 to-secondary/10',
+        glass: 'bg-card border-y border-border',
+        'glass-card': 'bg-card border border-border rounded-xl shadow-md',
+        gradient: 'bg-muted/40',
       },
     },
     defaultVariants: {
@@ -344,12 +344,12 @@ const PageHeader = React.forwardRef<HTMLDivElement, PageHeaderProps>(
       >
         <div className="space-y-2">
           {title && (
-            <h1 className="text-3xl font-bold tracking-tight text-white lg:text-4xl">
+            <h1 className="text-3xl font-bold tracking-tight text-foreground lg:text-4xl">
               {title}
             </h1>
           )}
           {description && (
-            <p className="text-lg text-white/70">
+            <p className="text-lg text-muted-foreground">
               {description}
             </p>
           )}
@@ -441,7 +441,7 @@ const Divider = React.forwardRef<HTMLHRElement, DividerProps>(
     return (
       <Comp
         className={cn(
-          'border-white/20',
+          'border-border',
           {
             'w-full border-t': orientation === 'horizontal',
             'h-full border-l': orientation === 'vertical',

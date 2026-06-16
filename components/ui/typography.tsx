@@ -5,7 +5,7 @@ import { Slot } from '@radix-ui/react-slot';
 
 // Heading Component
 const headingVariants = cva(
-  'font-semibold tracking-tight text-white',
+  'font-semibold tracking-tight text-foreground',
   {
     variants: {
       size: {
@@ -17,11 +17,11 @@ const headingVariants = cva(
         h6: 'text-base lg:text-lg',
       },
       variant: {
-        default: 'text-white',
-        muted: 'text-white/70',
+        default: 'text-foreground',
+        muted: 'text-muted-foreground',
         accent: 'text-primary',
-        gradient: 'bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent',
-        glow: 'text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.3)]',
+        gradient: 'bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent',
+        glow: 'text-foreground',
       },
       weight: {
         normal: 'font-normal',
@@ -64,7 +64,7 @@ Heading.displayName = 'Heading';
 
 // Text Component
 const textVariants = cva(
-  'text-white',
+  'text-foreground',
   {
     variants: {
       size: {
@@ -76,14 +76,14 @@ const textVariants = cva(
         '2xl': 'text-2xl',
       },
       variant: {
-        default: 'text-white',
-        muted: 'text-white/70',
-        subtle: 'text-white/60',
+        default: 'text-foreground',
+        muted: 'text-muted-foreground',
+        subtle: 'text-muted-foreground',
         accent: 'text-primary',
-        success: 'text-green-400',
-        warning: 'text-yellow-400',
-        error: 'text-red-400',
-        info: 'text-blue-400',
+        success: 'text-income',
+        warning: 'text-pending',
+        error: 'text-expense',
+        info: 'text-primary',
       },
       weight: {
         light: 'font-light',
@@ -143,13 +143,13 @@ Text.displayName = 'Text';
 
 // Label Component
 const labelVariants = cva(
-  'text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-white/90',
+  'text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-foreground',
   {
     variants: {
       variant: {
-        default: 'text-white/90',
-        muted: 'text-white/70',
-        required: 'text-white/90 after:content-["*"] after:ml-0.5 after:text-red-400',
+        default: 'text-foreground',
+        muted: 'text-muted-foreground',
+        required: 'text-foreground after:content-["*"] after:ml-0.5 after:text-destructive',
       },
       size: {
         sm: 'text-xs',
@@ -188,13 +188,13 @@ Label.displayName = 'Label';
 
 // Code Component
 const codeVariants = cva(
-  'relative rounded bg-white/10 px-[0.3rem] py-[0.2rem] font-mono text-sm font-semibold text-white border border-white/20',
+  'relative rounded bg-muted px-[0.3rem] py-[0.2rem] font-mono text-sm font-semibold text-foreground border border-border',
   {
     variants: {
       variant: {
-        default: 'bg-white/10 text-white border-white/20',
-        muted: 'bg-white/5 text-white/70 border-white/10',
-        accent: 'bg-primary/20 text-primary border-primary/30',
+        default: 'bg-muted text-foreground border-border',
+        muted: 'bg-muted/60 text-muted-foreground border-border',
+        accent: 'bg-primary/15 text-primary border-primary/30',
       },
       size: {
         sm: 'text-xs px-1 py-0.5',
@@ -243,7 +243,7 @@ const Blockquote = React.forwardRef<HTMLQuoteElement, BlockquoteProps>(
     return (
       <Comp
         className={cn(
-          'mt-6 border-l-2 border-white/20 pl-6 italic text-white/80',
+          'mt-6 border-l-2 border-border pl-6 italic text-muted-foreground',
           className
         )}
         ref={ref}
@@ -269,7 +269,7 @@ const List = React.forwardRef<React.ElementRef<'ul'>, ListProps>(
     return (
       <Comp
           className={cn(
-            'my-6 ml-6 list-outside text-white/80',
+            'my-6 ml-6 list-outside text-muted-foreground',
             {
               'list-disc': variant === 'unordered' || as === 'ul',
               'list-decimal': variant === 'ordered' || as === 'ol',
@@ -318,7 +318,7 @@ const Lead = React.forwardRef<HTMLParagraphElement, LeadProps>(
     
     return (
       <Comp
-        className={cn('text-xl text-white/80', className)}
+        className={cn('text-xl text-muted-foreground', className)}
         ref={ref}
         {...props}
       />
@@ -339,7 +339,7 @@ const Large = React.forwardRef<HTMLDivElement, LargeProps>(
     
     return (
       <Comp
-        className={cn('text-lg font-semibold text-white', className)}
+        className={cn('text-lg font-semibold text-foreground', className)}
         ref={ref}
         {...props}
       />
@@ -360,7 +360,7 @@ const Small = React.forwardRef<HTMLElement, SmallProps>(
     
     return (
       <Comp
-        className={cn('text-sm font-medium leading-none text-white/70', className)}
+        className={cn('text-sm font-medium leading-none text-muted-foreground', className)}
         ref={ref}
         {...props}
       />
@@ -381,7 +381,7 @@ const Muted = React.forwardRef<HTMLParagraphElement, MutedProps>(
     
     return (
       <Comp
-        className={cn('text-sm text-white/60', className)}
+        className={cn('text-sm text-muted-foreground', className)}
         ref={ref}
         {...props}
       />

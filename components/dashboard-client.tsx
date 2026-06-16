@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
 import { useChurch } from '@/contexts/ChurchContext'
@@ -19,7 +19,6 @@ import {
   GlassTableRow,
   GlassTableHead,
   GlassTableCell,
-  AnimatedBackground,
   StatusBadge,
   Heading,
   Text,
@@ -29,10 +28,16 @@ import {
 } from '@/components/ui'
 import {
   Activity,
+  Shield,
+  AlertTriangle,
+  CheckCircle2,
 } from 'lucide-react'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import Link from 'next/link'
 import type { DashboardData } from '@/lib/server-data'
+import { refreshDashboardData, fetchChartTransactions } from '@/lib/dashboard-refresh'
+import { DashboardCharts } from '@/components/dashboard-charts'
+import { BudgetVsActual } from '@/components/budget-vs-actual'
 
 interface DashboardClientProps {
   initialData: DashboardData
@@ -46,14 +51,15 @@ interface DashboardClientProps {
 }
 
 export function DashboardClient({ initialData, permissions, serverUser }: DashboardClientProps): JSX.Element {
-  const [data] = useState<DashboardData>(initialData)
+  const [data, setData] = useState<DashboardData>(initialData)
+  const [chartTransactions, setChartTransactions] = useState<
+    { transaction_date: string; type: string; amount: number; fund_id?: string }[]
+  >([])
   const { user, setServerUser } = useAuth()
   const { selectedChurch } = useChurch()
 
-  // Initialize client-side auth state with server user data on mount
-  // Use useRef to track if we've already set the server user to prevent infinite loops
   const hasSetServerUser = useRef(false)
-  
+
   useEffect(() => {
     if (serverUser && (!user || user.id !== serverUser.id) && !hasSetServerUser.current) {
       setServerUser(serverUser)
@@ -61,56 +67,83 @@ export function DashboardClient({ initialData, permissions, serverUser }: Dashbo
     }
   }, [serverUser, user, setServerUser])
 
-  // Set up real-time subscriptions only for updates, not initial loading
+  const reloadDashboard = useCallback(async () => {
+    if (!selectedChurch?.id) return
+    const refreshed = await refreshDashboardData(selectedChurch.id)
+    if (refreshed) setData(refreshed)
+    const txns = await fetchChartTransactions(selectedChurch.id)
+    setChartTransactions(txns)
+  }, [selectedChurch?.id])
+
   useEffect(() => {
-    if (process.env.NEXT_PUBLIC_DEMO_MODE === 'true') {
+    if (selectedChurch?.id) {
+      void fetchChartTransactions(selectedChurch.id).then(setChartTransactions)
+    }
+  }, [selectedChurch?.id])
+
+  useEffect(() => {
+    if (process.env.NEXT_PUBLIC_DEMO_MODE === 'true' || !selectedChurch?.id) {
       return
     }
-    const fundsSubscription = supabase
-      .channel('funds_changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'funds' }, () => {
-        // Instead of full page reload, we could implement targeted updates here
-        // For now, we'll disable automatic reloads to prevent infinite loops
-        console.log('Funds data changed - manual refresh may be needed')
-      })
-      .subscribe()
 
-    const transactionsSubscription = supabase
-      .channel('transactions_changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'transactions' }, () => {
-        console.log('Transactions data changed - manual refresh may be needed')
+    const channel = supabase
+      .channel(`dashboard_${selectedChurch.id}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'funds', filter: `church_id=eq.${selectedChurch.id}` }, () => {
+        void reloadDashboard()
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'transactions', filter: `church_id=eq.${selectedChurch.id}` }, () => {
+        void reloadDashboard()
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'bills', filter: `church_id=eq.${selectedChurch.id}` }, () => {
+        void reloadDashboard()
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'advances', filter: `church_id=eq.${selectedChurch.id}` }, () => {
+        void reloadDashboard()
       })
       .subscribe()
 
     return () => {
-      fundsSubscription.unsubscribe()
-      transactionsSubscription.unsubscribe()
+      void supabase.removeChannel(channel)
     }
-  }, [])
+  }, [selectedChurch?.id, reloadDashboard])
 
   const getTotalBalance = () => {
     return data.funds.reduce((sum, fund) => sum + Number(fund.current_balance), 0) || 0
   }
 
-  return (
-    <div className="min-h-screen relative overflow-hidden">
-      <AnimatedBackground variant="default" />
+  const userRole = permissions.userRole ?? 'viewer'
+  const isViewer = userRole === 'viewer'
+  const isTreasurer = userRole === 'treasurer'
+  const isAdmin = userRole === 'admin'
 
+  const pendingBillsCount = data.upcomingBills.filter(
+    (b) => b.approval_status === 'pending' || (!b.approval_status && b.status === 'pending')
+  ).length
+  const outstandingAdvancesCount = data.outstandingAdvances.length
+  const churchHealth =
+    pendingBillsCount > 0 || outstandingAdvancesCount > 0
+      ? 'attention'
+      : data.monthlyStats.netIncome >= 0
+        ? 'healthy'
+        : 'caution'
+
+  return (
+    <div className="min-h-screen bg-background">
       <Container className="py-6 space-y-6">
         {/* Header */}
         <Section className="animate-fade-in animate-slide-in-from-top-4 animate-duration-700">
           <div className="flex items-center justify-between flex-col md:flex-row gap-4">
             <div>
               <Heading size="h1" className="flex items-center gap-3">
-                <Activity className="h-10 w-10 text-white/80" />
+                <Activity className="h-10 w-10 text-muted-foreground" />
                 Church Finance Dashboard
               </Heading>
               <Text size="lg" color="muted" className="mt-2">
                 Welcome back, {(user || serverUser)?.full_name || (user || serverUser)?.email} - Overview of your church finances
               </Text>
             </div>
-            {permissions.canEdit && (
-              <div className="flex gap-4">
+            {permissions.canEdit && !isViewer && (
+              <div className="flex gap-4 flex-wrap">
                 <Link href="/transactions">
                   <GlassButton variant="default">
                     Add Transaction
@@ -121,6 +154,13 @@ export function DashboardClient({ initialData, permissions, serverUser }: Dashbo
                     Record Offering
                   </GlassButton>
                 </Link>
+                {(isTreasurer || isAdmin) && (
+                  <Link href="/approvals">
+                    <GlassButton variant="outline">
+                      Approvals
+                    </GlassButton>
+                  </Link>
+                )}
               </div>
             )}
           </div>
@@ -130,7 +170,7 @@ export function DashboardClient({ initialData, permissions, serverUser }: Dashbo
         <Grid cols={4} gap="xl" className="animate-fade-in animate-slide-in-from-bottom-4 animate-duration-700" style={{ animationDelay: '800ms' }}>
           <GlassCard hover animation="slideUp">
             <GlassCardHeader className="pb-2">
-              <GlassCardTitle className="text-white/70">Total Funds</GlassCardTitle>
+              <GlassCardTitle className="text-muted-foreground">Total Funds</GlassCardTitle>
             </GlassCardHeader>
             <GlassCardContent>
               <Text size="2xl" weight="bold">
@@ -141,7 +181,7 @@ export function DashboardClient({ initialData, permissions, serverUser }: Dashbo
 
           <GlassCard hover animation="slideUp" style={{ animationDelay: '100ms' }}>
             <GlassCardHeader className="pb-2">
-              <GlassCardTitle className="text-white/70">Monthly Income</GlassCardTitle>
+              <GlassCardTitle className="text-muted-foreground">Monthly Income</GlassCardTitle>
             </GlassCardHeader>
             <GlassCardContent>
               <Text size="2xl" weight="bold">
@@ -152,7 +192,7 @@ export function DashboardClient({ initialData, permissions, serverUser }: Dashbo
 
           <GlassCard hover animation="slideUp" style={{ animationDelay: '200ms' }}>
             <GlassCardHeader className="pb-2">
-              <GlassCardTitle className="text-white/70">Monthly Expenses</GlassCardTitle>
+              <GlassCardTitle className="text-muted-foreground">Monthly Expenses</GlassCardTitle>
             </GlassCardHeader>
             <GlassCardContent>
               <Text size="2xl" weight="bold">
@@ -163,17 +203,59 @@ export function DashboardClient({ initialData, permissions, serverUser }: Dashbo
 
           <GlassCard variant="success" hover animation="slideUp" style={{ animationDelay: '300ms' }}>
             <GlassCardHeader className="pb-2">
-              <GlassCardTitle className="text-green-200">Net Income</GlassCardTitle>
+              <GlassCardTitle className="text-income">Net Income</GlassCardTitle>
             </GlassCardHeader>
             <GlassCardContent>
-              <Text size="2xl" weight="bold" className="text-green-100">
+              <Text size="2xl" weight="bold" className="text-income">
                 <AnimatedCounter value={data.monthlyStats.netIncome} />
               </Text>
             </GlassCardContent>
           </GlassCard>
         </Grid>
 
-        {/* Fund Balance Cards */}
+        {isAdmin && (
+          <GlassCard hover animation="slideUp" className="border-primary/20">
+            <GlassCardHeader className="pb-2">
+              <GlassCardTitle className="flex items-center gap-2 text-base">
+                <Shield className="h-5 w-5 text-primary" />
+                Platform Health
+              </GlassCardTitle>
+            </GlassCardHeader>
+            <GlassCardContent>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex items-start gap-3">
+                  {churchHealth === 'healthy' ? (
+                    <CheckCircle2 className="h-8 w-8 text-income shrink-0" />
+                  ) : (
+                    <AlertTriangle className="h-8 w-8 text-pending shrink-0" />
+                  )}
+                  <div>
+                    <Text weight="semibold" className="capitalize">
+                      {churchHealth === 'healthy' ? 'Church finances look healthy' : 'Items need attention'}
+                    </Text>
+                    <Text size="sm" color="muted">
+                      {pendingBillsCount} pending bill approvals · {outstandingAdvancesCount} outstanding advances
+                    </Text>
+                  </div>
+                </div>
+                <div className="flex gap-2 flex-wrap">
+                  <Link href="/approvals">
+                    <GlassButton variant="outline" size="sm">
+                      Review approvals
+                    </GlassButton>
+                  </Link>
+                  <Link href="/admin/churches">
+                    <GlassButton variant="ghost" size="sm">
+                      Admin console
+                    </GlassButton>
+                  </Link>
+                </div>
+              </div>
+            </GlassCardContent>
+          </GlassCard>
+        )}
+
+        {!isViewer && (
         <Grid cols={3} gap="xl">
           {data.funds.map((fund, index) => {
             const balance = Number(fund.current_balance) || 0;
@@ -198,17 +280,17 @@ export function DashboardClient({ initialData, permissions, serverUser }: Dashbo
                 </GlassCardHeader>
                 <GlassCardContent className="space-y-3">
                   <Grid cols={2} gap="lg">
-                    <div className="bg-green-500/20 p-3 rounded-lg backdrop-blur-sm">
-                      <Text size="base" weight="medium" className="text-green-300">
+                    <div className="bg-income/15 border border-income/30 p-3 rounded-lg">
+                      <Text size="base" weight="medium" className="text-income">
                         <AnimatedCounter value={totalIncome} />
                       </Text>
-                      <Text size="xs" className="text-green-200/70">Income</Text>
+                      <Text size="xs" className="text-muted-foreground">Income</Text>
                     </div>
-                    <div className="bg-red-500/20 p-3 rounded-lg backdrop-blur-sm">
-                      <Text size="base" weight="medium" className="text-red-300">
+                    <div className="bg-expense/15 border border-expense/30 p-3 rounded-lg">
+                      <Text size="base" weight="medium" className="text-expense">
                         <AnimatedCounter value={expenses} />
                       </Text>
-                      <Text size="xs" className="text-red-200/70">Expenses</Text>
+                      <Text size="xs" className="text-muted-foreground">Expenses</Text>
                     </div>
                   </Grid>
                 </GlassCardContent>
@@ -216,7 +298,17 @@ export function DashboardClient({ initialData, permissions, serverUser }: Dashbo
             );
           })}
         </Grid>
+        )}
 
+        {!isViewer && (
+          <>
+        <DashboardCharts funds={data.funds} chartTransactions={chartTransactions} />
+
+        <BudgetVsActual compact />
+          </>
+        )}
+
+        {!isViewer && (
         <div className="mobile-grid lg:grid-cols-2">
           {/* Recent Transactions */}
           <GlassCard
@@ -253,7 +345,7 @@ export function DashboardClient({ initialData, permissions, serverUser }: Dashbo
                       <GlassTableCell>{transaction.fund?.name}</GlassTableCell>
                       <GlassTableCell
                         numeric
-                        className={`font-medium ${transaction.type === 'income' ? 'text-green-400' : 'text-red-400'
+                        className={`font-medium ${transaction.type === 'income' ? 'text-income' : 'text-expense'
                           }`}
                       >
                         {transaction.type === 'income' ? '+' : '-'}{formatCurrency(Number(transaction.amount))}
@@ -292,10 +384,10 @@ export function DashboardClient({ initialData, permissions, serverUser }: Dashbo
                     const isDueSoon = daysUntilDue <= 7 && daysUntilDue >= 0;
 
                     return (
-                      <div key={bill.id} className="flex items-center justify-between p-3 bg-white/5 rounded-lg backdrop-blur-sm hover:bg-white/10 transition-all duration-200">
+                      <div key={bill.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg hover:bg-accent transition-all duration-200">
                         <div className="flex-1">
                           <Text weight="medium">{bill.vendor_name}</Text>
-                          <Text size="sm" className="text-white/60">
+                          <Text size="sm" className="text-muted-foreground">
                             Due: {formatDate(bill.due_date)}
                           </Text>
                         </div>
@@ -314,7 +406,7 @@ export function DashboardClient({ initialData, permissions, serverUser }: Dashbo
                     );
                   })}
                   {data.upcomingBills.length === 0 && (
-                    <Text className="text-center text-white/60 py-8">
+                    <Text className="text-center text-muted-foreground py-8">
                       No upcoming bills
                     </Text>
                   )}
@@ -342,11 +434,11 @@ export function DashboardClient({ initialData, permissions, serverUser }: Dashbo
                   {data.outstandingAdvances.slice(0, 5).map((advance) => (
                     <div
                       key={advance.id}
-                      className="flex items-center justify-between p-3 bg-white/5 rounded-lg backdrop-blur-sm hover:bg-white/10 transition-all duration-200"
+                      className="flex items-center justify-between p-3 bg-muted/50 rounded-lg hover:bg-accent transition-all duration-200"
                     >
                       <div className="flex-1">
                         <Text weight="medium">{advance.recipient_name}</Text>
-                        <Text size="sm" className="text-white/60">
+                        <Text size="sm" className="text-muted-foreground">
                           Issued: {advance.created_at ? formatDate(advance.created_at) : 'Unknown'}
                         </Text>
                       </div>
@@ -364,7 +456,7 @@ export function DashboardClient({ initialData, permissions, serverUser }: Dashbo
                     </div>
                   ))}
                   {data.outstandingAdvances.length === 0 && (
-                    <Text className="text-center text-white/60 py-8">
+                    <Text className="text-center text-muted-foreground py-8">
                       No outstanding advances
                     </Text>
                   )}
@@ -373,6 +465,7 @@ export function DashboardClient({ initialData, permissions, serverUser }: Dashbo
             </GlassCard>
           </div>
         </div>
+        )}
       </Container>
     </div>
   )

@@ -306,11 +306,11 @@ export function AdvancedAnalysis({ data, dateRange, filters }: AdvancedAnalysisP
             <div className="text-center">
               <div className="flex items-center justify-center mb-2">
                 {trendAnalysis.direction === 'up' ? (
-                  <TrendingUp className="h-8 w-8 text-green-500" />
+                  <TrendingUp className="h-8 w-8 text-income" />
                 ) : trendAnalysis.direction === 'down' ? (
-                  <TrendingDown className="h-8 w-8 text-red-500" />
+                  <TrendingDown className="h-8 w-8 text-expense" />
                 ) : (
-                  <Activity className="h-8 w-8 text-gray-500" />
+                  <Activity className="h-8 w-8 text-muted-foreground" />
                 )}
               </div>
               <div className="text-2xl font-bold">
@@ -334,12 +334,13 @@ export function AdvancedAnalysis({ data, dateRange, filters }: AdvancedAnalysisP
 
           <ResponsiveContainer width="100%" height={300}>
             <LineChart data={timeSeriesData}>
-              <CartesianGrid strokeDasharray="3 3" />
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
               <XAxis
                 dataKey="month"
+                tick={{ fill: 'hsl(var(--muted-foreground))' }}
                 tickFormatter={(value) => new Date(value + '-01').toLocaleDateString('en-US', { month: 'short', year: '2-digit' })}
               />
-               <YAxis tickFormatter={(value) => formatCurrency(value)} />
+               <YAxis tickFormatter={(value) => formatCurrency(value)} tick={{ fill: 'hsl(var(--muted-foreground))' }} />
                <Tooltip
                  formatter={(value) => formatCurrency(value)}
                  labelFormatter={(label) => new Date(label + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
@@ -347,7 +348,7 @@ export function AdvancedAnalysis({ data, dateRange, filters }: AdvancedAnalysisP
               <Line
                 type="monotone"
                 dataKey={trendMetric}
-                stroke="#3B82F6"
+                stroke="hsl(var(--primary))"
                 strokeWidth={3}
                 dot={{ r: 4 }}
               />
@@ -410,21 +411,21 @@ export function AdvancedAnalysis({ data, dateRange, filters }: AdvancedAnalysisP
 
           <ResponsiveContainer width="100%" height={300}>
             <LineChart data={[...timeSeriesData.map(d => ({ ...d, type: 'historical' })), ...forecasts.map(f => ({ month: f.period, [trendMetric]: f.predicted, type: 'forecast', upper: f.upper, lower: f.lower }))]}>
-              <CartesianGrid strokeDasharray="3 3" />
-               <XAxis dataKey="month" />
-               <YAxis tickFormatter={(value) => formatCurrency(value)} />
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+               <XAxis dataKey="month" tick={{ fill: 'hsl(var(--muted-foreground))' }} />
+               <YAxis tickFormatter={(value) => formatCurrency(value)} tick={{ fill: 'hsl(var(--muted-foreground))' }} />
                <Tooltip formatter={(value) => formatCurrency(value)} />
               <Line
                 type="monotone"
                 dataKey={trendMetric}
-                stroke="#3B82F6"
+                stroke="hsl(var(--primary))"
                 strokeWidth={2}
                 connectNulls={false}
               />
               <Line
                 type="monotone"
                 dataKey="upper"
-                stroke="#94A3B8"
+                stroke="hsl(var(--muted-foreground))"
                 strokeWidth={1}
                 strokeDasharray="5 5"
                 dot={false}
@@ -432,12 +433,12 @@ export function AdvancedAnalysis({ data, dateRange, filters }: AdvancedAnalysisP
               <Line
                 type="monotone"
                 dataKey="lower"
-                stroke="#94A3B8"
+                stroke="hsl(var(--muted-foreground))"
                 strokeWidth={1}
                 strokeDasharray="5 5"
                 dot={false}
               />
-              <ReferenceArea x1={timeSeriesData.length - 1} fill="#3B82F6" fillOpacity={0.1} />
+              <ReferenceArea x1={timeSeriesData.length - 1} fill="hsl(var(--primary))" fillOpacity={0.1} />
             </LineChart>
           </ResponsiveContainer>
         </CardContent>
@@ -466,9 +467,9 @@ export function AdvancedAnalysis({ data, dateRange, filters }: AdvancedAnalysisP
             ) : (
               anomalies.map((anomaly, index) => (
                 <Alert key={index} className={`border-l-4 ${
-                  anomaly.severity === 'high' ? 'border-l-red-500 bg-red-50' :
-                  anomaly.severity === 'medium' ? 'border-l-yellow-500 bg-yellow-50' :
-                  'border-l-blue-500 bg-blue-50'
+                  anomaly.severity === 'high' ? 'border-l-destructive bg-destructive/10' :
+                  anomaly.severity === 'medium' ? 'border-l-pending bg-pending/10' :
+                  'border-l-primary bg-primary/10'
                 }`}>
                   <AlertTriangle className="h-4 w-4" />
                   <AlertTitle className="flex items-center gap-2">
@@ -509,12 +510,12 @@ export function AdvancedAnalysis({ data, dateRange, filters }: AdvancedAnalysisP
               <h4 className="font-semibold mb-4">Monthly Seasonality</h4>
               <ResponsiveContainer width="100%" height={250}>
                  <BarChart data={patterns.monthly}>
-                   <CartesianGrid strokeDasharray="3 3" />
-                   <XAxis dataKey="month" />
-                   <YAxis tickFormatter={(value) => formatCurrency(value)} />
+                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                   <XAxis dataKey="month" tick={{ fill: 'hsl(var(--muted-foreground))' }} />
+                   <YAxis tickFormatter={(value) => formatCurrency(value)} tick={{ fill: 'hsl(var(--muted-foreground))' }} />
                    <Tooltip formatter={(value) => formatCurrency(value)} />
-                  <Bar dataKey="offerings" fill="#3B82F6" name="Offerings" />
-                  <Bar dataKey="income" fill="#10B981" name="Income" />
+                  <Bar dataKey="offerings" fill="hsl(var(--primary))" name="Offerings" />
+                  <Bar dataKey="income" fill="hsl(var(--income))" name="Income" />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -523,7 +524,7 @@ export function AdvancedAnalysis({ data, dateRange, filters }: AdvancedAnalysisP
               <h4 className="font-semibold mb-4">Key Insights</h4>
               <div className="space-y-3">
                 {patterns.insights.map((insight, index) => (
-                  <div key={index} className="p-3 bg-gray-50 rounded-lg">
+                  <div key={index} className="p-3 bg-muted/50 rounded-lg">
                     <div className="flex items-center justify-between mb-1">
                       <Badge variant="outline" className="capitalize">{insight.type}</Badge>
                       <span className="text-xs text-muted-foreground">{insight.confidence}% confidence</span>

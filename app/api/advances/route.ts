@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient, createAdminClient } from '@/lib/supabase-server';
 import { safeSelect, safeUpdate, safeDelete, safeRpc } from '@/lib/supabase-helpers';
 import { extractProperty, extractId, extractAmount } from '@/lib/supabase-type-fix';
+import { auditFinancialMutation } from '@/lib/audit';
 
 // Force dynamic rendering since this route uses cookies for authentication
 export const dynamic = 'force-dynamic';
@@ -131,6 +132,19 @@ export async function POST(request: NextRequest) {
 
       const updatedAdvanceRecord = updatedAdvance[0];
 
+      await auditFinancialMutation(adminSupabase as never, {
+        churchId: extractProperty(currentAdvance, 'church_id'),
+        userId: user.id,
+        action: 'update',
+        entityType: 'advance',
+        entityId: advance_id,
+        oldData: currentAdvance as unknown as Record<string, unknown>,
+        newData: updatedAdvanceRecord as unknown as Record<string, unknown>,
+        amount: parseFloat(repayment_amount),
+        transactionDate: repayment_date || new Date().toISOString().split('T')[0],
+        fundId: extractProperty(currentAdvance, 'fund_id'),
+      });
+
       // Update fund balance (add money back)
       const fundId = extractProperty(currentAdvance, 'fund_id');
       if (fundId) {
@@ -192,6 +206,18 @@ export async function POST(request: NextRequest) {
     const advance = insertResult.data;
 
     const newAdvance = advance[0];
+
+    await auditFinancialMutation(adminSupabase as never, {
+      churchId: church_id ?? extractProperty(newAdvance, 'church_id'),
+      userId: user.id,
+      action: 'create',
+      entityType: 'advance',
+      entityId: extractId(newAdvance),
+      newData: newAdvance as unknown as Record<string, unknown>,
+      amount: parseFloat(amount),
+      transactionDate: advance_date,
+      fundId: fund_id || null,
+    });
 
     // For outstanding advances, update fund balance and create transaction
     if (status === 'outstanding' && fund_id) {
@@ -306,6 +332,19 @@ export async function PUT(request: NextRequest) {
 
     const updatedAdvance = advance[0];
 
+    await auditFinancialMutation(adminSupabase as never, {
+      churchId: extractProperty(currentAdvance, 'church_id'),
+      userId: user.id,
+      action: 'update',
+      entityType: 'advance',
+      entityId: id,
+      oldData: currentAdvance as unknown as Record<string, unknown>,
+      newData: updatedAdvance as unknown as Record<string, unknown>,
+      amount: amount !== undefined ? parseFloat(amount) : extractAmount(currentAdvance),
+      transactionDate: advance_date || extractProperty(currentAdvance, 'advance_date'),
+      fundId: fund_id !== undefined ? fund_id : extractProperty(currentAdvance, 'fund_id'),
+    });
+
     // Handle fund balance changes based on status changes
     const newStatus = status || currentAdvance.status;
     const oldAmount = currentAdvance.amount;
@@ -411,6 +450,18 @@ export async function DELETE(request: NextRequest) {
         { status: 500 }
       );
     }
+
+    await auditFinancialMutation(adminSupabase as never, {
+      churchId: extractProperty(advance, 'church_id'),
+      userId: user.id,
+      action: 'delete',
+      entityType: 'advance',
+      entityId: id,
+      oldData: advance as unknown as Record<string, unknown>,
+      amount: extractAmount(advance),
+      transactionDate: extractProperty(advance, 'advance_date'),
+      fundId: extractProperty(advance, 'fund_id'),
+    });
 
     // If the advance was outstanding, revert the fund balance
     if (advance.status === 'outstanding' && advance.fund_id) {

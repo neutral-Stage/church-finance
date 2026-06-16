@@ -1,49 +1,23 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { GlassCard, GlassCardHeader, GlassCardTitle, GlassCardContent, GlassCardFooter } from '@/components/ui/glass-card'
+import { GlassCard, GlassCardHeader, GlassCardTitle, GlassCardContent } from '@/components/ui/glass-card'
 import { GlassButton } from '@/components/ui/glass-button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Progress } from '@/components/ui/progress'
-import { Building2, Users, DollarSign, Search, Download, TrendingUp, TrendingDown, AlertTriangle, Eye, BarChart3, PieChart, Plus, Edit, Trash2 } from 'lucide-react'
+import { Building2, DollarSign, Search, Download, TrendingUp, TrendingDown, AlertTriangle, BarChart3, Plus, Edit, Shield } from 'lucide-react'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Textarea } from '@/components/ui/textarea'
 import { useConfirmationDialog } from '@/components/ui/confirmation-dialog'
 import { toast } from 'sonner'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-
-interface ChurchFinancialData {
-  id: string
-  name: string
-  type: string
-  is_active: boolean
-  created_at: string
-  address: string | null
-  phone: string | null
-  email: string | null
-  description: string | null
-  established_date: string | null
-  funds: {
-    total_funds: number
-    active_funds: number
-    total_balance: number
-    total_income: number
-    total_expenses: number
-    fund_types: Record<string, number>
-  }
-  recent_activity: {
-    transactions_last_30_days: number
-    offerings_last_30_days: number
-    bills_pending: number
-    advances_outstanding: number
-  }
-  member_count?: number
-  user_count?: number
-}
+import { PlatformOpsPanel } from '@/components/admin/platform-ops-panel'
+import { ChurchList } from '@/components/admin/church-list'
+import { ChurchDetailDrawer } from '@/components/admin/church-detail-drawer'
+import { formatChurchCurrency, isMainChurch, type ChurchFinancialData } from '@/components/admin/church-types'
 
 interface SystemSummary {
   total_churches: number
@@ -78,12 +52,12 @@ export default function ChurchesAdminPage() {
   const [sortBy, setSortBy] = useState<string>('name')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
   const [selectedChurch, setSelectedChurch] = useState<ChurchFinancialData | null>(null)
-  const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false)
+  const [isDetailDrawerOpen, setIsDetailDrawerOpen] = useState(false)
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [editingChurch, setEditingChurch] = useState<ChurchFinancialData | null>(null)
   const [submitting, setSubmitting] = useState(false)
-  const [activeTab, setActiveTab] = useState('overview')
+  const [pageView, setPageView] = useState<'financial' | 'platform'>('financial')
   const { confirm, ConfirmationDialog } = useConfirmationDialog()
 
   const [formData, setFormData] = useState<ChurchFormData>({
@@ -182,9 +156,9 @@ export default function ChurchesAdminPage() {
     return [headers, ...rows].map(row => row.join(',')).join('\n')
   }
 
-  const openDetailDialog = (church: ChurchFinancialData) => {
+  const openDetailDrawer = (church: ChurchFinancialData) => {
     setSelectedChurch(church)
-    setIsDetailDialogOpen(true)
+    setIsDetailDrawerOpen(true)
   }
 
   const resetForm = () => {
@@ -393,67 +367,13 @@ export default function ChurchesAdminPage() {
       return 0
     })
 
-  const getTypeColor = (type: string) => {
-    switch (type) {
-      case 'church': return 'bg-blue-500/20 text-blue-300 border-blue-500/30'
-      case 'fellowship': return 'bg-green-500/20 text-green-300 border-green-500/30'
-      case 'ministry': return 'bg-purple-500/20 text-purple-300 border-purple-500/30'
-      default: return 'bg-gray-500/20 text-gray-300 border-gray-500/30'
-    }
-  }
-
-  const getStatusColor = (isActive: boolean) => {
-    return isActive
-      ? 'bg-green-500/20 text-green-300 border-green-500/30'
-      : 'bg-red-500/20 text-red-300 border-red-500/30'
-  }
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).format(amount)
-  }
-
-  const getHealthStatus = (church: ChurchFinancialData) => {
-    const netPosition = church.funds.total_income - church.funds.total_expenses
-    const hasActivity = church.recent_activity.transactions_last_30_days > 0
-    const hasPendingIssues = church.recent_activity.bills_pending > 0 || church.recent_activity.advances_outstanding > 0
-
-    if (netPosition > 0 && hasActivity && !hasPendingIssues) return 'excellent'
-    if (netPosition > 0 && hasActivity) return 'good'
-    if (netPosition >= 0) return 'fair'
-    return 'poor'
-  }
-
-  const getHealthColor = (status: string) => {
-    switch (status) {
-      case 'excellent': return 'text-green-400'
-      case 'good': return 'text-blue-400'
-      case 'fair': return 'text-yellow-400'
-      case 'poor': return 'text-red-400'
-      default: return 'text-gray-400'
-    }
-  }
-
-  const isMainChurch = (church: ChurchFinancialData) => {
-    // The main church is the oldest (first created) church in the system
-    if (churches.length === 0) return false
-
-    const oldestChurch = churches.reduce((oldest, current) =>
-      new Date(current.created_at) < new Date(oldest.created_at) ? current : oldest
-    )
-
-    return oldestChurch.id === church.id
-  }
+  const getMainChurch = (church: ChurchFinancialData) => isMainChurch(church, churches)
 
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-400"></div>
-        <span className="ml-3 text-white/70">Loading church financial data...</span>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        <span className="ml-3 text-muted-foreground">Loading church financial data...</span>
       </div>
     )
   }
@@ -463,8 +383,8 @@ export default function ChurchesAdminPage() {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-white">Church Financial Monitor</h1>
-          <p className="text-white/70 mt-2">Comprehensive financial oversight for all churches</p>
+          <h1 className="text-3xl font-bold text-foreground">Church Financial Monitor</h1>
+          <p className="text-muted-foreground mt-2">Comprehensive financial oversight for all churches</p>
         </div>
 
         <div className="flex gap-2">
@@ -479,50 +399,67 @@ export default function ChurchesAdminPage() {
         </div>
       </div>
 
-      {/* System Summary Cards */}
+      {/* View Toggle */}
+      <Tabs value={pageView} onValueChange={(v) => setPageView(v as 'financial' | 'platform')}>
+        <TabsList>
+          <TabsTrigger value="financial">
+            <BarChart3 className="w-4 h-4 mr-2" />
+            Financial Monitor
+          </TabsTrigger>
+          <TabsTrigger value="platform">
+            <Shield className="w-4 h-4 mr-2" />
+            Platform Ops
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="platform" className="mt-6">
+          <PlatformOpsPanel />
+        </TabsContent>
+
+        <TabsContent value="financial" className="mt-6 space-y-6">
       {summary && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <GlassCard variant="primary">
             <GlassCardContent className="flex items-center justify-between p-4">
               <div>
-                <p className="text-white/70 text-sm">Total Churches</p>
-                <p className="text-2xl font-bold text-white">{summary.total_churches}</p>
-                <p className="text-xs text-green-400">{summary.active_churches} active</p>
+                <p className="text-muted-foreground text-sm">Total Churches</p>
+                <p className="text-2xl font-bold text-foreground">{summary.total_churches}</p>
+                <p className="text-xs text-income">{summary.active_churches} active</p>
               </div>
-              <Building2 className="w-8 h-8 text-purple-400" />
+              <Building2 className="w-8 h-8 text-primary" />
             </GlassCardContent>
           </GlassCard>
 
           <GlassCard variant="success">
             <GlassCardContent className="flex items-center justify-between p-4">
               <div>
-                <p className="text-white/70 text-sm">System Balance</p>
-                <p className="text-2xl font-bold text-white">{formatCurrency(summary.total_system_balance)}</p>
-                <p className="text-xs text-green-400">Across {summary.total_funds} funds</p>
+                <p className="text-muted-foreground text-sm">System Balance</p>
+                <p className="text-2xl font-bold text-foreground">{formatChurchCurrency(summary.total_system_balance)}</p>
+                <p className="text-xs text-income">Across {summary.total_funds} funds</p>
               </div>
-              <DollarSign className="w-8 h-8 text-green-400" />
+              <DollarSign className="w-8 h-8 text-income" />
             </GlassCardContent>
           </GlassCard>
 
           <GlassCard variant="info">
             <GlassCardContent className="flex items-center justify-between p-4">
               <div>
-                <p className="text-white/70 text-sm">Total Income</p>
-                <p className="text-2xl font-bold text-white">{formatCurrency(summary.total_system_income)}</p>
-                <p className="text-xs text-blue-400">All time</p>
+                <p className="text-muted-foreground text-sm">Total Income</p>
+                <p className="text-2xl font-bold text-foreground">{formatChurchCurrency(summary.total_system_income)}</p>
+                <p className="text-xs text-primary">All time</p>
               </div>
-              <TrendingUp className="w-8 h-8 text-blue-400" />
+              <TrendingUp className="w-8 h-8 text-primary" />
             </GlassCardContent>
           </GlassCard>
 
           <GlassCard variant="warning">
             <GlassCardContent className="flex items-center justify-between p-4">
               <div>
-                <p className="text-white/70 text-sm">Total Expenses</p>
-                <p className="text-2xl font-bold text-white">{formatCurrency(summary.total_system_expenses)}</p>
-                <p className="text-xs text-yellow-400">All time</p>
+                <p className="text-muted-foreground text-sm">Total Expenses</p>
+                <p className="text-2xl font-bold text-foreground">{formatChurchCurrency(summary.total_system_expenses)}</p>
+                <p className="text-xs text-pending">All time</p>
               </div>
-              <TrendingDown className="w-8 h-8 text-yellow-400" />
+              <TrendingDown className="w-8 h-8 text-pending" />
             </GlassCardContent>
           </GlassCard>
         </div>
@@ -533,17 +470,17 @@ export default function ChurchesAdminPage() {
         <GlassCardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 z-10" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4 z-10" />
               <Input
                 placeholder="Search churches..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 bg-white/10 backdrop-blur-xl border-white/20 text-white placeholder:text-white/50 rounded-xl transition-all duration-300 hover:bg-white/15 focus:bg-white/15 focus:border-white/30"
+                className="pl-10"
               />
             </div>
 
             <Select value={typeFilter} onValueChange={setTypeFilter}>
-              <SelectTrigger className="bg-slate-800 border-slate-700 text-white">
+              <SelectTrigger>
                 <SelectValue placeholder="All Types" />
               </SelectTrigger>
               <SelectContent>
@@ -555,7 +492,7 @@ export default function ChurchesAdminPage() {
             </Select>
 
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="bg-slate-800 border-slate-700 text-white">
+              <SelectTrigger>
                 <SelectValue placeholder="All Status" />
               </SelectTrigger>
               <SelectContent>
@@ -566,7 +503,7 @@ export default function ChurchesAdminPage() {
             </Select>
 
             <Select value={sortBy} onValueChange={setSortBy}>
-              <SelectTrigger className="bg-slate-800 border-slate-700 text-white">
+              <SelectTrigger>
                 <SelectValue placeholder="Sort By" />
               </SelectTrigger>
               <SelectContent>
@@ -580,7 +517,7 @@ export default function ChurchesAdminPage() {
             </Select>
 
             <Select value={sortOrder} onValueChange={(value: 'asc' | 'desc') => setSortOrder(value)}>
-              <SelectTrigger className="bg-slate-800 border-slate-700 text-white">
+              <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -592,441 +529,25 @@ export default function ChurchesAdminPage() {
         </GlassCardContent>
       </GlassCard>
 
-      {/* Churches Grid */}
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {filteredAndSortedChurches.map((church) => {
-          const healthStatus = getHealthStatus(church)
-          const netPosition = church.funds.total_income - church.funds.total_expenses
+      <ChurchList
+        churches={filteredAndSortedChurches}
+        allChurches={churches}
+        onView={openDetailDrawer}
+        onEdit={openEditDialog}
+        onDelete={handleDeleteChurch}
+      />
+        </TabsContent>
+      </Tabs>
 
-          return (
-            <GlassCard key={church.id} variant="default" animation="fadeIn" className="hover:scale-[1.02]">
-              <GlassCardHeader className="pb-3">
-                <div className="flex justify-between items-start">
-                  <div className="space-y-2">
-                    <GlassCardTitle className="text-lg">{church.name}</GlassCardTitle>
-                    <div className="flex gap-2">
-                      <Badge className={getTypeColor(church.type)}>{church.type}</Badge>
-                      <Badge className={getStatusColor(church.is_active)}>
-                        {church.is_active ? 'Active' : 'Inactive'}
-                      </Badge>
-                      {isMainChurch(church) && (
-                        <Badge className="bg-purple-500/20 text-purple-300 border-purple-500/30">
-                          Primary
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex gap-1">
-                    <GlassButton
-                      variant="info"
-                      size="sm"
-                      onClick={() => openDetailDialog(church)}
-                    >
-                      <Eye className="w-4 h-4" />
-                    </GlassButton>
-                    <GlassButton
-                      variant="warning"
-                      size="sm"
-                      onClick={() => openEditDialog(church)}
-                    >
-                      <Edit className="w-4 h-4" />
-                    </GlassButton>
-                    {!isMainChurch(church) && (
-                      <GlassButton
-                        variant="error"
-                        size="sm"
-                        onClick={() => handleDeleteChurch(church)}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </GlassButton>
-                    )}
-                  </div>
-                </div>
-
-                {/* Financial Health Indicator */}
-                <div className="flex items-center gap-2 mt-2">
-                  <div className={`w-2 h-2 rounded-full ${getHealthColor(healthStatus).replace('text-', 'bg-')}`}></div>
-                  <span className={`text-xs ${getHealthColor(healthStatus)}`}>
-                    Financial Health: {healthStatus.charAt(0).toUpperCase() + healthStatus.slice(1)}
-                  </span>
-                </div>
-              </GlassCardHeader>
-
-              <GlassCardContent className="space-y-4">
-                {/* Financial Summary */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="text-center p-2 bg-slate-800/50 rounded">
-                    <p className="text-xs text-gray-400">Total Balance</p>
-                    <p className="text-sm font-bold text-green-400">{formatCurrency(church.funds.total_balance)}</p>
-                  </div>
-                  <div className="text-center p-2 bg-slate-800/50 rounded">
-                    <p className="text-xs text-gray-400">Funds</p>
-                    <p className="text-sm font-bold text-blue-400">{church.funds.total_funds}</p>
-                  </div>
-                </div>
-
-                {/* Net Position */}
-                <div className="flex items-center justify-between p-2 bg-slate-800/30 rounded">
-                  <span className="text-xs text-gray-400">Net Position:</span>
-                  <span className={`text-sm font-bold ${
-                    netPosition > 0 ? 'text-green-400' : netPosition < 0 ? 'text-red-400' : 'text-gray-400'
-                  }`}>
-                    {formatCurrency(netPosition)}
-                  </span>
-                </div>
-
-                {/* Activity Summary */}
-                <div className="space-y-1">
-                  <div className="flex justify-between text-xs">
-                    <span className="text-gray-400">Recent Activity (30d):</span>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2 text-xs">
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Transactions:</span>
-                      <span className="text-white">{church.recent_activity.transactions_last_30_days}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Offerings:</span>
-                      <span className="text-white">{church.recent_activity.offerings_last_30_days}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Alerts */}
-                {(church.recent_activity.bills_pending > 0 || church.recent_activity.advances_outstanding > 0) && (
-                  <div className="flex items-center gap-2 p-2 bg-yellow-500/10 border border-yellow-500/30 rounded">
-                    <AlertTriangle className="w-4 h-4 text-yellow-400" />
-                    <div className="text-xs text-yellow-400">
-                      {church.recent_activity.bills_pending > 0 && `${church.recent_activity.bills_pending} pending bills`}
-                      {church.recent_activity.bills_pending > 0 && church.recent_activity.advances_outstanding > 0 && ', '}
-                      {church.recent_activity.advances_outstanding > 0 && `${church.recent_activity.advances_outstanding} outstanding advances`}
-                    </div>
-                  </div>
-                )}
-              </GlassCardContent>
-
-              <GlassCardFooter className="flex justify-between items-center pt-3 border-t border-slate-600">
-                <div className="flex items-center gap-1 text-xs text-gray-500">
-                  <Users className="w-3 h-3" />
-                  {church.user_count || 0} users
-                </div>
-                <span className="text-xs text-gray-500">
-                  {church.created_at ? new Date(church.created_at).toLocaleDateString() : 'Unknown'}
-                </span>
-              </GlassCardFooter>
-            </GlassCard>
-          )
-        })}
-      </div>
-
-      {filteredAndSortedChurches.length === 0 && (
-        <GlassCard variant="default" className="text-center py-8">
-          <GlassCardContent>
-            <Building2 className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-white mb-2">
-              {searchTerm || typeFilter !== 'all' || statusFilter !== 'all' ? 'No churches match your filters' : 'No churches found'}
-            </h3>
-            <p className="text-gray-400">
-              {searchTerm || typeFilter !== 'all' || statusFilter !== 'all'
-                ? 'Try adjusting your search terms or filters'
-                : 'No churches are available in the system'
-              }
-            </p>
-          </GlassCardContent>
-        </GlassCard>
-      )}
-
-      {/* Church Detail Dialog */}
-      <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>
-        <DialogContent className="bg-slate-800 border-slate-700 text-white max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Building2 className="w-5 h-5" />
-              {selectedChurch?.name} - Financial Details
-            </DialogTitle>
-            <DialogDescription>
-              Comprehensive financial overview and activity details
-            </DialogDescription>
-          </DialogHeader>
-
-          {selectedChurch && (
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-4">
-              <TabsList className="grid w-full grid-cols-4 bg-slate-700">
-                <TabsTrigger value="overview">Overview</TabsTrigger>
-                <TabsTrigger value="funds">Funds</TabsTrigger>
-                <TabsTrigger value="activity">Activity</TabsTrigger>
-                <TabsTrigger value="details">Details</TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="overview" className="space-y-4 mt-4">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <GlassCard variant="success">
-                    <GlassCardContent className="p-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-sm text-gray-400">Total Balance</p>
-                          <p className="text-xl font-bold text-green-400">
-                            {formatCurrency(selectedChurch.funds.total_balance)}
-                          </p>
-                        </div>
-                        <DollarSign className="w-6 h-6 text-green-400" />
-                      </div>
-                    </GlassCardContent>
-                  </GlassCard>
-
-                  <GlassCard variant="info">
-                    <GlassCardContent className="p-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-sm text-gray-400">Total Income</p>
-                          <p className="text-xl font-bold text-blue-400">
-                            {formatCurrency(selectedChurch.funds.total_income)}
-                          </p>
-                        </div>
-                        <TrendingUp className="w-6 h-6 text-blue-400" />
-                      </div>
-                    </GlassCardContent>
-                  </GlassCard>
-
-                  <GlassCard variant="warning">
-                    <GlassCardContent className="p-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-sm text-gray-400">Total Expenses</p>
-                          <p className="text-xl font-bold text-yellow-400">
-                            {formatCurrency(selectedChurch.funds.total_expenses)}
-                          </p>
-                        </div>
-                        <TrendingDown className="w-6 h-6 text-yellow-400" />
-                      </div>
-                    </GlassCardContent>
-                  </GlassCard>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <GlassCard>
-                    <GlassCardHeader>
-                      <GlassCardTitle>Fund Overview</GlassCardTitle>
-                    </GlassCardHeader>
-                    <GlassCardContent className="space-y-2">
-                      <div className="flex justify-between">
-                        <span className="text-gray-400">Total Funds:</span>
-                        <span className="text-white">{selectedChurch.funds.total_funds}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-400">Active Funds:</span>
-                        <span className="text-green-400">{selectedChurch.funds.active_funds}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-400">Net Position:</span>
-                        <span className={(
-                          selectedChurch.funds.total_income - selectedChurch.funds.total_expenses
-                        ) > 0 ? 'text-green-400' : 'text-red-400'}>
-                          {formatCurrency(selectedChurch.funds.total_income - selectedChurch.funds.total_expenses)}
-                        </span>
-                      </div>
-                    </GlassCardContent>
-                  </GlassCard>
-
-                  <GlassCard>
-                    <GlassCardHeader>
-                      <GlassCardTitle>Recent Activity (30 days)</GlassCardTitle>
-                    </GlassCardHeader>
-                    <GlassCardContent className="space-y-2">
-                      <div className="flex justify-between">
-                        <span className="text-gray-400">Transactions:</span>
-                        <span className="text-white">{selectedChurch.recent_activity.transactions_last_30_days}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-400">Offerings:</span>
-                        <span className="text-white">{selectedChurch.recent_activity.offerings_last_30_days}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-400">Pending Bills:</span>
-                        <span className={selectedChurch.recent_activity.bills_pending > 0 ? 'text-yellow-400' : 'text-white'}>
-                          {selectedChurch.recent_activity.bills_pending}
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-400">Outstanding Advances:</span>
-                        <span className={selectedChurch.recent_activity.advances_outstanding > 0 ? 'text-red-400' : 'text-white'}>
-                          {selectedChurch.recent_activity.advances_outstanding}
-                        </span>
-                      </div>
-                    </GlassCardContent>
-                  </GlassCard>
-                </div>
-              </TabsContent>
-
-              <TabsContent value="funds" className="space-y-4 mt-4">
-                <GlassCard>
-                  <GlassCardHeader>
-                    <GlassCardTitle>Fund Distribution by Type</GlassCardTitle>
-                  </GlassCardHeader>
-                  <GlassCardContent>
-                    {Object.keys(selectedChurch.funds.fund_types).length > 0 ? (
-                      <div className="space-y-3">
-                        {Object.entries(selectedChurch.funds.fund_types).map(([type, amount]) => {
-                          const percentage = selectedChurch.funds.total_balance > 0
-                            ? (amount / selectedChurch.funds.total_balance) * 100
-                            : 0
-                          return (
-                            <div key={type} className="space-y-1">
-                              <div className="flex justify-between text-sm">
-                                <span className="text-gray-400 capitalize">{type}:</span>
-                                <span className="text-white">{formatCurrency(amount)} ({percentage.toFixed(1)}%)</span>
-                              </div>
-                              <Progress value={percentage} className="h-2" />
-                            </div>
-                          )
-                        })}
-                      </div>
-                    ) : (
-                      <p className="text-gray-400 text-center py-4">No fund data available</p>
-                    )}
-                  </GlassCardContent>
-                </GlassCard>
-              </TabsContent>
-
-              <TabsContent value="activity" className="space-y-4 mt-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <GlassCard variant="info">
-                    <GlassCardHeader>
-                      <GlassCardTitle className="flex items-center gap-2">
-                        <BarChart3 className="w-4 h-4" />
-                        Transaction Activity
-                      </GlassCardTitle>
-                    </GlassCardHeader>
-                    <GlassCardContent>
-                      <div className="text-center py-6">
-                        <div className="text-2xl font-bold text-blue-400">
-                          {selectedChurch.recent_activity.transactions_last_30_days}
-                        </div>
-                        <p className="text-gray-400 text-sm">Transactions in last 30 days</p>
-                      </div>
-                    </GlassCardContent>
-                  </GlassCard>
-
-                  <GlassCard variant="success">
-                    <GlassCardHeader>
-                      <GlassCardTitle className="flex items-center gap-2">
-                        <PieChart className="w-4 h-4" />
-                        Offering Activity
-                      </GlassCardTitle>
-                    </GlassCardHeader>
-                    <GlassCardContent>
-                      <div className="text-center py-6">
-                        <div className="text-2xl font-bold text-green-400">
-                          {selectedChurch.recent_activity.offerings_last_30_days}
-                        </div>
-                        <p className="text-gray-400 text-sm">Offerings in last 30 days</p>
-                      </div>
-                    </GlassCardContent>
-                  </GlassCard>
-                </div>
-
-                {(selectedChurch.recent_activity.bills_pending > 0 || selectedChurch.recent_activity.advances_outstanding > 0) && (
-                  <GlassCard variant="warning">
-                    <GlassCardHeader>
-                      <GlassCardTitle className="flex items-center gap-2">
-                        <AlertTriangle className="w-4 h-4" />
-                        Action Items
-                      </GlassCardTitle>
-                    </GlassCardHeader>
-                    <GlassCardContent className="space-y-2">
-                      {selectedChurch.recent_activity.bills_pending > 0 && (
-                        <div className="flex items-center justify-between p-3 bg-yellow-500/10 border border-yellow-500/30 rounded">
-                          <span className="text-yellow-400">Pending Bills</span>
-                          <span className="text-yellow-400 font-bold">{selectedChurch.recent_activity.bills_pending}</span>
-                        </div>
-                      )}
-                      {selectedChurch.recent_activity.advances_outstanding > 0 && (
-                        <div className="flex items-center justify-between p-3 bg-red-500/10 border border-red-500/30 rounded">
-                          <span className="text-red-400">Outstanding Advances</span>
-                          <span className="text-red-400 font-bold">{selectedChurch.recent_activity.advances_outstanding}</span>
-                        </div>
-                      )}
-                    </GlassCardContent>
-                  </GlassCard>
-                )}
-              </TabsContent>
-
-              <TabsContent value="details" className="space-y-4 mt-4">
-                <GlassCard>
-                  <GlassCardHeader>
-                    <GlassCardTitle>Church Information</GlassCardTitle>
-                  </GlassCardHeader>
-                  <GlassCardContent className="space-y-3">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <Label className="text-gray-400">Name</Label>
-                        <p className="text-white">{selectedChurch.name}</p>
-                      </div>
-                      <div>
-                        <Label className="text-gray-400">Type</Label>
-                        <p className="text-white capitalize">{selectedChurch.type}</p>
-                      </div>
-                      <div>
-                        <Label className="text-gray-400">Status</Label>
-                        <p className={selectedChurch.is_active ? 'text-green-400' : 'text-red-400'}>
-                          {selectedChurch.is_active ? 'Active' : 'Inactive'}
-                        </p>
-                      </div>
-                      <div>
-                        <Label className="text-gray-400">User Count</Label>
-                        <p className="text-white">{selectedChurch.user_count || 0}</p>
-                      </div>
-                      {selectedChurch.established_date && (
-                        <div>
-                          <Label className="text-gray-400">Established</Label>
-                          <p className="text-white">{new Date(selectedChurch.established_date).toLocaleDateString()}</p>
-                        </div>
-                      )}
-                      <div>
-                        <Label className="text-gray-400">Created</Label>
-                        <p className="text-white">{new Date(selectedChurch.created_at).toLocaleDateString()}</p>
-                      </div>
-                    </div>
-
-                    {selectedChurch.description && (
-                      <div className="mt-4">
-                        <Label className="text-gray-400">Description</Label>
-                        <p className="text-white mt-1">{selectedChurch.description}</p>
-                      </div>
-                    )}
-
-                    {selectedChurch.address && (
-                      <div className="mt-4">
-                        <Label className="text-gray-400">Address</Label>
-                        <p className="text-white mt-1">{selectedChurch.address}</p>
-                      </div>
-                    )}
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                      {selectedChurch.phone && (
-                        <div>
-                          <Label className="text-gray-400">Phone</Label>
-                          <p className="text-white">{selectedChurch.phone}</p>
-                        </div>
-                      )}
-                      {selectedChurch.email && (
-                        <div>
-                          <Label className="text-gray-400">Email</Label>
-                          <p className="text-white">{selectedChurch.email}</p>
-                        </div>
-                      )}
-                    </div>
-                  </GlassCardContent>
-                </GlassCard>
-              </TabsContent>
-            </Tabs>
-          )}
-        </DialogContent>
-      </Dialog>
+      <ChurchDetailDrawer
+        church={selectedChurch}
+        open={isDetailDrawerOpen}
+        onOpenChange={setIsDetailDrawerOpen}
+      />
 
       {/* Create Church Dialog */}
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-        <DialogContent className="bg-slate-800 border-slate-700 text-white max-w-2xl">
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Plus className="w-5 h-5" />
@@ -1045,15 +566,13 @@ export default function ChurchesAdminPage() {
                   id="name"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="Enter church name"
-                  className="bg-slate-700 border-slate-600 text-white"
-                />
+                  placeholder="Enter church name"                />
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="type">Type *</Label>
                 <Select value={formData.type} onValueChange={(value) => setFormData({ ...formData, type: value })}>
-                  <SelectTrigger className="bg-slate-700 border-slate-600 text-white">
+                  <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -1072,7 +591,7 @@ export default function ChurchesAdminPage() {
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 placeholder="Brief description of the church"
-                className="bg-slate-700 border-slate-600 text-white min-h-[80px]"
+                className="min-h-[80px]"
               />
             </div>
 
@@ -1083,7 +602,7 @@ export default function ChurchesAdminPage() {
                 value={formData.address}
                 onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                 placeholder="Church address"
-                className="bg-slate-700 border-slate-600 text-white min-h-[60px]"
+                className="min-h-[60px]"
               />
             </div>
 
@@ -1094,9 +613,7 @@ export default function ChurchesAdminPage() {
                   id="phone"
                   value={formData.phone}
                   onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  placeholder="Phone number"
-                  className="bg-slate-700 border-slate-600 text-white"
-                />
+                  placeholder="Phone number"                />
               </div>
 
               <div className="space-y-2">
@@ -1106,9 +623,7 @@ export default function ChurchesAdminPage() {
                   type="email"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  placeholder="Email address"
-                  className="bg-slate-700 border-slate-600 text-white"
-                />
+                  placeholder="Email address"                />
               </div>
             </div>
 
@@ -1119,9 +634,7 @@ export default function ChurchesAdminPage() {
                   id="website"
                   value={formData.website}
                   onChange={(e) => setFormData({ ...formData, website: e.target.value })}
-                  placeholder="Website URL"
-                  className="bg-slate-700 border-slate-600 text-white"
-                />
+                  placeholder="Website URL"                />
               </div>
 
               <div className="space-y-2">
@@ -1130,9 +643,7 @@ export default function ChurchesAdminPage() {
                   id="established_date"
                   type="date"
                   value={formData.established_date}
-                  onChange={(e) => setFormData({ ...formData, established_date: e.target.value })}
-                  className="bg-slate-700 border-slate-600 text-white"
-                />
+                  onChange={(e) => setFormData({ ...formData, established_date: e.target.value })}                />
               </div>
             </div>
           </div>
@@ -1158,22 +669,22 @@ export default function ChurchesAdminPage() {
 
       {/* Edit Church Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="bg-slate-800 border-slate-700 text-white max-w-2xl">
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Edit className="w-5 h-5" />
               Edit Church: {editingChurch?.name}
-              {editingChurch && isMainChurch(editingChurch) && (
-                <Badge className="bg-purple-500/20 text-purple-300 border-purple-500/30 ml-2">
+              {editingChurch && getMainChurch(editingChurch) && (
+                <Badge className="bg-purple-500/15 text-purple-700 dark:text-purple-300 border-purple-500/30 ml-2">
                   Primary
                 </Badge>
               )}
             </DialogTitle>
             <DialogDescription>
-              {editingChurch && isMainChurch(editingChurch) ? (
+              {editingChurch && getMainChurch(editingChurch) ? (
                 <>
                   Update the primary church information and settings.
-                  <span className="text-purple-300 font-medium">
+                  <span className="text-purple-700 dark:text-purple-300 font-medium">
                     {' '}Note: The primary church cannot be deleted as it contains essential system data.
                   </span>
                 </>
@@ -1191,15 +702,13 @@ export default function ChurchesAdminPage() {
                   id="edit-name"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="Enter church name"
-                  className="bg-slate-700 border-slate-600 text-white"
-                />
+                  placeholder="Enter church name"                />
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="edit-type">Type *</Label>
                 <Select value={formData.type} onValueChange={(value) => setFormData({ ...formData, type: value })}>
-                  <SelectTrigger className="bg-slate-700 border-slate-600 text-white">
+                  <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -1218,7 +727,7 @@ export default function ChurchesAdminPage() {
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 placeholder="Brief description of the church"
-                className="bg-slate-700 border-slate-600 text-white min-h-[80px]"
+                className="min-h-[80px]"
               />
             </div>
 
@@ -1229,7 +738,7 @@ export default function ChurchesAdminPage() {
                 value={formData.address}
                 onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                 placeholder="Church address"
-                className="bg-slate-700 border-slate-600 text-white min-h-[60px]"
+                className="min-h-[60px]"
               />
             </div>
 
@@ -1240,9 +749,7 @@ export default function ChurchesAdminPage() {
                   id="edit-phone"
                   value={formData.phone}
                   onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  placeholder="Phone number"
-                  className="bg-slate-700 border-slate-600 text-white"
-                />
+                  placeholder="Phone number"                />
               </div>
 
               <div className="space-y-2">
@@ -1252,9 +759,7 @@ export default function ChurchesAdminPage() {
                   type="email"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  placeholder="Email address"
-                  className="bg-slate-700 border-slate-600 text-white"
-                />
+                  placeholder="Email address"                />
               </div>
             </div>
 
@@ -1265,9 +770,7 @@ export default function ChurchesAdminPage() {
                   id="edit-website"
                   value={formData.website}
                   onChange={(e) => setFormData({ ...formData, website: e.target.value })}
-                  placeholder="Website URL"
-                  className="bg-slate-700 border-slate-600 text-white"
-                />
+                  placeholder="Website URL"                />
               </div>
 
               <div className="space-y-2">
@@ -1276,9 +779,7 @@ export default function ChurchesAdminPage() {
                   id="edit-established_date"
                   type="date"
                   value={formData.established_date}
-                  onChange={(e) => setFormData({ ...formData, established_date: e.target.value })}
-                  className="bg-slate-700 border-slate-600 text-white"
-                />
+                  onChange={(e) => setFormData({ ...formData, established_date: e.target.value })}                />
               </div>
             </div>
 
@@ -1288,7 +789,7 @@ export default function ChurchesAdminPage() {
                 id="edit-is_active"
                 checked={formData.is_active}
                 onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
-                className="rounded border-slate-600 bg-slate-700"
+                className="rounded border-border bg-background"
               />
               <Label htmlFor="edit-is_active">Church is active</Label>
             </div>
@@ -1335,7 +836,7 @@ export default function ChurchesAdminPage() {
               )}
               {error.includes('sign in') && (
                 <div className="mt-3 text-sm">
-                  <p>Please <a href="/auth/login" className="underline text-red-200 hover:text-red-100">sign in</a> to continue.</p>
+                  <p>Please <a href="/auth/login" className="underline font-medium hover:opacity-80">sign in</a> to continue.</p>
                 </div>
               )}
             </div>

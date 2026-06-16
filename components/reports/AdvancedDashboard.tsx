@@ -141,7 +141,7 @@ export function AdvancedDashboard({ data, dateRange, filters, comparisonData }: 
         format: 'currency',
         trend: totalIncome > previousIncome ? 'up' : totalIncome < previousIncome ? 'down' : 'neutral',
         icon: TrendingUp,
-        color: 'text-green-600',
+        color: 'text-income',
         description: 'All income transactions'
       },
       {
@@ -151,7 +151,7 @@ export function AdvancedDashboard({ data, dateRange, filters, comparisonData }: 
         format: 'currency',
         trend: totalExpenses < previousExpenses ? 'up' : totalExpenses > previousExpenses ? 'down' : 'neutral',
         icon: TrendingDown,
-        color: 'text-red-600',
+        color: 'text-expense',
         description: 'All expense transactions'
       },
       {
@@ -162,7 +162,7 @@ export function AdvancedDashboard({ data, dateRange, filters, comparisonData }: 
         trend: netIncome > (previousIncome - previousExpenses) ? 'up' :
                netIncome < (previousIncome - previousExpenses) ? 'down' : 'neutral',
         icon: DollarSign,
-        color: netIncome >= 0 ? 'text-green-600' : 'text-red-600',
+        color: netIncome >= 0 ? 'text-income' : 'text-expense',
         description: 'Income minus expenses'
       },
       {
@@ -173,7 +173,7 @@ export function AdvancedDashboard({ data, dateRange, filters, comparisonData }: 
         trend: totalOfferings > previousOfferings ? 'up' :
                totalOfferings < previousOfferings ? 'down' : 'neutral',
         icon: Building,
-        color: 'text-blue-600',
+        color: 'text-primary',
         description: 'All offering collections'
       },
       {
@@ -181,7 +181,7 @@ export function AdvancedDashboard({ data, dateRange, filters, comparisonData }: 
         value: totalBills,
         format: 'currency',
         icon: Calendar,
-        color: 'text-orange-600',
+        color: 'text-pending',
         description: 'Total paid bills'
       },
       {
@@ -189,7 +189,7 @@ export function AdvancedDashboard({ data, dateRange, filters, comparisonData }: 
         value: data.funds.length,
         format: 'number',
         icon: Users,
-        color: 'text-purple-600',
+        color: 'text-purple-700 dark:text-purple-300',
         description: 'Number of fund accounts'
       }
     ]
@@ -208,7 +208,16 @@ export function AdvancedDashboard({ data, dateRange, filters, comparisonData }: 
   }, [data.funds])
 
   // Chart colors
-  const colors = ['#8884d8', '#82ca9d', '#ffc658', '#ff7300', '#0088fe', '#00c49f', '#ffbb28', '#ff8042']
+  const colors = [
+    'hsl(var(--primary))',
+    'hsl(var(--income))',
+    'hsl(var(--expense))',
+    'hsl(var(--pending))',
+    'hsl(var(--chart-2, var(--primary)))',
+    'hsl(var(--chart-3, var(--income)))',
+    'hsl(var(--chart-4, var(--expense)))',
+    'hsl(var(--chart-5, var(--pending)))',
+  ]
 
   const renderChart = () => {
     const chartProps = {
@@ -220,40 +229,40 @@ export function AdvancedDashboard({ data, dateRange, filters, comparisonData }: 
       case 'line':
         return (
            <LineChart {...chartProps}>
-             <CartesianGrid strokeDasharray="3 3" />
-             <XAxis dataKey="month" />
-             <YAxis tickFormatter={(value) => formatCurrency(value)} />
+             <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+             <XAxis dataKey="month" tick={{ fill: 'hsl(var(--muted-foreground))' }} />
+             <YAxis tickFormatter={(value) => formatCurrency(value)} tick={{ fill: 'hsl(var(--muted-foreground))' }} />
              <Tooltip formatter={(value) => formatCurrency(value)} />
             <Legend />
-            <Line type="monotone" dataKey="income" stroke="#10B981" strokeWidth={2} name="Income" />
-            <Line type="monotone" dataKey="expenses" stroke="#EF4444" strokeWidth={2} name="Expenses" />
-            <Line type="monotone" dataKey="offerings" stroke="#3B82F6" strokeWidth={2} name="Offerings" />
+            <Line type="monotone" dataKey="income" stroke="hsl(var(--income))" strokeWidth={2} name="Income" />
+            <Line type="monotone" dataKey="expenses" stroke="hsl(var(--expense))" strokeWidth={2} name="Expenses" />
+            <Line type="monotone" dataKey="offerings" stroke="hsl(var(--primary))" strokeWidth={2} name="Offerings" />
           </LineChart>
         )
       case 'area':
         return (
            <AreaChart {...chartProps}>
-             <CartesianGrid strokeDasharray="3 3" />
-             <XAxis dataKey="month" />
-             <YAxis tickFormatter={(value) => formatCurrency(value)} />
+             <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+             <XAxis dataKey="month" tick={{ fill: 'hsl(var(--muted-foreground))' }} />
+             <YAxis tickFormatter={(value) => formatCurrency(value)} tick={{ fill: 'hsl(var(--muted-foreground))' }} />
              <Tooltip formatter={(value) => formatCurrency(value)} />
             <Legend />
-            <Area type="monotone" dataKey="income" stackId="1" stroke="#10B981" fill="#10B981" fillOpacity={0.6} />
-            <Area type="monotone" dataKey="expenses" stackId="1" stroke="#EF4444" fill="#EF4444" fillOpacity={0.6} />
-            <Area type="monotone" dataKey="offerings" stackId="1" stroke="#3B82F6" fill="#3B82F6" fillOpacity={0.6} />
+            <Area type="monotone" dataKey="income" stackId="1" stroke="hsl(var(--income))" fill="hsl(var(--income))" fillOpacity={0.6} />
+            <Area type="monotone" dataKey="expenses" stackId="1" stroke="hsl(var(--expense))" fill="hsl(var(--expense))" fillOpacity={0.6} />
+            <Area type="monotone" dataKey="offerings" stackId="1" stroke="hsl(var(--primary))" fill="hsl(var(--primary))" fillOpacity={0.6} />
           </AreaChart>
         )
       default:
         return (
            <BarChart {...chartProps}>
-             <CartesianGrid strokeDasharray="3 3" />
-             <XAxis dataKey="month" />
-             <YAxis tickFormatter={(value) => formatCurrency(value)} />
+             <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+             <XAxis dataKey="month" tick={{ fill: 'hsl(var(--muted-foreground))' }} />
+             <YAxis tickFormatter={(value) => formatCurrency(value)} tick={{ fill: 'hsl(var(--muted-foreground))' }} />
              <Tooltip formatter={(value) => formatCurrency(value)} />
             <Legend />
-            <Bar dataKey="income" fill="#10B981" name="Income" />
-            <Bar dataKey="expenses" fill="#EF4444" name="Expenses" />
-            <Bar dataKey="offerings" fill="#3B82F6" name="Offerings" />
+            <Bar dataKey="income" fill="hsl(var(--income))" name="Income" />
+            <Bar dataKey="expenses" fill="hsl(var(--expense))" name="Expenses" />
+            <Bar dataKey="offerings" fill="hsl(var(--primary))" name="Offerings" />
           </BarChart>
         )
     }
@@ -294,16 +303,16 @@ export function AdvancedDashboard({ data, dateRange, filters, comparisonData }: 
           {metric.previousValue !== undefined && (
             <div className="flex items-center text-xs text-muted-foreground mt-1">
               {changePercentage > 0 ? (
-                <ArrowUpRight className="h-3 w-3 text-green-500 mr-1" />
+                <ArrowUpRight className="h-3 w-3 text-income mr-1" />
               ) : changePercentage < 0 ? (
-                <ArrowDownRight className="h-3 w-3 text-red-500 mr-1" />
+                <ArrowDownRight className="h-3 w-3 text-expense mr-1" />
               ) : (
-                <Activity className="h-3 w-3 text-gray-500 mr-1" />
+                <Activity className="h-3 w-3 text-muted-foreground mr-1" />
               )}
               <span className={
-                changePercentage > 0 ? 'text-green-600' :
-                changePercentage < 0 ? 'text-red-600' :
-                'text-gray-600'
+                changePercentage > 0 ? 'text-income' :
+                changePercentage < 0 ? 'text-expense' :
+                'text-muted-foreground'
               }>
                 {Math.abs(changePercentage).toFixed(1)}% from previous period
               </span>
@@ -451,7 +460,7 @@ export function AdvancedDashboard({ data, dateRange, filters, comparisonData }: 
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                   {/* Comparison metrics will be rendered here */}
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-green-600">
+                    <div className="text-2xl font-bold text-income">
                       {formatCurrency(
                         data.transactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0)
                       )}
@@ -459,7 +468,7 @@ export function AdvancedDashboard({ data, dateRange, filters, comparisonData }: 
                     <div className="text-sm text-muted-foreground">Current Income</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-red-600">
+                    <div className="text-2xl font-bold text-expense">
                       {formatCurrency(
                         data.transactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0)
                       )}
@@ -467,7 +476,7 @@ export function AdvancedDashboard({ data, dateRange, filters, comparisonData }: 
                     <div className="text-sm text-muted-foreground">Current Expenses</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-blue-600">
+                    <div className="text-2xl font-bold text-primary">
                       {formatCurrency(
                         data.offerings.reduce((sum, o) => sum + o.amount, 0)
                       )}
@@ -475,7 +484,7 @@ export function AdvancedDashboard({ data, dateRange, filters, comparisonData }: 
                     <div className="text-sm text-muted-foreground">Current Offerings</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-purple-600">
+                    <div className="text-2xl font-bold text-purple-700 dark:text-purple-300">
                       {data.funds.length}
                     </div>
                     <div className="text-sm text-muted-foreground">Active Funds</div>

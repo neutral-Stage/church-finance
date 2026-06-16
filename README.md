@@ -55,16 +55,28 @@ Open [http://localhost:3000](http://localhost:3000). Demo mode seeds auth/church
 ## Scripts
 
 ```bash
-pnpm dev      # development server
-pnpm build    # production build
-pnpm start    # run production build locally
-pnpm lint     # ESLint
-pnpm check    # lint + TypeScript (tsc --noEmit)
+pnpm dev           # development server
+pnpm build         # production build
+pnpm start         # run production build locally
+pnpm lint          # ESLint
+pnpm check         # lint + TypeScript (tsc --noEmit)
+pnpm db:types      # regenerate types/database.ts (Supabase CLI + local DB)
+pnpm db:types:check # verify types include required SaaS tables
 ```
+
+## Database migrations
+
+Schema migrations are tracked in `supabase/migrations/`. Apply them to your Supabase project (SQL editor or `supabase db push`) before enabling production features such as budgets, audit log, SaaS onboarding, and billing.
 
 ## Screenshots
 
-_(Placeholder: add `docs/screenshots/` images and link them here.)_
+| Screen | Preview |
+|--------|---------|
+| Dashboard | `docs/screenshots/dashboard.png` |
+| Transactions | `docs/screenshots/transactions.png` |
+| Onboarding | `docs/screenshots/onboarding.png` |
+
+_Add PNG captures to `docs/screenshots/` when preparing releases._
 
 ## Repository layout note
 

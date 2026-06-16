@@ -82,37 +82,37 @@ export function ChurchSelector({ currentChurch, onChurchChange, onLoadingChange 
 
   const getTypeColor = (type: string) => {
     switch (type) {
-      case 'church': return 'bg-blue-100 text-blue-800'
-      case 'fellowship': return 'bg-green-100 text-green-800'
-      case 'ministry': return 'bg-purple-100 text-purple-800'
-      default: return 'bg-gray-100 text-gray-800'
+      case 'church': return 'bg-blue-500/15 text-blue-700 dark:text-blue-300'
+      case 'fellowship': return 'bg-income/15 text-income'
+      case 'ministry': return 'bg-purple-500/15 text-purple-700 dark:text-purple-300'
+      default: return 'bg-muted text-muted-foreground'
     }
   }
 
   const getRoleColor = (roleName: string) => {
     switch (roleName) {
-      case 'super_admin': return 'bg-red-100 text-red-800'
-      case 'church_admin': return 'bg-orange-100 text-orange-800'
-      case 'treasurer': return 'bg-blue-100 text-blue-800'
-      case 'finance_viewer': return 'bg-green-100 text-green-800'
-      default: return 'bg-gray-100 text-gray-800'
+      case 'super_admin': return 'bg-destructive/15 text-destructive'
+      case 'church_admin': return 'bg-orange-500/15 text-orange-700 dark:text-orange-300'
+      case 'treasurer': return 'bg-blue-500/15 text-blue-700 dark:text-blue-300'
+      case 'finance_viewer': return 'bg-income/15 text-income'
+      default: return 'bg-muted text-muted-foreground'
     }
   }
 
   if (loading) {
     return (
-      <div className="flex items-center space-x-2 px-3 py-2 bg-slate-800 rounded-md">
-        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-        <span className="text-white/70 text-sm">Loading...</span>
+      <div className="flex items-center space-x-2 px-3 py-2 bg-card border border-border rounded-md">
+        <div className="animate-spin rounded-full h-4 w-4 border-2 border-muted border-t-primary"></div>
+        <span className="text-muted-foreground text-sm">Loading...</span>
       </div>
     )
   }
 
   if (churches.length === 0) {
     return (
-      <div className="flex items-center space-x-2 px-3 py-2 bg-slate-800 rounded-md">
-        <Building2 className="w-4 h-4 text-gray-400" />
-        <span className="text-white/70 text-sm">No churches available</span>
+      <div className="flex items-center space-x-2 px-3 py-2 bg-card border border-border rounded-md">
+        <Building2 className="w-4 h-4 text-muted-foreground" />
+        <span className="text-muted-foreground text-sm">No churches available</span>
       </div>
     )
   }
@@ -120,10 +120,10 @@ export function ChurchSelector({ currentChurch, onChurchChange, onLoadingChange 
   if (churches.length === 1) {
     const church = churches[0]
     return (
-      <div className="flex items-center space-x-3 px-3 py-2 bg-slate-800 rounded-md">
-        <Building2 className="w-5 h-5 text-blue-400" />
+      <div className="flex items-center space-x-3 px-3 py-2 bg-card border border-border rounded-md">
+        <Building2 className="w-5 h-5 text-primary" />
         <div className="flex-1 min-w-0">
-          <div className="text-white font-medium truncate">{church.name}</div>
+          <div className="text-foreground font-medium truncate">{church.name}</div>
           <div className="flex items-center space-x-2 mt-1">
             <Badge className={getTypeColor(church.type)}>{church.type}</Badge>
             <Badge className={getRoleColor(church.role?.name || '')}>{church.role?.display_name || 'No Role'}</Badge>
@@ -138,7 +138,7 @@ export function ChurchSelector({ currentChurch, onChurchChange, onLoadingChange 
       <DialogTrigger asChild>
         <Button 
           variant="outline" 
-          className="justify-between bg-slate-800 border-slate-700 hover:bg-slate-700 text-white w-full max-w-xs"
+          className="justify-between w-full max-w-xs"
         >
           <div className="flex items-center space-x-2">
             <Building2 className="w-4 h-4" />
@@ -150,7 +150,7 @@ export function ChurchSelector({ currentChurch, onChurchChange, onLoadingChange 
         </Button>
       </DialogTrigger>
       
-      <DialogContent className="bg-slate-800 border-slate-700 text-white max-w-2xl">
+      <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle>Select Church</DialogTitle>
           <DialogDescription>
@@ -164,8 +164,8 @@ export function ChurchSelector({ currentChurch, onChurchChange, onLoadingChange 
               key={church.id} 
               className={`cursor-pointer transition-colors ${
                 currentChurch?.id === church.id 
-                  ? 'bg-blue-600/20 border-blue-500' 
-                  : 'bg-slate-700 border-slate-600 hover:bg-slate-600'
+                  ? 'bg-primary/10 border-primary/50 ring-1 ring-primary/30' 
+                  : 'hover:bg-accent'
               }`}
               onClick={() => handleChurchSelect(church)}
             >
@@ -173,10 +173,10 @@ export function ChurchSelector({ currentChurch, onChurchChange, onLoadingChange 
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
                     <div className="flex-shrink-0">
-                      <Building2 className="w-8 h-8 text-blue-400" />
+                      <Building2 className="w-8 h-8 text-primary" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h3 className="text-white font-medium truncate">{church.name}</h3>
+                      <h3 className="text-foreground font-medium truncate">{church.name}</h3>
                       <div className="flex items-center space-x-2 mt-1">
                         <Badge className={getTypeColor(church.type)}>
                           {church.type}
@@ -186,7 +186,7 @@ export function ChurchSelector({ currentChurch, onChurchChange, onLoadingChange 
                         </Badge>
                       </div>
                       {church.description && (
-                        <p className="text-gray-400 text-sm mt-1 truncate">
+                        <p className="text-muted-foreground text-sm mt-1 truncate">
                           {church.description}
                         </p>
                       )}
@@ -195,13 +195,13 @@ export function ChurchSelector({ currentChurch, onChurchChange, onLoadingChange 
                   
                   <div className="flex items-center space-x-2">
                     {currentChurch?.id === church.id && (
-                      <Check className="w-5 h-5 text-green-400" />
+                      <Check className="w-5 h-5 text-income" />
                     )}
                   </div>
                 </div>
                 
                 {/* Quick stats could go here */}
-                <div className="flex items-center space-x-4 mt-3 text-xs text-gray-400">
+                <div className="flex items-center space-x-4 mt-3 text-xs text-muted-foreground">
                   <div className="flex items-center space-x-1">
                     <Users className="w-3 h-3" />
                     <span>Access granted {church.user_church_role?.granted_at ? new Date(church.user_church_role.granted_at).toLocaleDateString() : 'Unknown'}</span>

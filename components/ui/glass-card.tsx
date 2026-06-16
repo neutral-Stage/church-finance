@@ -3,17 +3,17 @@ import { cn } from '@/lib/utils';
 import { cva, type VariantProps } from 'class-variance-authority';
 
 const glassCardVariants = cva(
-  // Base glass-morphism styles from globals.css
-  'relative overflow-hidden rounded-xl backdrop-blur-xl border transition-all duration-300 ease-in-out hover:scale-[1.02] hover:shadow-2xl',
+  // Token-driven surface (clean fintech, no heavy blur)
+  'relative overflow-hidden rounded-xl border transition-colors duration-200',
   {
     variants: {
       variant: {
-        default: 'bg-white/10 border-white/20 shadow-lg hover:bg-white/15',
-        success: 'bg-green-500/10 border-green-500/30 shadow-lg shadow-green-500/10 hover:bg-green-500/15',
-        warning: 'bg-yellow-500/10 border-yellow-500/30 shadow-lg shadow-yellow-500/10 hover:bg-yellow-500/15',
-        error: 'bg-red-500/10 border-red-500/30 shadow-lg shadow-red-500/10 hover:bg-red-500/15',
-        info: 'bg-blue-500/10 border-blue-500/30 shadow-lg shadow-blue-500/10 hover:bg-blue-500/15',
-        primary: 'bg-primary/10 border-primary/30 shadow-lg shadow-primary/10 hover:bg-primary/15',
+        default: 'bg-card border-border text-card-foreground shadow-md',
+        success: 'bg-income/10 border-income/30 text-card-foreground shadow-md',
+        warning: 'bg-pending/10 border-pending/30 text-card-foreground shadow-md',
+        error: 'bg-destructive/10 border-destructive/30 text-card-foreground shadow-md',
+        info: 'bg-primary/10 border-primary/30 text-card-foreground shadow-md',
+        primary: 'bg-primary/10 border-primary/30 text-card-foreground shadow-md',
       },
       size: {
         sm: 'p-4',
@@ -51,8 +51,8 @@ const GlassCardComponent = React.forwardRef<HTMLDivElement, GlassCardProps>(
         className={cn(
           glassCardVariants({ variant, size, animation }),
           {
-            'hover:scale-100': !hover,
-            'before:absolute before:inset-0 before:rounded-xl before:bg-gradient-to-r before:from-transparent before:via-white/5 before:to-transparent before:opacity-0 hover:before:opacity-100 before:transition-opacity before:duration-500': glow,
+            'hover:shadow-lg': hover,
+            'before:absolute before:inset-0 before:rounded-xl before:bg-gradient-to-r before:from-transparent before:via-accent/30 before:to-transparent before:opacity-0 hover:before:opacity-100 before:transition-opacity before:duration-500': glow,
           },
           className
         )}
@@ -99,7 +99,7 @@ const GlassCardTitle = React.forwardRef<HTMLHeadingElement, GlassCardTitleProps>
   ({ className, children, as: Component = 'h3', ...props }, ref) => {
     return (
       <Component
-        className={cn('text-lg font-semibold leading-none tracking-tight text-white', className)}
+        className={cn('text-lg font-semibold leading-none tracking-tight text-card-foreground', className)}
         ref={ref}
         {...props}
       >
@@ -120,7 +120,7 @@ const GlassCardDescription = React.forwardRef<HTMLParagraphElement, GlassCardDes
   ({ className, children, ...props }, ref) => {
     return (
       <p
-        className={cn('text-sm text-white/70', className)}
+        className={cn('text-sm text-muted-foreground', className)}
         ref={ref}
         {...props}
       >

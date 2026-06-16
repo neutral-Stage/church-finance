@@ -6,7 +6,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { GlassCard, GlassCardContent, GlassCardDescription, GlassCardHeader, GlassCardTitle } from '@/components/ui/glass-card'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
@@ -108,153 +108,147 @@ export default function ProfileSettings() {
   if (!user) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-white/60">Loading...</div>
+        <div className="text-muted-foreground">Loading...</div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen relative overflow-hidden">
-      {/* Background Animation */}
-      <div className="absolute inset-0 bg-gradient-to-br from-blue-900/20 via-purple-900/20 to-pink-900/20" />
-      <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl animate-blob" />
-      <div className="absolute top-1/3 right-1/4 w-64 h-64 bg-purple-500/10 rounded-full blur-3xl animate-blob animation-delay-2000" />
-      <div className="absolute bottom-1/4 left-1/3 w-64 h-64 bg-pink-500/10 rounded-full blur-3xl animate-blob animation-delay-4000" />
-      
-      <div className="container mx-auto p-6 space-y-6 relative z-10">
+    <div className="min-h-screen bg-background">
+      <div className="container mx-auto p-6 space-y-6">
       {/* Header */}
       <div className="flex items-center space-x-4">
-        <div className="relative">
-          <div className="absolute inset-0 bg-blue-400/20 rounded-full blur-lg" />
-          <User className="relative h-8 w-8 text-blue-400" />
+        <div className="bg-primary/10 p-2 rounded-full border border-primary/20">
+          <User className="h-8 w-8 text-primary" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold text-white">Profile Settings</h1>
-          <p className="text-white/70 mt-2">Manage your personal information and account details</p>
+          <h1 className="text-2xl font-bold text-foreground">Profile Settings</h1>
+          <p className="text-muted-foreground mt-2">Manage your personal information and account details</p>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Profile Overview Card */}
-        <GlassCard variant="default" className="animate-fade-in animate-slide-in-from-bottom-4">
-          <GlassCardHeader className="text-center">
+        <Card className="animate-fade-in animate-slide-in-from-bottom-4">
+          <CardHeader className="text-center">
             <div className="flex justify-center mb-4">
               <div className="relative group">
-                <Avatar className="h-24 w-24 border-4 border-white/20">
-                  <AvatarFallback className="bg-white/10 text-white font-bold text-2xl">
+                <Avatar className="h-24 w-24 border-4 border-border">
+                  <AvatarFallback className="bg-muted text-foreground font-bold text-2xl">
                     {user.full_name?.split(' ').map((n: string) => n[0]).join('') || user.email?.[0]?.toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
                 <Button
                   size="sm"
-                  className="absolute -bottom-2 -right-2 h-8 w-8 rounded-full bg-white/10 backdrop-blur-xl border-white/20 text-white/90 hover:bg-white/20 hover:text-white transition-all duration-300"
+                  aria-label="Change profile photo"
+                  className="absolute -bottom-2 -right-2 h-8 w-8 rounded-full"
                 >
                   <Camera className="h-4 w-4" />
                 </Button>
               </div>
             </div>
-            <GlassCardTitle className="text-white/90">{user.full_name || 'User'}</GlassCardTitle>
-            <GlassCardDescription className="text-white/70">{user.email}</GlassCardDescription>
+            <CardTitle className="text-foreground">{user.full_name || 'User'}</CardTitle>
+            <CardDescription className="text-muted-foreground">{user.email}</CardDescription>
             <div className="flex justify-center mt-2">
-              <Badge variant="secondary" className="bg-white/10 text-white border-white/20 capitalize">
+              <Badge variant="secondary" className="capitalize">
                 <Shield className="h-3 w-3 mr-1" />
                 {user.role}
               </Badge>
             </div>
-          </GlassCardHeader>
-          <GlassCardContent className="space-y-4">
-            <div className="bg-white/5 backdrop-blur-sm p-4 rounded-lg space-y-2 hover:bg-white/10 transition-all duration-300">
-              <div className="flex items-center text-sm text-white/80">
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="bg-muted/50 p-4 rounded-lg space-y-2 hover:bg-accent transition-all duration-300">
+              <div className="flex items-center text-sm text-muted-foreground">
                 <Calendar className="h-4 w-4 mr-2" />
                 <span>Member since {new Date(user.created_at || '').toLocaleDateString()}</span>
               </div>
-              <div className="flex items-center text-sm text-white/80">
+              <div className="flex items-center text-sm text-muted-foreground">
                 <Mail className="h-4 w-4 mr-2" />
                 <span>Email verified</span>
               </div>
             </div>
-          </GlassCardContent>
-        </GlassCard>
+          </CardContent>
+        </Card>
 
         {/* Profile Form */}
-        <GlassCard variant="default" className="lg:col-span-2 animate-fade-in animate-slide-in-from-bottom-4">
-          <GlassCardHeader>
-            <GlassCardTitle className="text-white/90 flex items-center">
+        <Card className="lg:col-span-2 animate-fade-in animate-slide-in-from-bottom-4">
+          <CardHeader>
+            <CardTitle className="text-foreground flex items-center">
               <Edit3 className="h-5 w-5 mr-2" />
               Edit Profile Information
-            </GlassCardTitle>
-            <GlassCardDescription className="text-white/70">
+            </CardTitle>
+            <CardDescription className="text-muted-foreground">
               Update your personal details and contact information
-            </GlassCardDescription>
-          </GlassCardHeader>
-          <GlassCardContent>
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="full_name" className="text-white/90">
+                  <Label htmlFor="full_name" className="text-foreground">
                     Full Name
                   </Label>
                   <div className="relative">
-                    <User className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-white/50" />
+                    <User className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
                       id="full_name"
                       name="full_name"
                       value={formData.full_name}
                       onChange={handleInputChange}
-                      className="pl-10 bg-white/5 border-white/20 text-white placeholder:text-white/50 focus:border-blue-400"
+                      className="pl-10"
                       placeholder="Enter your full name"
                     />
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="email" className="text-white/90">
+                  <Label htmlFor="email" className="text-foreground">
                     Email Address
                   </Label>
                   <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-white/50" />
+                    <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
                       id="email"
                       name="email"
                       type="email"
                       value={formData.email}
                       disabled
-                      className="pl-10 bg-white/5 border-white/20 text-white/60 cursor-not-allowed"
+                      className="pl-10 cursor-not-allowed"
                       placeholder="Email cannot be changed"
                     />
                   </div>
-                  <p className="text-xs text-white/50">Email address cannot be modified</p>
+                  <p className="text-xs text-muted-foreground">Email address cannot be modified</p>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="phone" className="text-white/90">
+                  <Label htmlFor="phone" className="text-foreground">
                     Phone Number
                   </Label>
                   <div className="relative">
-                    <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-white/50" />
+                    <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
                       id="phone"
                       name="phone"
                       value={formData.phone}
                       onChange={handleInputChange}
-                      className="pl-10 bg-white/5 border-white/20 text-white placeholder:text-white/50 focus:border-blue-400"
+                      className="pl-10"
                       placeholder="Enter your phone number"
                     />
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="address" className="text-white/90">
+                  <Label htmlFor="address" className="text-foreground">
                     Address
                   </Label>
                   <div className="relative">
-                    <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-white/50" />
+                    <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
                       id="address"
                       name="address"
                       value={formData.address}
                       onChange={handleInputChange}
-                      className="pl-10 bg-white/5 border-white/20 text-white placeholder:text-white/50 focus:border-blue-400"
+                      className="pl-10"
                       placeholder="Enter your address"
                     />
                   </div>
@@ -262,7 +256,7 @@ export default function ProfileSettings() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="bio" className="text-white/90">
+                <Label htmlFor="bio" className="text-foreground">
                   Bio
                 </Label>
                 <Textarea
@@ -271,7 +265,7 @@ export default function ProfileSettings() {
                   value={formData.bio}
                   onChange={handleInputChange}
                   rows={4}
-                  className="bg-white/5 border-white/20 text-white placeholder:text-white/50 focus:border-blue-400 resize-none"
+                  className="resize-none"
                   placeholder="Tell us a little about yourself..."
                 />
               </div>
@@ -280,7 +274,6 @@ export default function ProfileSettings() {
                 <Button
                   type="button"
                   variant="outline"
-                  className="bg-white/5 backdrop-blur-xl border-white/20 text-white/90 hover:bg-white/15 hover:text-white transition-all duration-300"
                   onClick={() => {
                     if (user) {
                       setFormData({
@@ -298,15 +291,14 @@ export default function ProfileSettings() {
                 <Button
                   type="submit"
                   disabled={loading}
-                  className="bg-white/10 backdrop-blur-xl border-white/20 text-white/90 hover:bg-white/20 hover:text-white transition-all duration-300"
                 >
                   <Save className="h-4 w-4 mr-2" />
                   {loading ? 'Saving...' : 'Save Changes'}
                 </Button>
               </div>
             </form>
-          </GlassCardContent>
-        </GlassCard>
+          </CardContent>
+        </Card>
       </div>
       </div>
     </div>

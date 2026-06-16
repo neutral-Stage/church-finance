@@ -7,7 +7,6 @@ import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
 import { useChurch } from '@/contexts/ChurchContext'
 import { Button } from '@/components/ui/button'
-import { GlassButton } from '@/components/ui/glass-button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -21,8 +20,9 @@ import { FullScreenLoader } from '@/components/ui/loader'
 import { useConfirmationDialog } from '@/components/ui/confirmation-dialog'
 
 import { formatCurrency, formatDate, formatDateForInput } from '@/lib/utils'
-import { Plus, MoreHorizontal, Edit, Trash2, Calendar, Users, DollarSign, TrendingUp, Building2 } from 'lucide-react'
+import { Plus, MoreHorizontal, Edit, Trash2, Calendar, Users, DollarSign, TrendingUp, Building2, Smartphone } from 'lucide-react'
 import { toast } from 'sonner'
+import { MobileOfferingMode } from '@/components/offerings/mobile-offering-mode'
 import { retrySupabaseQuery, logNetworkError, isNetworkError } from '@/lib/retry-utils'
 import type { Database } from '@/types/database'
 
@@ -65,6 +65,7 @@ export default function OfferingsPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [filterType, setFilterType] = useState('all')
   const [filterFund, setFilterFund] = useState('all')
+  const [sundayModeOpen, setSundayModeOpen] = useState(false)
   const { confirm, ConfirmationDialog } = useConfirmationDialog()
 
   const [form, setForm] = useState<OfferingForm>({
@@ -187,45 +188,61 @@ export default function OfferingsPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    await saveOfferingFromForm()
+  }
+
+  const saveOfferingFromForm = async (override?: {
+    service_date: string
+    type: string
+    amount: number
+    selected_member: string
+    notes: string
+  }) => {
+    const payload = override ?? {
+      service_date: form.service_date,
+      type: form.type,
+      amount: parseFloat(form.amount),
+      selected_member: form.selected_member,
+      notes: form.notes,
+    }
 
     // Validate required fields with specific messages
-    if (!form.service_date) {
+    if (!payload.service_date) {
       toast.error('Service date is required')
       return
     }
 
-    if (!form.type) {
+    if (!payload.type) {
       toast.error('Offering type is required')
       return
     }
 
-    if (!form.amount) {
+    if (!payload.amount) {
       toast.error('Amount is required')
       return
     }
 
-    // Validate amount is a valid positive number
-    const amount = parseFloat(form.amount)
+    const amount = payload.amount
     if (isNaN(amount) || amount <= 0) {
       toast.error('Please enter a valid positive amount')
       return
     }
 
-    if (!form.selected_member || form.selected_member === 'none') {
+    if (!payload.selected_member || payload.selected_member === 'none') {
       toast.error('Please select a member for this offering')
       return
     }
 
     try {
-      const fundAllocations = getFundAllocationForOfferingType(form.type, amount)
+      const fundAllocations = getFundAllocationForOfferingType(payload.type, amount)
 
       const requestData = {
-        service_date: form.service_date,
-        type: form.type,
+        service_date: payload.service_date,
+        type: payload.type,
         amount: amount,
         fund_allocations: fundAllocations,
-        notes: form.notes || null,
-        member_id: form.selected_member && form.selected_member !== 'none' ? form.selected_member : null,
+        notes: payload.notes || null,
+        member_id: payload.selected_member && payload.selected_member !== 'none' ? payload.selected_member : null,
         church_id: selectedChurch?.id
       }
 
@@ -388,12 +405,15 @@ export default function OfferingsPage() {
       }
 
       setDialogOpen(false)
+      setSundayModeOpen(false)
       setEditingOffering(null)
       resetForm()
       fetchData()
     } catch (error) {
       // Error handled by toast notification
-      toast.error(error instanceof Error ? error.message : 'Failed to save offering')
+      const message = error instanceof Error ? error.message : 'Failed to save offering'
+      toast.error(message)
+      throw error
     }
   }
 
@@ -559,16 +579,12 @@ export default function OfferingsPage() {
 
   if (!selectedChurch) {
     return (
-      <div className="min-h-screen relative overflow-hidden">
-        <div className="absolute inset-0 overflow-hidden">
-          <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-gradient-to-r from-purple-400/30 to-pink-400/30 rounded-full blur-3xl animate-pulse"></div>
-          <div className="absolute top-3/4 right-1/4 w-96 h-96 bg-gradient-to-r from-blue-400/20 to-purple-400/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }}></div>
-        </div>
-        <div className="relative z-10 container mx-auto p-6 flex items-center justify-center min-h-screen">
+      <div className="min-h-screen bg-background">
+        <div className="container mx-auto p-6 flex items-center justify-center min-h-screen">
           <div className="glass-card p-8 text-center max-w-md">
-            <Building2 className="h-16 w-16 text-white/50 mx-auto mb-4" />
-            <h2 className="text-xl font-semibold text-white mb-2">No Church Selected</h2>
-            <p className="text-white/70">Please select a church from the header to view offerings and tithes.</p>
+            <Building2 className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+            <h2 className="text-xl font-semibold text-foreground mb-2">No Church Selected</h2>
+            <p className="text-muted-foreground">Please select a church from the header to view offerings and tithes.</p>
           </div>
         </div>
       </div>
@@ -576,43 +592,42 @@ export default function OfferingsPage() {
   }
 
   return (
-    <div className="min-h-screen relative overflow-hidden">
-      {/* Animated Background Elements */}
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-gradient-to-r from-purple-400/30 to-pink-400/30 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute top-3/4 right-1/4 w-96 h-96 bg-gradient-to-r from-blue-400/20 to-purple-400/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }}></div>
-        <div className="absolute bottom-1/4 left-1/3 w-80 h-80 bg-gradient-to-r from-indigo-400/25 to-purple-400/25 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '4s' }}></div>
-      </div>
-
-      <div className="relative z-10 container mx-auto p-6 space-y-6">
+    <div className="min-h-screen bg-background">
+      <div className="container mx-auto p-6 space-y-6">
         <div className="flex justify-between items-center animate-fade-in">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent">
+            <h1 className="text-3xl font-bold tracking-tight text-foreground">
               Offerings & Tithes
             </h1>
-            <p className="text-white/70">Track and manage church offerings and tithes</p>
+            <p className="text-muted-foreground">Track and manage church offerings and tithes</p>
           </div>
-          {hasRole('admin') && (
+          {(hasRole('admin') || hasRole('treasurer')) && (
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setSundayModeOpen(true)} className="gap-2">
+                <Smartphone className="h-4 w-4" />
+                Sunday Mode
+              </Button>
+            {hasRole('admin') && (
             <Dialog open={dialogOpen} onOpenChange={handleDialogChange}>
               <DialogTrigger asChild>
-                <Button onClick={() => { setEditingOffering(null); resetForm(); }} className="glass-button hover:scale-105 transition-all duration-300">
+                <Button onClick={() => { setEditingOffering(null); resetForm(); }}>
                   <Plus className="mr-2 h-4 w-4" />
                   Record Offering
                 </Button>
               </DialogTrigger>
               <DialogContent className="sm:max-w-[500px]">
                 <DialogHeader className="space-y-3 pb-6">
-                  <DialogTitle className="text-xl font-semibold bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent">
+                  <DialogTitle className="text-xl font-semibold text-foreground">
                     {editingOffering ? 'Edit Offering' : 'Record New Offering'}
                   </DialogTitle>
-                  <DialogDescription className="text-white/70 text-sm leading-relaxed">
+                  <DialogDescription className="text-muted-foreground text-sm leading-relaxed">
                     {editingOffering ? 'Update the offering details below.' : 'Record a new offering or tithe with automatic fund allocation.'}
                   </DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-6">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="service_date" className="text-white/90 font-medium text-sm">
+                      <Label htmlFor="service_date" className="font-medium text-sm">
                         Service Date *
                       </Label>
                       <Input
@@ -621,23 +636,21 @@ export default function OfferingsPage() {
                         value={form.service_date}
                         onChange={(e) => setForm({ ...form, service_date: e.target.value })}
                         required
-                        className="glass-card-dark bg-white/10 backdrop-blur-xl border border-white/20 text-white placeholder:text-white/50 rounded-xl focus:border-white/40 focus:ring-white/20 hover:bg-white/15 transition-all duration-300"
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="type" className="text-white/90 font-medium text-sm">
+                      <Label htmlFor="type" className="font-medium text-sm">
                         Offering Type *
                       </Label>
                       <Select value={form.type} onValueChange={(value) => setForm({ ...form, type: value })}>
-                        <SelectTrigger className="glass-card-dark bg-white/10 backdrop-blur-xl border border-white/20 text-white rounded-xl hover:bg-white/15 transition-all duration-300">
+                        <SelectTrigger>
                           <SelectValue placeholder="Select offering type" />
                         </SelectTrigger>
-                        <SelectContent className="glass-card-dark bg-white/10 backdrop-blur-xl border border-white/20 rounded-xl">
+                        <SelectContent>
                           {OFFERING_TYPES.map((type) => (
                             <SelectItem
                               key={type}
                               value={type}
-                              className="text-white hover:bg-white/20 focus:bg-white/20 rounded-lg transition-colors duration-200"
                             >
                               {type}
                             </SelectItem>
@@ -648,7 +661,7 @@ export default function OfferingsPage() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="amount" className="text-white/90 font-medium text-sm">
+                    <Label htmlFor="amount" className="font-medium text-sm">
                       Total Amount *
                     </Label>
                     <Input
@@ -660,18 +673,17 @@ export default function OfferingsPage() {
                       value={form.amount}
                       onChange={(e) => setForm({ ...form, amount: e.target.value })}
                       required
-                      className="glass-card-dark bg-white/10 backdrop-blur-xl border border-white/20 text-white placeholder:text-white/50 rounded-xl focus:border-white/40 focus:ring-white/20 hover:bg-white/15 transition-all duration-300"
                     />
-                    <div className="glass-card-dark bg-blue-500/10 border border-blue-400/20 rounded-lg p-3 mt-2">
-                      <p className="text-sm text-blue-200/90 flex items-start gap-2">
-                        <span className="text-blue-400 mt-0.5">i</span>
+                    <div className="bg-primary/10 border border-primary/20 rounded-lg p-3 mt-2">
+                      <p className="text-sm text-primary flex items-start gap-2">
+                        <span className="mt-0.5">i</span>
                         Fund allocation will be determined automatically based on offering type
                       </p>
                     </div>
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="member" className="text-white/90 font-medium text-sm">
+                    <Label htmlFor="member" className="font-medium text-sm">
                       Member *
                     </Label>
                     <MemberCombobox
@@ -683,7 +695,7 @@ export default function OfferingsPage() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="notes" className="text-white/90 font-medium text-sm">
+                    <Label htmlFor="notes" className="font-medium text-sm">
                       Notes
                     </Label>
                     <Textarea
@@ -692,29 +704,31 @@ export default function OfferingsPage() {
                       onChange={(e) => setForm({ ...form, notes: e.target.value })}
                       placeholder="Additional notes about this offering..."
                       rows={3}
-                      className="glass-card-dark bg-white/10 backdrop-blur-xl border border-white/20 text-white placeholder:text-white/50 rounded-xl focus:border-white/40 focus:ring-white/20 hover:bg-white/15 transition-all duration-300 resize-none"
+                      className="resize-none"
                     />
                   </div>
 
                   <DialogFooter className="flex flex-col sm:flex-row gap-3 pt-6">
-                    <GlassButton
+                    <Button
                       type="button"
                       variant="outline"
                       onClick={() => setDialogOpen(false)}
                       className="order-2 sm:order-1"
                     >
                       Cancel
-                    </GlassButton>
-                    <GlassButton
+                    </Button>
+                    <Button
                       type="submit"
                       className="order-1 sm:order-2"
                     >
                       {editingOffering ? 'Update' : 'Record'} Offering
-                    </GlassButton>
+                    </Button>
                   </DialogFooter>
                 </form>
               </DialogContent>
             </Dialog>
+            )}
+            </div>
           )}
         </div>
 
@@ -723,47 +737,47 @@ export default function OfferingsPage() {
           <div className="glass-card p-6 animate-fade-in animate-slide-in-from-bottom-4" style={{ animationDelay: '0.1s' }}>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-white/70">Total Offerings</p>
-                <p className="text-2xl font-bold bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent">
+                <p className="text-sm font-medium text-muted-foreground">Total Offerings</p>
+                <p className="text-2xl font-bold text-income">
                   <AnimatedCounter value={totalOfferings} />
                 </p>
               </div>
-              <div className="p-3 bg-green-500/20 backdrop-blur-sm rounded-xl">
-                <DollarSign className="h-8 w-8 text-green-400" />
+              <div className="p-3 bg-income/15 rounded-xl">
+                <DollarSign className="h-8 w-8 text-income" />
               </div>
             </div>
           </div>
           <div className="glass-card p-6 animate-fade-in animate-slide-in-from-bottom-4" style={{ animationDelay: '0.2s' }}>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-white/70">Total Contributors</p>
-                <p className="text-2xl font-bold bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent">
+                <p className="text-sm font-medium text-muted-foreground">Total Contributors</p>
+                <p className="text-2xl font-bold text-foreground">
                   <AnimatedCounter value={totalContributors} />
                 </p>
               </div>
-              <div className="p-3 bg-blue-500/20 backdrop-blur-sm rounded-xl">
-                <Users className="h-8 w-8 text-blue-400" />
+              <div className="p-3 bg-primary/15 rounded-xl">
+                <Users className="h-8 w-8 text-primary" />
               </div>
             </div>
           </div>
           <div className="glass-card p-6 animate-fade-in animate-slide-in-from-bottom-4" style={{ animationDelay: '0.3s' }}>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-white/70">Average Offering</p>
-                <p className="text-2xl font-bold bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent">
+                <p className="text-sm font-medium text-muted-foreground">Average Offering</p>
+                <p className="text-2xl font-bold text-foreground">
                   <AnimatedCounter value={averageOffering} />
                 </p>
               </div>
-              <div className="p-3 bg-purple-500/20 backdrop-blur-sm rounded-xl">
-                <TrendingUp className="h-8 w-8 text-purple-400" />
+              <div className="p-3 bg-purple-500/15 rounded-xl">
+                <TrendingUp className="h-8 w-8 text-purple-700 dark:text-purple-300" />
               </div>
             </div>
           </div>
           <div className="glass-card p-6 animate-fade-in animate-slide-in-from-bottom-4" style={{ animationDelay: '0.4s' }}>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-white/70">This Month</p>
-                <p className="text-2xl font-bold bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent">
+                <p className="text-sm font-medium text-muted-foreground">This Month</p>
+                <p className="text-2xl font-bold text-foreground">
                   <AnimatedCounter value={
                     offerings
                       .filter(o => new Date(o.service_date).getMonth() === new Date().getMonth())
@@ -771,8 +785,8 @@ export default function OfferingsPage() {
                   } />
                 </p>
               </div>
-              <div className="p-3 bg-orange-500/20 backdrop-blur-sm rounded-xl">
-                <Calendar className="h-8 w-8 text-orange-400" />
+              <div className="p-3 bg-pending/15 rounded-xl">
+                <Calendar className="h-8 w-8 text-pending" />
               </div>
             </div>
           </div>
@@ -781,31 +795,31 @@ export default function OfferingsPage() {
         {/* Breakdown Cards */}
         <div className="grid gap-6 md:grid-cols-2 mb-8">
           <div className="glass-card p-6 animate-fade-in animate-slide-in-from-bottom-4" style={{ animationDelay: '0.5s' }}>
-            <h3 className="text-lg font-semibold bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent mb-4">
+            <h3 className="text-lg font-semibold text-foreground mb-4">
               Offerings by Type
             </h3>
             <div className="space-y-3">
               {Object.entries(offeringsByType)
                 .sort(([, a], [, b]) => b - a)
                 .map(([type, amount]) => (
-                  <div key={type} className="flex justify-between items-center p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-all duration-300">
-                    <span className="text-sm text-white/80">{type}</span>
-                    <span className="font-medium text-white">{formatCurrency(amount)}</span>
+                  <div key={type} className="flex justify-between items-center p-3 bg-muted/50 rounded-lg hover:bg-accent transition-all duration-300">
+                    <span className="text-sm text-muted-foreground">{type}</span>
+                    <span className="font-medium text-foreground">{formatCurrency(amount)}</span>
                   </div>
                 ))}
             </div>
           </div>
           <div className="glass-card p-6 animate-fade-in animate-slide-in-from-bottom-4" style={{ animationDelay: '0.6s' }}>
-            <h3 className="text-lg font-semibold bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent mb-4">
+            <h3 className="text-lg font-semibold text-foreground mb-4">
               Fund Allocation
             </h3>
             <div className="space-y-3">
               {Object.entries(offeringsByFund)
                 .sort(([, a], [, b]) => b - a)
                 .map(([fund, amount]) => (
-                  <div key={fund} className="flex justify-between items-center p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-all duration-300">
-                    <span className="text-sm text-white/80">{fund}</span>
-                    <span className="font-medium text-white">{formatCurrency(amount)}</span>
+                  <div key={fund} className="flex justify-between items-center p-3 bg-muted/50 rounded-lg hover:bg-accent transition-all duration-300">
+                    <span className="text-sm text-muted-foreground">{fund}</span>
+                    <span className="font-medium text-foreground">{formatCurrency(amount)}</span>
                   </div>
                 ))}
             </div>
@@ -814,7 +828,7 @@ export default function OfferingsPage() {
 
         {/* Filters */}
         <div className="glass-card p-6 mb-8 animate-fade-in animate-slide-in-from-bottom-4" style={{ animationDelay: '0.7s' }}>
-          <h3 className="text-lg font-semibold bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent mb-4">
+          <h3 className="text-lg font-semibold text-foreground mb-4">
             Offering Records
           </h3>
           <div className="flex flex-col sm:flex-row gap-4 mb-6">
@@ -822,13 +836,13 @@ export default function OfferingsPage() {
               placeholder="Search offerings..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="glass-input sm:max-w-xs"
+              className="sm:max-w-xs"
             />
             <Select value={filterType} onValueChange={setFilterType}>
-              <SelectTrigger className="glass-input sm:max-w-xs">
+              <SelectTrigger className="sm:max-w-xs">
                 <SelectValue placeholder="Filter by type" />
               </SelectTrigger>
-              <SelectContent className="glass-dropdown">
+              <SelectContent>
                 <SelectItem value="all">All Types</SelectItem>
                 {OFFERING_TYPES.map((type) => (
                   <SelectItem key={type} value={type}>{type}</SelectItem>
@@ -836,10 +850,10 @@ export default function OfferingsPage() {
               </SelectContent>
             </Select>
             <Select value={filterFund} onValueChange={setFilterFund}>
-              <SelectTrigger className="glass-input sm:max-w-xs">
+              <SelectTrigger className="sm:max-w-xs">
                 <SelectValue placeholder="Filter by fund" />
               </SelectTrigger>
-              <SelectContent className="glass-dropdown">
+              <SelectContent>
                 <SelectItem value="all">All Funds</SelectItem>
                 {funds.map((fund) => (
                   <SelectItem key={fund.id} value={fund.id}>{fund.name}</SelectItem>
@@ -849,44 +863,44 @@ export default function OfferingsPage() {
           </div>
 
           {/* Offerings Table */}
-          <div className="rounded-lg border border-white/20 bg-white/5 backdrop-blur-sm overflow-hidden">
+          <div className="rounded-lg border border-border bg-card overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-white/20 bg-white/10">
-                    <th className="h-12 px-4 text-left align-middle font-medium text-white/90">Service Date</th>
-                    <th className="h-12 px-4 text-left align-middle font-medium text-white/90">Type</th>
-                    <th className="h-12 px-4 text-left align-middle font-medium text-white/90">Amount</th>
-                    <th className="h-12 px-4 text-left align-middle font-medium text-white/90">Fund</th>
-                    <th className="h-12 px-4 text-left align-middle font-medium text-white/90">Member</th>
-                    <th className="h-12 px-4 text-left align-middle font-medium text-white/90">Notes</th>
+                  <tr className="border-b border-border bg-muted/50">
+                    <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Service Date</th>
+                    <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Type</th>
+                    <th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground">Amount</th>
+                    <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Fund</th>
+                    <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Member</th>
+                    <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Notes</th>
                     {hasRole('admin') && (
-                      <th className="h-12 px-4 text-left align-middle font-medium text-white/90">Actions</th>
+                      <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Actions</th>
                     )}
                   </tr>
                 </thead>
                 <tbody>
                   {filteredOfferings.map((offering) => (
-                    <tr key={offering.id} className="border-b border-white/10 hover:bg-white/5 transition-colors">
-                      <td className="p-4 text-white/80">{formatDate(offering.service_date)}</td>
+                    <tr key={offering.id} className="border-b border-border hover:bg-accent transition-colors">
+                      <td className="p-4 text-muted-foreground">{formatDate(offering.service_date)}</td>
                       <td className="p-4">
-                        <Badge variant="outline" className="border-white/30 text-white/90">{offering.type}</Badge>
+                        <Badge variant="outline">{offering.type}</Badge>
                       </td>
-                      <td className="p-4 font-medium text-white">{formatCurrency(offering.amount)}</td>
+                      <td className="p-4 text-right font-medium text-income">{formatCurrency(offering.amount)}</td>
                       <td className="p-4">
                         {Object.keys(offering.fund_allocations || {}).length > 0 ? (
                           <div className="space-y-1">
                             {Object.entries((offering.fund_allocations as Record<string, number>) || {}).map(([fundId, amount]) => {
                               const fund = funds.find(f => f.id === fundId)
                               return fund && typeof amount === 'number' ? (
-                                <div key={fundId} className="text-sm text-white/80">
+                                <div key={fundId} className="text-sm text-muted-foreground">
                                   {fund.name}: {formatCurrency(amount)}
                                 </div>
                               ) : null
                             })}
                           </div>
                         ) : (
-                          <span className="text-white/50">-</span>
+                          <span className="text-muted-foreground">-</span>
                         )}
                       </td>
                       <td className="p-4">
@@ -895,35 +909,35 @@ export default function OfferingsPage() {
                             const memberData = offering.offering_member
                             return (
                               <div className="text-sm">
-                                <div className="font-medium text-white/90">
+                                <div className="font-medium text-foreground">
                                   {memberData.member.name || 'Unknown Member'}
                                 </div>
                                 {memberData.member.fellowship_name && (
-                                  <div className="text-white/60">{memberData.member.fellowship_name}</div>
+                                  <div className="text-muted-foreground">{memberData.member.fellowship_name}</div>
                                 )}
                               </div>
                             )
                           }
-                          return <span className="text-white/50">No Member</span>
+                          return <span className="text-muted-foreground">No Member</span>
                         })()}
                       </td>
-                      <td className="p-4 max-w-xs truncate text-white/80">{offering.notes || '-'}</td>
+                      <td className="p-4 max-w-xs truncate text-muted-foreground">{offering.notes || '-'}</td>
                       {hasRole('admin') && (
                         <td className="p-4">
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <GlassButton variant="ghost" size="sm" className="h-8 w-8 p-0">
-                                <MoreHorizontal className="h-4 w-4 text-white/70" />
-                              </GlassButton>
+                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0" aria-label="Offering actions">
+                                <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
+                              </Button>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="glass-dropdown">
+                            <DropdownMenuContent align="end">
                               <DropdownMenuItem onClick={() => handleEdit(offering)}>
                                 <Edit className="mr-2 h-4 w-4" />
                                 Edit
                               </DropdownMenuItem>
                               <DropdownMenuItem
                                 onClick={() => handleDelete(offering.id)}
-                                className="text-red-400 hover:text-red-300"
+                                className="text-destructive focus:text-destructive"
                               >
                                 <Trash2 className="mr-2 h-4 w-4" />
                                 Delete
@@ -938,7 +952,7 @@ export default function OfferingsPage() {
               </table>
             </div>
             {filteredOfferings.length === 0 && (
-              <div className="text-center py-8 text-white/60">
+              <div className="text-center py-8 text-muted-foreground">
                 No offerings found matching your criteria.
               </div>
             )}
@@ -946,6 +960,13 @@ export default function OfferingsPage() {
         </div>
       </div>
       <ConfirmationDialog />
+      {sundayModeOpen && selectedChurch && (
+        <MobileOfferingMode
+          churchId={selectedChurch.id}
+          onClose={() => setSundayModeOpen(false)}
+          onSubmit={saveOfferingFromForm}
+        />
+      )}
     </div>
   )
 }

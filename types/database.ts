@@ -80,6 +80,44 @@ export type Database = {
           },
         ]
       }
+      accounting_periods: {
+        Row: {
+          id: string
+          church_id: string
+          year: number
+          month: number
+          status: string
+          closed_at: string | null
+          closed_by: string | null
+        }
+        Insert: {
+          id?: string
+          church_id: string
+          year: number
+          month: number
+          status?: string
+          closed_at?: string | null
+          closed_by?: string | null
+        }
+        Update: {
+          id?: string
+          church_id?: string
+          year?: number
+          month?: number
+          status?: string
+          closed_at?: string | null
+          closed_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "accounting_periods_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
+            referencedRelation: "churches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bills: {
         Row: {
           allocation_percentage: number | null
@@ -199,6 +237,60 @@ export type Database = {
           },
         ]
       }
+      budgets: {
+        Row: {
+          id: string
+          church_id: string
+          fund_id: string | null
+          category: string
+          year: number
+          month: number | null
+          amount: number
+          created_by: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          church_id: string
+          fund_id?: string | null
+          category: string
+          year: number
+          month?: number | null
+          amount?: number
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          church_id?: string
+          fund_id?: string | null
+          category?: string
+          year?: number
+          month?: number | null
+          amount?: number
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "budgets_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
+            referencedRelation: "churches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "budgets_fund_id_fkey"
+            columns: ["fund_id"]
+            isOneToOne: false
+            referencedRelation: "funds"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cash_breakdown: {
         Row: {
           count: number
@@ -234,14 +326,22 @@ export type Database = {
           address: string | null
           created_at: string | null
           created_by: string | null
+          currency: string | null
           description: string | null
           email: string | null
           established_date: string | null
           id: string
           is_active: boolean | null
           name: string
+          onboarding_completed_at: string | null
+          organization_id: string | null
           phone: string | null
+          plan_id: string | null
           settings: Json | null
+          stripe_customer_id: string | null
+          stripe_subscription_id: string | null
+          subscription_status: string | null
+          timezone: string | null
           type: string
           updated_at: string | null
           website: string | null
@@ -250,14 +350,22 @@ export type Database = {
           address?: string | null
           created_at?: string | null
           created_by?: string | null
+          currency?: string | null
           description?: string | null
           email?: string | null
           established_date?: string | null
           id?: string
           is_active?: boolean | null
           name: string
+          onboarding_completed_at?: string | null
+          organization_id?: string | null
           phone?: string | null
+          plan_id?: string | null
           settings?: Json | null
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          subscription_status?: string | null
+          timezone?: string | null
           type?: string
           updated_at?: string | null
           website?: string | null
@@ -266,19 +374,86 @@ export type Database = {
           address?: string | null
           created_at?: string | null
           created_by?: string | null
+          currency?: string | null
           description?: string | null
           email?: string | null
           established_date?: string | null
           id?: string
           is_active?: boolean | null
           name?: string
+          onboarding_completed_at?: string | null
+          organization_id?: string | null
           phone?: string | null
+          plan_id?: string | null
           settings?: Json | null
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          subscription_status?: string | null
+          timezone?: string | null
           type?: string
           updated_at?: string | null
           website?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "churches_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "churches_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      church_invitations: {
+        Row: {
+          id: string
+          church_id: string
+          email: string
+          role_id: string | null
+          token: string
+          invited_by: string | null
+          expires_at: string
+          accepted_at: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          church_id: string
+          email: string
+          role_id?: string | null
+          token: string
+          invited_by?: string | null
+          expires_at: string
+          accepted_at?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          church_id?: string
+          email?: string
+          role_id?: string | null
+          token?: string
+          invited_by?: string | null
+          expires_at?: string
+          accepted_at?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "church_invitations_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
+            referencedRelation: "churches"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       document_attachments: {
         Row: {
@@ -643,6 +818,119 @@ export type Database = {
           },
         ]
       }
+      audit_log: {
+        Row: {
+          id: string
+          church_id: string | null
+          user_id: string | null
+          action: string
+          entity_type: string
+          entity_id: string
+          old_data: Json | null
+          new_data: Json | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          church_id?: string | null
+          user_id?: string | null
+          action: string
+          entity_type: string
+          entity_id: string
+          old_data?: Json | null
+          new_data?: Json | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          church_id?: string | null
+          user_id?: string | null
+          action?: string
+          entity_type?: string
+          entity_id?: string
+          old_data?: Json | null
+          new_data?: Json | null
+          created_at?: string
+        }
+        Relationships: []
+      }
+      import_staging: {
+        Row: {
+          id: string
+          church_id: string
+          user_id: string | null
+          import_type: string
+          row_data: Json
+          parsed_amount: number | null
+          parsed_date: string | null
+          parsed_description: string | null
+          matched_entity_id: string | null
+          matched_at: string | null
+          status: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          church_id: string
+          user_id?: string | null
+          import_type: string
+          row_data: Json
+          parsed_amount?: number | null
+          parsed_date?: string | null
+          parsed_description?: string | null
+          matched_entity_id?: string | null
+          matched_at?: string | null
+          status?: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          church_id?: string
+          user_id?: string | null
+          import_type?: string
+          row_data?: Json
+          parsed_amount?: number | null
+          parsed_date?: string | null
+          parsed_description?: string | null
+          matched_entity_id?: string | null
+          matched_at?: string | null
+          status?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
+      member_portal_tokens: {
+        Row: {
+          id: string
+          member_id: string
+          token: string
+          expires_at: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          member_id: string
+          token: string
+          expires_at: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          member_id?: string
+          token?: string
+          expires_at?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "member_portal_tokens_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       members: {
         Row: {
           church_id: string | null
@@ -684,6 +972,7 @@ export type Database = {
           action_url: string | null
           category: string
           created_at: string | null
+          email_sent_at: string | null
           id: string
           message: string
           metadata: Json | null
@@ -697,6 +986,7 @@ export type Database = {
           action_url?: string | null
           category: string
           created_at?: string | null
+          email_sent_at?: string | null
           id?: string
           message: string
           metadata?: Json | null
@@ -710,6 +1000,7 @@ export type Database = {
           action_url?: string | null
           category?: string
           created_at?: string | null
+          email_sent_at?: string | null
           id?: string
           message?: string
           metadata?: Json | null
@@ -790,6 +1081,30 @@ export type Database = {
         }
         Relationships: []
       }
+      organizations: {
+        Row: {
+          id: string
+          name: string
+          created_by: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       petty_cash: {
         Row: {
           amount: number
@@ -823,6 +1138,36 @@ export type Database = {
           purpose?: string
           receipt_available?: boolean | null
           transaction_date?: string
+        }
+        Relationships: []
+      }
+      plans: {
+        Row: {
+          id: string
+          name: string
+          price_monthly_cents: number
+          max_users: number
+          max_transactions_per_year: number
+          features: Json
+          created_at: string
+        }
+        Insert: {
+          id: string
+          name: string
+          price_monthly_cents?: number
+          max_users?: number
+          max_transactions_per_year?: number
+          features?: Json
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          price_monthly_cents?: number
+          max_users?: number
+          max_transactions_per_year?: number
+          features?: Json
+          created_at?: string
         }
         Relationships: []
       }

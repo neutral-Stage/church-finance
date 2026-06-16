@@ -6,20 +6,20 @@ import { CheckCircle, XCircle, AlertCircle, Clock, Info, Zap, DollarSign, Trendi
 
 // Status Badge Component
 const statusBadgeVariants = cva(
-  'inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium transition-all duration-200 backdrop-blur-sm border',
+  'inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors duration-200 border',
   {
     variants: {
       variant: {
-        default: 'bg-white/10 text-white border-white/20 hover:bg-white/20',
-        success: 'bg-green-500/20 text-green-300 border-green-500/30 hover:bg-green-500/30',
-        error: 'bg-red-500/20 text-red-300 border-red-500/30 hover:bg-red-500/30',
-        warning: 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30 hover:bg-yellow-500/30',
-        info: 'bg-blue-500/20 text-blue-300 border-blue-500/30 hover:bg-blue-500/30',
-        pending: 'bg-orange-500/20 text-orange-300 border-orange-500/30 hover:bg-orange-500/30',
-        active: 'bg-green-500/20 text-green-300 border-green-500/30 hover:bg-green-500/30 animate-pulse',
-        inactive: 'bg-gray-500/20 text-gray-300 border-gray-500/30 hover:bg-gray-500/30',
-        primary: 'bg-primary/20 text-primary border-primary/30 hover:bg-primary/30',
-        secondary: 'bg-secondary/20 text-secondary border-secondary/30 hover:bg-secondary/30',
+        default: 'bg-muted text-muted-foreground border-border hover:bg-accent',
+        success: 'bg-income/15 text-income border-income/30 hover:bg-income/25',
+        error: 'bg-expense/15 text-expense border-expense/30 hover:bg-expense/25',
+        warning: 'bg-pending/15 text-pending border-pending/30 hover:bg-pending/25',
+        info: 'bg-primary/15 text-primary border-primary/30 hover:bg-primary/25',
+        pending: 'bg-pending/15 text-pending border-pending/30 hover:bg-pending/25',
+        active: 'bg-income/15 text-income border-income/30 hover:bg-income/25',
+        inactive: 'bg-muted text-muted-foreground border-border hover:bg-accent',
+        primary: 'bg-primary/15 text-primary border-primary/30 hover:bg-primary/25',
+        secondary: 'bg-secondary text-secondary-foreground border-border hover:bg-accent',
       },
       size: {
         sm: 'px-2 py-0.5 text-xs',
@@ -92,16 +92,16 @@ StatusBadge.displayName = 'StatusBadge';
 
 // Financial Status Badge Component
 const financialBadgeVariants = cva(
-  'inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium transition-all duration-200 backdrop-blur-sm border',
+  'inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors duration-200 border',
   {
     variants: {
       type: {
-        income: 'bg-green-500/20 text-green-300 border-green-500/30 hover:bg-green-500/30',
-        expense: 'bg-red-500/20 text-red-300 border-red-500/30 hover:bg-red-500/30',
-        profit: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30 hover:bg-emerald-500/30',
-        loss: 'bg-red-600/20 text-red-400 border-red-600/30 hover:bg-red-600/30',
-        neutral: 'bg-gray-500/20 text-gray-300 border-gray-500/30 hover:bg-gray-500/30',
-        pending: 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30 hover:bg-yellow-500/30',
+        income: 'bg-income/15 text-income border-income/30 hover:bg-income/25',
+        expense: 'bg-expense/15 text-expense border-expense/30 hover:bg-expense/25',
+        profit: 'bg-income/15 text-income border-income/30 hover:bg-income/25',
+        loss: 'bg-expense/15 text-expense border-expense/30 hover:bg-expense/25',
+        neutral: 'bg-muted text-muted-foreground border-border hover:bg-accent',
+        pending: 'bg-pending/15 text-pending border-pending/30 hover:bg-pending/25',
       },
       size: {
         sm: 'px-2 py-0.5 text-xs',
@@ -109,8 +109,8 @@ const financialBadgeVariants = cva(
         lg: 'px-3 py-1 text-sm',
       },
       trend: {
-        up: 'shadow-green-500/20 shadow-md',
-        down: 'shadow-red-500/20 shadow-md',
+        up: 'shadow-sm',
+        down: 'shadow-sm',
         neutral: '',
       },
     },
@@ -167,15 +167,15 @@ FinancialBadge.displayName = 'FinancialBadge';
 
 // Priority Badge Component
 const priorityBadgeVariants = cva(
-  'inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium transition-all duration-200 backdrop-blur-sm border',
+  'inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors duration-200 border',
   {
     variants: {
       priority: {
-        low: 'bg-blue-500/20 text-blue-300 border-blue-500/30 hover:bg-blue-500/30',
-        medium: 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30 hover:bg-yellow-500/30',
-        high: 'bg-orange-500/20 text-orange-300 border-orange-500/30 hover:bg-orange-500/30',
-        urgent: 'bg-red-500/20 text-red-300 border-red-500/30 hover:bg-red-500/30 animate-pulse',
-        critical: 'bg-red-600/20 text-red-400 border-red-600/30 hover:bg-red-600/30 animate-pulse shadow-red-500/30 shadow-lg',
+        low: 'bg-primary/15 text-primary border-primary/30 hover:bg-primary/25',
+        medium: 'bg-pending/15 text-pending border-pending/30 hover:bg-pending/25',
+        high: 'bg-pending/20 text-pending border-pending/40 hover:bg-pending/30',
+        urgent: 'bg-expense/15 text-expense border-expense/30 hover:bg-expense/25',
+        critical: 'bg-expense/20 text-expense border-expense/40 hover:bg-expense/30 shadow-sm',
       },
       size: {
         sm: 'px-2 py-0.5 text-xs',
@@ -216,20 +216,20 @@ PriorityBadge.displayName = 'PriorityBadge';
 
 // Category Badge Component
 const categoryBadgeVariants = cva(
-  'inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium transition-all duration-200 backdrop-blur-sm border',
+  'inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors duration-200 border',
   {
     variants: {
       category: {
-        tithe: 'bg-purple-500/20 text-purple-300 border-purple-500/30 hover:bg-purple-500/30',
-        offering: 'bg-blue-500/20 text-blue-300 border-blue-500/30 hover:bg-blue-500/30',
-        donation: 'bg-green-500/20 text-green-300 border-green-500/30 hover:bg-green-500/30',
-        expense: 'bg-red-500/20 text-red-300 border-red-500/30 hover:bg-red-500/30',
-        salary: 'bg-orange-500/20 text-orange-300 border-orange-500/30 hover:bg-orange-500/30',
-        utilities: 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30 hover:bg-yellow-500/30',
-        maintenance: 'bg-gray-500/20 text-gray-300 border-gray-500/30 hover:bg-gray-500/30',
-        ministry: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30 hover:bg-indigo-500/30',
-        missions: 'bg-teal-500/20 text-teal-300 border-teal-500/30 hover:bg-teal-500/30',
-        other: 'bg-slate-500/20 text-slate-300 border-slate-500/30 hover:bg-slate-500/30',
+        tithe: 'bg-purple-500/15 text-purple-700 dark:text-purple-300 border-purple-500/30 hover:bg-purple-500/25',
+        offering: 'bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/30 hover:bg-blue-500/25',
+        donation: 'bg-income/15 text-income border-income/30 hover:bg-income/25',
+        expense: 'bg-expense/15 text-expense border-expense/30 hover:bg-expense/25',
+        salary: 'bg-orange-500/15 text-orange-700 dark:text-orange-300 border-orange-500/30 hover:bg-orange-500/25',
+        utilities: 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30 hover:bg-amber-500/25',
+        maintenance: 'bg-muted text-muted-foreground border-border hover:bg-accent',
+        ministry: 'bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border-indigo-500/30 hover:bg-indigo-500/25',
+        missions: 'bg-teal-500/15 text-teal-700 dark:text-teal-300 border-teal-500/30 hover:bg-teal-500/25',
+        other: 'bg-muted text-muted-foreground border-border hover:bg-accent',
       },
       size: {
         sm: 'px-2 py-0.5 text-xs',

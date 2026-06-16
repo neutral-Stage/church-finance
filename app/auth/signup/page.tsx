@@ -8,8 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Loader2, Church, User, Mail, Lock, Eye, EyeOff, UserCheck, CheckCircle } from 'lucide-react'
+import { Loader2, Church, User, Mail, Lock, Eye, EyeOff, CheckCircle } from 'lucide-react'
 import Link from 'next/link'
 
 export default function SignupPage(): JSX.Element {
@@ -18,7 +17,6 @@ export default function SignupPage(): JSX.Element {
     email: '',
     password: '',
     confirmPassword: '',
-    role: 'viewer' as 'admin' | 'treasurer' | 'viewer'
   })
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
@@ -30,10 +28,10 @@ export default function SignupPage(): JSX.Element {
 
   const router = useRouter()
 
-  // Redirect authenticated users to dashboard
+  // Redirect authenticated users to onboarding
   useEffect(() => {
     if (user && !authLoading) {
-      router.push('/dashboard')
+      router.push('/onboarding')
     }
   }, [user, authLoading, router])
 
@@ -66,19 +64,20 @@ export default function SignupPage(): JSX.Element {
     }
 
     try {
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
         options: {
           data: {
             name: formData.name,
-            role: formData.role
           }
         }
       })
 
       if (error) {
         setError(error.message)
+      } else if (data.session) {
+        router.push('/onboarding')
       } else {
         setSuccess(true)
         setTimeout(() => {
@@ -100,9 +99,9 @@ export default function SignupPage(): JSX.Element {
   }
 
   const getPasswordStrengthColor = () => {
-    if (passwordStrength <= 2) return 'bg-red-500'
-    if (passwordStrength <= 3) return 'bg-yellow-500'
-    return 'bg-green-500'
+    if (passwordStrength <= 2) return 'bg-expense'
+    if (passwordStrength <= 3) return 'bg-pending'
+    return 'bg-income'
   }
 
   const getPasswordStrengthText = () => {
@@ -111,35 +110,23 @@ export default function SignupPage(): JSX.Element {
     return 'Strong'
   }
 
-  // Shared background
-  const Background = () => (
-    <div className="absolute inset-0 overflow-hidden pointer-events-none">
-      <div className="absolute -top-40 -right-40 w-80 h-80 bg-white/10 rounded-full blur-3xl" />
-      <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-white/10 rounded-full blur-3xl" />
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-white/5 rounded-full blur-3xl" />
-    </div>
-  )
-
   if (success) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-4 relative overflow-hidden">
-        <Background />
-        <div className="relative z-10 w-full max-w-md animate-fade-in">
-          <Card className="bg-white/10 backdrop-blur-xl border-white/20 shadow-2xl">
+      <div className="min-h-screen flex items-center justify-center bg-background p-4">
+        <div className="w-full max-w-md animate-fade-in">
+          <Card className="shadow-lg">
             <CardHeader className="text-center pb-8">
               <div className="flex justify-center mb-6">
-                <div className="relative">
-                  <div className="absolute inset-0 bg-green-400/20 rounded-full blur-xl" />
-                  <div className="relative bg-green-400/10 p-4 rounded-full backdrop-blur-sm border border-green-400/20">
-                    <CheckCircle className="h-12 w-12 text-green-400" />
-                  </div>
+                <div className="bg-income/10 p-4 rounded-full border border-income/30">
+                  <CheckCircle className="h-12 w-12 text-income" />
                 </div>
               </div>
-              <CardTitle className="text-3xl font-bold text-white mb-2">
+              <CardTitle className="text-3xl font-bold mb-2">
                 Account Created!
               </CardTitle>
-              <CardDescription className="text-white/80 text-base">
-                Welcome to Church Finance! You&apos;ll be redirected to the login page in a moment.
+              <CardDescription className="text-base">
+                Welcome to Church Finance! Check your email to confirm your account, then sign in to
+                complete church setup.
               </CardDescription>
             </CardHeader>
           </Card>
@@ -149,25 +136,19 @@ export default function SignupPage(): JSX.Element {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-4 relative overflow-hidden">
-      <Background />
-
-      {/* Single clean entrance animation on the container only */}
-      <div className="relative z-10 w-full max-w-md animate-fade-in">
-        <Card className="bg-white/10 backdrop-blur-xl border-white/20 shadow-2xl">
+    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+      <div className="w-full max-w-md animate-fade-in">
+        <Card className="shadow-lg">
           <CardHeader className="text-center pb-6">
             <div className="flex justify-center mb-6">
-              <div className="relative">
-                <div className="absolute inset-0 bg-white/20 rounded-full blur-xl" />
-                <div className="relative bg-white/10 p-4 rounded-full backdrop-blur-sm border border-white/20">
-                  <Church className="h-12 w-12 text-white" />
-                </div>
+              <div className="bg-primary/10 p-4 rounded-full border border-border">
+                <Church className="h-12 w-12 text-primary" />
               </div>
             </div>
-            <CardTitle className="text-3xl font-bold text-white mb-2">
+            <CardTitle className="text-3xl font-bold mb-2">
               Create Account
             </CardTitle>
-            <CardDescription className="text-white/80 text-base">
+            <CardDescription className="text-base">
               Join our church finance management system
             </CardDescription>
           </CardHeader>
@@ -175,25 +156,25 @@ export default function SignupPage(): JSX.Element {
           <CardContent className="space-y-6">
             <form onSubmit={handleSubmit} className="space-y-5">
               {error && (
-                <Alert variant="destructive" className="bg-red-500/20 border-red-500/30 text-white">
+                <Alert variant="destructive">
                   <AlertDescription>{error}</AlertDescription>
                 </Alert>
               )}
 
               {/* Full Name */}
               <div className="space-y-2">
-                <label htmlFor="name" className="text-sm font-medium text-white/90">
+                <label htmlFor="name" className="text-sm font-medium text-foreground">
                   Full Name
                 </label>
                 <div className="relative">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-white/60" />
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                   <Input
                     id="name"
                     type="text"
                     placeholder="Enter your full name"
                     value={formData.name}
                     onChange={(e) => handleInputChange('name', e.target.value)}
-                    className="pl-10 bg-white/10 border-white/20 text-white placeholder:text-white/50 focus:border-white/40 focus:ring-white/20 backdrop-blur-sm h-12 hover:bg-white/15 transition-colors duration-200"
+                    className="pl-10 h-12"
                     required
                     disabled={loading}
                   />
@@ -202,82 +183,59 @@ export default function SignupPage(): JSX.Element {
 
               {/* Email */}
               <div className="space-y-2">
-                <label htmlFor="email" className="text-sm font-medium text-white/90">
+                <label htmlFor="email" className="text-sm font-medium text-foreground">
                   Email Address
                 </label>
                 <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-white/60" />
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                   <Input
                     id="email"
                     type="email"
                     placeholder="Enter your email address"
                     value={formData.email}
                     onChange={(e) => handleInputChange('email', e.target.value)}
-                    className="pl-10 bg-white/10 border-white/20 text-white placeholder:text-white/50 focus:border-white/40 focus:ring-white/20 backdrop-blur-sm h-12 hover:bg-white/15 transition-colors duration-200"
+                    className="pl-10 h-12"
                     required
                     disabled={loading}
                   />
                 </div>
               </div>
 
-              {/* Role */}
-              <div className="space-y-2">
-                <label htmlFor="role" className="text-sm font-medium text-white/90">
-                  Role
-                </label>
-                <div className="relative">
-                  <UserCheck className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-white/60 z-10" />
-                  <Select
-                    value={formData.role}
-                    onValueChange={(value) => handleInputChange('role', value)}
-                    disabled={loading}
-                  >
-                    <SelectTrigger className="pl-10 bg-white/10 border-white/20 text-white focus:border-white/40 focus:ring-white/20 backdrop-blur-sm h-12">
-                      <SelectValue placeholder="Select your role" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-slate-900/90 backdrop-blur-sm border-white/20">
-                      <SelectItem value="viewer" className="text-white hover:bg-white/10">Viewer - Read-only access</SelectItem>
-                      <SelectItem value="treasurer" className="text-white hover:bg-white/10">Treasurer - Financial management</SelectItem>
-                      <SelectItem value="admin" className="text-white hover:bg-white/10">Admin - Full access</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
               {/* Password */}
               <div className="space-y-2">
-                <label htmlFor="password" className="text-sm font-medium text-white/90">
+                <label htmlFor="password" className="text-sm font-medium text-foreground">
                   Password
                 </label>
                 <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-white/60" />
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                   <Input
                     id="password"
                     type={showPassword ? 'text' : 'password'}
                     placeholder="Create a strong password"
                     value={formData.password}
                     onChange={(e) => handleInputChange('password', e.target.value)}
-                    className="pl-10 pr-10 bg-white/10 border-white/20 text-white placeholder:text-white/50 focus:border-white/40 focus:ring-white/20 backdrop-blur-sm h-12 hover:bg-white/15 transition-colors duration-200"
+                    className="pl-10 pr-10 h-12"
                     required
                     disabled={loading}
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-white/60 hover:text-white/80 transition-colors duration-200"
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors duration-200"
                   >
                     {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                   </button>
                 </div>
                 {formData.password && (
                   <div className="mt-2">
-                    <div className="flex items-center justify-between text-xs text-white/70 mb-1">
+                    <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
                       <span>Password strength:</span>
-                      <span className={`font-medium ${passwordStrength <= 2 ? 'text-red-400' : passwordStrength <= 3 ? 'text-yellow-400' : 'text-green-400'}`}>
+                      <span className={`font-medium ${passwordStrength <= 2 ? 'text-expense' : passwordStrength <= 3 ? 'text-pending' : 'text-income'}`}>
                         {getPasswordStrengthText()}
                       </span>
                     </div>
-                    <div className="w-full bg-white/10 rounded-full h-2">
+                    <div className="w-full bg-muted rounded-full h-2">
                       <div
                         className={`h-2 rounded-full transition-all duration-300 ${getPasswordStrengthColor()}`}
                         style={{ width: `${(passwordStrength / 5) * 100}%` }}
@@ -289,25 +247,26 @@ export default function SignupPage(): JSX.Element {
 
               {/* Confirm Password */}
               <div className="space-y-2">
-                <label htmlFor="confirmPassword" className="text-sm font-medium text-white/90">
+                <label htmlFor="confirmPassword" className="text-sm font-medium text-foreground">
                   Confirm Password
                 </label>
                 <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-white/60" />
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                   <Input
                     id="confirmPassword"
                     type={showConfirmPassword ? 'text' : 'password'}
                     placeholder="Confirm your password"
                     value={formData.confirmPassword}
                     onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
-                    className="pl-10 pr-10 bg-white/10 border-white/20 text-white placeholder:text-white/50 focus:border-white/40 focus:ring-white/20 backdrop-blur-sm h-12 hover:bg-white/15 transition-colors duration-200"
+                    className="pl-10 pr-10 h-12"
                     required
                     disabled={loading}
                   />
                   <button
                     type="button"
                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-white/60 hover:text-white/80 transition-colors duration-200"
+                    aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors duration-200"
                   >
                     {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                   </button>
@@ -315,12 +274,12 @@ export default function SignupPage(): JSX.Element {
                 {formData.confirmPassword && (
                   <div className="flex items-center mt-1">
                     {formData.password === formData.confirmPassword ? (
-                      <div className="flex items-center text-green-400 text-xs">
+                      <div className="flex items-center text-income text-xs">
                         <CheckCircle className="h-3 w-3 mr-1" />
                         Passwords match
                       </div>
                     ) : (
-                      <div className="text-red-400 text-xs">Passwords do not match</div>
+                      <div className="text-expense text-xs">Passwords do not match</div>
                     )}
                   </div>
                 )}
@@ -328,7 +287,7 @@ export default function SignupPage(): JSX.Element {
 
               <Button
                 type="submit"
-                className="w-full h-12 bg-gradient-to-r from-white/20 to-white/30 hover:from-white/30 hover:to-white/40 text-white border border-white/30 backdrop-blur-sm transition-all duration-200 hover:shadow-lg font-semibold text-lg"
+                className="w-full h-12 font-semibold text-lg"
                 disabled={loading}
               >
                 {loading ? (
@@ -343,11 +302,11 @@ export default function SignupPage(): JSX.Element {
             </form>
 
             <div className="text-center">
-              <p className="text-white/80 text-sm">
+              <p className="text-muted-foreground text-sm">
                 Already have an account?{' '}
                 <Link
                   href="/auth/login"
-                  className="text-white font-semibold hover:text-white/80 transition-colors duration-200 underline decoration-white/50 hover:decoration-white/80"
+                  className="text-primary font-semibold hover:underline transition-colors duration-200"
                 >
                   Sign In
                 </Link>

@@ -7,10 +7,10 @@ const glassTableVariants = cva(
   {
     variants: {
       variant: {
-        default: 'bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl overflow-hidden',
-        bordered: 'bg-white/5 backdrop-blur-xl border border-white/20 rounded-xl overflow-hidden',
+        default: 'bg-card border border-border rounded-xl overflow-hidden',
+        bordered: 'bg-card border border-border rounded-xl overflow-hidden',
         minimal: 'bg-transparent',
-        card: 'bg-white/10 backdrop-blur-xl border border-white/20 rounded-xl overflow-hidden shadow-lg',
+        card: 'bg-card border border-border rounded-xl overflow-hidden shadow-md',
       },
       size: {
         sm: 'text-xs',
@@ -72,7 +72,7 @@ const GlassTableHeader = React.forwardRef<HTMLTableSectionElement, GlassTableHea
     <thead
       ref={ref}
       className={cn(
-        'bg-white/10 backdrop-blur-xl border-b border-white/20 sticky top-0 z-10',
+        'bg-muted/60 border-b border-border sticky top-0 z-10',
         className
       )}
       {...props}
@@ -105,7 +105,7 @@ const GlassTableFooter = React.forwardRef<HTMLTableSectionElement, GlassTableFoo
     <tfoot
       ref={ref}
       className={cn(
-        'border-t border-white/20 bg-white/5 font-medium [&>tr]:last:border-b-0',
+        'border-t border-border bg-muted/40 font-medium [&>tr]:last:border-b-0',
         className
       )}
       {...props}
@@ -125,9 +125,9 @@ const GlassTableRow = React.forwardRef<HTMLTableRowElement, GlassTableRowProps>(
     <tr
       ref={ref}
       className={cn(
-        'border-b border-white/10 transition-colors',
+        'border-b border-border transition-colors',
         {
-          'hover:bg-white/5 data-[state=selected]:bg-white/10': hover,
+          'hover:bg-muted/50 data-[state=selected]:bg-muted': hover,
         },
         className
       )}
@@ -149,9 +149,9 @@ const GlassTableHead = React.forwardRef<HTMLTableCellElement, GlassTableHeadProp
     <th
       ref={ref}
       className={cn(
-        'h-12 px-4 text-left align-middle font-semibold text-white/90 [&:has([role=checkbox])]:pr-0',
+        'h-12 px-4 text-left align-middle font-semibold text-muted-foreground [&:has([role=checkbox])]:pr-0',
         {
-          'cursor-pointer select-none hover:text-white transition-colors': sortable,
+          'cursor-pointer select-none hover:text-foreground transition-colors': sortable,
         },
         className
       )}
@@ -164,7 +164,7 @@ const GlassTableHead = React.forwardRef<HTMLTableCellElement, GlassTableHeadProp
             <svg
               className={cn(
                 'h-3 w-3 transition-colors',
-                sorted === 'asc' ? 'text-white' : 'text-white/40'
+                sorted === 'asc' ? 'text-foreground' : 'text-muted-foreground/50'
               )}
               fill="currentColor"
               viewBox="0 0 20 20"
@@ -190,7 +190,7 @@ const GlassTableCell = React.forwardRef<HTMLTableCellElement, GlassTableCellProp
     <td
       ref={ref}
       className={cn(
-        'p-4 align-middle text-white/80 [&:has([role=checkbox])]:pr-0',
+        'p-4 align-middle text-foreground/90 [&:has([role=checkbox])]:pr-0',
         {
           'text-right font-mono': numeric,
         },
@@ -210,7 +210,7 @@ const GlassTableCaption = React.forwardRef<HTMLTableCaptionElement, GlassTableCa
   ({ className, ...props }, ref) => (
     <caption
       ref={ref}
-      className={cn('mt-4 text-sm text-white/60', className)}
+      className={cn('mt-4 text-sm text-muted-foreground', className)}
       {...props}
     />
   )
@@ -236,9 +236,9 @@ const GlassTableEmpty = React.forwardRef<HTMLDivElement, GlassTableEmptyProps>(
       )}
       {...props}
     >
-      {icon && <div className="mb-4 text-white/40">{icon}</div>}
-      <h3 className="text-lg font-semibold text-white/80 mb-2">{title}</h3>
-      {description && <p className="text-sm text-white/60 mb-4 max-w-sm">{description}</p>}
+      {icon && <div className="mb-4 text-muted-foreground">{icon}</div>}
+      <h3 className="text-lg font-semibold text-foreground mb-2">{title}</h3>
+      {description && <p className="text-sm text-muted-foreground mb-4 max-w-sm">{description}</p>}
       {action && <div>{action}</div>}
     </div>
   )
@@ -260,7 +260,7 @@ const GlassTableLoading = React.forwardRef<HTMLDivElement, GlassTableLoadingProp
           <GlassTableRow>
             {Array.from({ length: columns }).map((_, i) => (
               <GlassTableHead key={i}>
-                <div className="h-4 bg-white/20 rounded" />
+                <div className="h-4 bg-muted rounded" />
               </GlassTableHead>
             ))}
           </GlassTableRow>
@@ -270,7 +270,7 @@ const GlassTableLoading = React.forwardRef<HTMLDivElement, GlassTableLoadingProp
             <GlassTableRow key={i}>
               {Array.from({ length: columns }).map((_, j) => (
                 <GlassTableCell key={j}>
-                  <div className="h-4 bg-white/10 rounded" />
+                  <div className="h-4 bg-muted/60 rounded" />
                 </GlassTableCell>
               ))}
             </GlassTableRow>

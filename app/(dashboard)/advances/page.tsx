@@ -8,7 +8,6 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useChurch } from '@/contexts/ChurchContext'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { GlassButton } from '@/components/ui/glass-button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -392,22 +391,15 @@ export default function AdvancesPage() {
   }
 
   return (
-    <div className="min-h-screen relative overflow-hidden ">
-      {/* Animated Background Elements */}
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-gradient-to-r from-purple-400/30 to-pink-400/30 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute top-3/4 right-1/4 w-96 h-96 bg-gradient-to-r from-blue-400/20 to-purple-400/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }}></div>
-        <div className="absolute bottom-1/4 left-1/3 w-80 h-80 bg-gradient-to-r from-indigo-400/25 to-purple-400/25 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '4s' }}></div>
-      </div>
-
-      <div className="relative z-10 container mx-auto p-6 space-y-6">
+    <div className="min-h-screen bg-background">
+      <div className="container mx-auto p-6 space-y-6">
         <div className="flex justify-between items-center animate-fade-in animate-slide-in-from-top-4">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent flex items-center gap-3">
-              <CreditCard className="h-8 w-8 text-white" />
+            <h1 className="text-3xl font-bold tracking-tight text-foreground flex items-center gap-3">
+              <CreditCard className="h-8 w-8 text-foreground" />
               Advances
             </h1>
-            <p className="text-white/60">Track advance payments and repayments</p>
+            <p className="text-muted-foreground">Track advance payments and repayments</p>
           </div>
           {hasRole('admin') && (
             <Dialog open={advanceDialogOpen} onOpenChange={setAdvanceDialogOpen}>
@@ -419,26 +411,25 @@ export default function AdvancesPage() {
               </DialogTrigger>
               <DialogContent className="sm:max-w-[500px]">
                 <DialogHeader>
-                  <DialogTitle className="text-white">{editingAdvance ? 'Edit Advance' : 'New Advance'}</DialogTitle>
-                  <DialogDescription className="text-white/70">
+                  <DialogTitle className="text-foreground">{editingAdvance ? 'Edit Advance' : 'New Advance'}</DialogTitle>
+                  <DialogDescription className="text-muted-foreground">
                     {editingAdvance ? 'Update advance information' : 'Create a new advance payment'}
                   </DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleAdvanceSubmit} className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="recipient" className="text-white/90">Recipient *</Label>
+                      <Label htmlFor="recipient">Recipient *</Label>
                       <Input
                         id="recipient"
                         value={advanceForm.recipient_name}
                         onChange={(e) => setAdvanceForm({ ...advanceForm, recipient_name: e.target.value })}
                         placeholder="Recipient name"
-                        className="bg-white/10 border-white/20 text-white placeholder:text-white/50 focus:border-white/40"
                         required
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="amount" className="text-white/90">Amount *</Label>
+                      <Label htmlFor="amount">Amount *</Label>
                       <Input
                         id="amount"
                         type="number"
@@ -446,32 +437,30 @@ export default function AdvancesPage() {
                         min="0.01"
                         value={advanceForm.amount}
                         onChange={(e) => setAdvanceForm({ ...advanceForm, amount: e.target.value })}
-                        className="bg-white/10 border-white/20 text-white placeholder:text-white/50 focus:border-white/40"
                         required
                       />
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="purpose" className="text-white/90">Purpose *</Label>
+                    <Label htmlFor="purpose">Purpose *</Label>
                     <Textarea
                       id="purpose"
                       value={advanceForm.purpose}
                       onChange={(e) => setAdvanceForm({ ...advanceForm, purpose: e.target.value })}
                       placeholder="What is this advance for?"
-                      className="bg-white/10 border-white/20 text-white placeholder:text-white/50 focus:border-white/40"
                       required
                     />
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="fund_id" className="text-white/90">Fund *</Label>
+                      <Label htmlFor="fund_id">Fund *</Label>
                       <Select value={advanceForm.fund_id} onValueChange={(value) => setAdvanceForm({ ...advanceForm, fund_id: value })}>
-                        <SelectTrigger className="bg-white/10 border-white/20 text-white focus:border-white/40">
-                          <SelectValue placeholder="Select fund" className="text-white/50" />
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select fund" />
                         </SelectTrigger>
-                        <SelectContent className="bg-white/10 backdrop-blur-xl border-white/20">
+                        <SelectContent>
                           {funds.map((fund) => (
-                            <SelectItem key={fund.id} value={fund.id} className="text-white/90 hover:bg-white/10">
+                            <SelectItem key={fund.id} value={fund.id}>
                               {fund.name} ({formatCurrency(fund.current_balance ?? 0)})
                             </SelectItem>
                           ))}
@@ -479,45 +468,43 @@ export default function AdvancesPage() {
                       </Select>
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="expected_return_date" className="text-white/90">Expected Return Date *</Label>
+                      <Label htmlFor="expected_return_date">Expected Return Date *</Label>
                       <Input
                         id="expected_return_date"
                         type="date"
                         value={advanceForm.expected_return_date}
                         onChange={(e) => setAdvanceForm({ ...advanceForm, expected_return_date: e.target.value })}
-                        className="bg-white/10 border-white/20 text-white placeholder:text-white/50 focus:border-white/40"
                         required
                       />
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="status" className="text-white/90">Status</Label>
+                    <Label htmlFor="status">Status</Label>
                     <Select value={advanceForm.status} onValueChange={(value) => setAdvanceForm({ ...advanceForm, status: value as 'outstanding' | 'partial' | 'returned' })}>
-                      <SelectTrigger className="bg-white/10 border-white/20 text-white focus:border-white/40">
+                      <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
-                      <SelectContent className="bg-white/10 backdrop-blur-xl border-white/20">
-                        <SelectItem value="outstanding" className="text-white/90 hover:bg-white/10">Outstanding</SelectItem>
-                        <SelectItem value="partial" className="text-white/90 hover:bg-white/10">Partial</SelectItem>
-                        <SelectItem value="returned" className="text-white/90 hover:bg-white/10">Returned</SelectItem>
+                      <SelectContent>
+                        <SelectItem value="outstanding">Outstanding</SelectItem>
+                        <SelectItem value="partial">Partial</SelectItem>
+                        <SelectItem value="returned">Returned</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="notes" className="text-white/90">Notes</Label>
+                    <Label htmlFor="notes">Notes</Label>
                     <Textarea
                       id="notes"
                       value={advanceForm.notes}
                       onChange={(e) => setAdvanceForm({ ...advanceForm, notes: e.target.value })}
                       placeholder="Additional notes or conditions"
-                      className="bg-white/10 border-white/20 text-white placeholder:text-white/50 focus:border-white/40"
                     />
                   </div>
                   <DialogFooter>
-                    <Button type="button" variant="outline" onClick={() => setAdvanceDialogOpen(false)} className="bg-white/10 border-white/20 text-white/90 hover:bg-white/20">
+                    <Button type="button" variant="outline" onClick={() => setAdvanceDialogOpen(false)}>
                       Cancel
                     </Button>
-                    <Button type="submit" className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0">
+                    <Button type="submit">
                       {editingAdvance ? 'Update Advance' : 'Create Advance'}
                     </Button>
                   </DialogFooter>
@@ -529,40 +516,40 @@ export default function AdvancesPage() {
 
         {/* Summary Cards */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <Card className="bg-white/10 backdrop-blur-xl border-white/20 hover:bg-white/15 transition-all duration-300 animate-fade-in animate-slide-in-from-bottom-4" style={{ animationDelay: '100ms' }}>
+          <Card className="animate-fade-in animate-slide-in-from-bottom-4" style={{ animationDelay: '100ms' }}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-white/90">Total Outstanding</CardTitle>
-              <div className="p-2 bg-red-500/20 backdrop-blur-sm rounded-lg">
-                <DollarSign className="h-4 w-4 text-red-300" />
+              <CardTitle className="text-sm font-medium text-muted-foreground">Total Outstanding</CardTitle>
+              <div className="p-2 bg-destructive/15 rounded-lg">
+                <DollarSign className="h-4 w-4 text-destructive" />
               </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-white">
+              <div className="text-2xl font-bold text-foreground">
                 <AnimatedCounter
                   value={totalOutstanding}
                   formatter={(v) => formatCurrency(v)}
                 />
               </div>
-              <p className="text-xs text-white/60">
+              <p className="text-xs text-muted-foreground">
                 {formatCurrency(totalAdvances)} total advances
               </p>
             </CardContent>
           </Card>
-          <Card className="bg-white/10 backdrop-blur-xl border-white/20 hover:bg-white/15 transition-all duration-300 animate-fade-in animate-slide-in-from-bottom-4" style={{ animationDelay: '200ms' }}>
+          <Card className="animate-fade-in animate-slide-in-from-bottom-4" style={{ animationDelay: '200ms' }}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-white/90">Total Repaid</CardTitle>
-              <div className="p-2 bg-green-500/20 backdrop-blur-sm rounded-lg">
-                <TrendingUp className="h-4 w-4 text-green-300" />
+              <CardTitle className="text-sm font-medium text-muted-foreground">Total Repaid</CardTitle>
+              <div className="p-2 bg-income/15 rounded-lg">
+                <TrendingUp className="h-4 w-4 text-income" />
               </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-green-300">
+              <div className="text-2xl font-bold text-income">
                 <AnimatedCounter
                   value={totalRepaid}
                   formatter={(v) => formatCurrency(v)}
                 />
               </div>
-              <p className="text-xs text-white/60">
+              <p className="text-xs text-muted-foreground">
                 <AnimatedCounter
                   value={totalAdvances > 0 ? Math.round((totalRepaid / totalAdvances) * 100) : 0}
                   formatter={(v) => `${Math.round(v)}%`}
@@ -570,34 +557,34 @@ export default function AdvancesPage() {
               </p>
             </CardContent>
           </Card>
-          <Card className="bg-white/10 backdrop-blur-xl border-white/20 hover:bg-white/15 transition-all duration-300 animate-fade-in animate-slide-in-from-bottom-4" style={{ animationDelay: '300ms' }}>
+          <Card className="animate-fade-in animate-slide-in-from-bottom-4" style={{ animationDelay: '300ms' }}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-white/90">Outstanding</CardTitle>
-              <div className="p-2 bg-yellow-500/20 backdrop-blur-sm rounded-lg">
-                <Users className="h-4 w-4 text-yellow-300" />
+              <CardTitle className="text-sm font-medium text-muted-foreground">Outstanding</CardTitle>
+              <div className="p-2 bg-pending/15 rounded-lg">
+                <Users className="h-4 w-4 text-pending" />
               </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-white">
+              <div className="text-2xl font-bold text-foreground">
                 <AnimatedCounter value={outstandingAdvances} />
               </div>
-              <p className="text-xs text-white/60">
+              <p className="text-xs text-muted-foreground">
                 Outstanding advances
               </p>
             </CardContent>
           </Card>
-          <Card className="bg-white/10 backdrop-blur-xl border-white/20 hover:bg-white/15 transition-all duration-300 animate-fade-in animate-slide-in-from-bottom-4" style={{ animationDelay: '400ms' }}>
+          <Card className="animate-fade-in animate-slide-in-from-bottom-4" style={{ animationDelay: '400ms' }}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-white/90">Overdue</CardTitle>
-              <div className="p-2 bg-red-500/20 backdrop-blur-sm rounded-lg">
-                <AlertCircle className="h-4 w-4 text-red-300" />
+              <CardTitle className="text-sm font-medium text-muted-foreground">Overdue</CardTitle>
+              <div className="p-2 bg-destructive/15 rounded-lg">
+                <AlertCircle className="h-4 w-4 text-destructive" />
               </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-red-300">
+              <div className="text-2xl font-bold text-destructive">
                 <AnimatedCounter value={overdueAdvances.length} />
               </div>
-              <p className="text-xs text-white/60">
+              <p className="text-xs text-muted-foreground">
                 <AnimatedCounter
                   value={overdueAdvances.reduce((sum, a) => sum + (a.amount - (a.amount_returned ?? 0)), 0)}
                   formatter={(v) => formatCurrency(v)}
@@ -608,29 +595,29 @@ export default function AdvancesPage() {
         </div>
 
         {/* Advances Table */}
-        <Card className="bg-white/10 backdrop-blur-xl border-white/20 animate-fade-in animate-slide-in-from-bottom-4" style={{ animationDelay: '500ms' }}>
+        <Card className="animate-fade-in animate-slide-in-from-bottom-4" style={{ animationDelay: '500ms' }}>
           <CardHeader>
-            <CardTitle className="text-white/90 flex items-center gap-2">
+            <CardTitle className="text-foreground flex items-center gap-2">
               <CreditCard className="h-5 w-5" />
               Advance Records
             </CardTitle>
-            <CardDescription className="text-white/60">Track all advance payments and their repayment status</CardDescription>
+            <CardDescription className="text-muted-foreground">Track all advance payments and their repayment status</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="rounded-md border border-white/20">
+            <div className="rounded-md border border-border">
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
-                    <tr className="border-b border-white/20 bg-white/5">
-                      <th className="h-12 px-4 text-left align-middle font-medium text-white/70">Date</th>
-                      <th className="h-12 px-4 text-left align-middle font-medium text-white/70">Recipient</th>
-                      <th className="h-12 px-4 text-left align-middle font-medium text-white/70">Purpose</th>
-                      <th className="h-12 px-4 text-left align-middle font-medium text-white/70">Amount</th>
-                      <th className="h-12 px-4 text-left align-middle font-medium text-white/70">Repaid</th>
-                      <th className="h-12 px-4 text-left align-middle font-medium text-white/70">Balance</th>
-                      <th className="h-12 px-4 text-left align-middle font-medium text-white/70">Return Date</th>
-                      <th className="h-12 px-4 text-left align-middle font-medium text-white/70">Status</th>
-                      <th className="h-12 px-4 text-left align-middle font-medium text-white/70">Actions</th>
+                    <tr className="border-b border-border bg-muted/50">
+                      <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Date</th>
+                      <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Recipient</th>
+                      <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Purpose</th>
+                      <th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground">Amount</th>
+                      <th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground">Repaid</th>
+                      <th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground">Balance</th>
+                      <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Return Date</th>
+                      <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Status</th>
+                      <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -640,27 +627,27 @@ export default function AdvancesPage() {
                       const remainingBalance = advance.amount - (advance.amount_returned ?? 0)
 
                       return (
-                        <tr key={advance.id} className={`border-b border-white/10 hover:bg-white/5 transition-colors ${isOverdue ? 'bg-red-500/10' : ''}`}>
-                          <td className="p-4 text-white/90">{advance.created_at ? new Date(advance.created_at).toLocaleDateString() : 'No date'}</td>
-                          <td className="p-4 font-medium text-white/90">{advance.recipient_name}</td>
-                          <td className="p-4 max-w-xs truncate text-white/90">{advance.purpose}</td>
-                          <td className="p-4 font-medium text-white/90">{formatCurrency(advance.amount)}</td>
+                        <tr key={advance.id} className={`border-b border-border hover:bg-accent transition-colors ${isOverdue ? 'bg-destructive/10' : ''}`}>
+                          <td className="p-4 text-muted-foreground">{advance.created_at ? new Date(advance.created_at).toLocaleDateString() : 'No date'}</td>
+                          <td className="p-4 font-medium text-foreground">{advance.recipient_name}</td>
+                          <td className="p-4 max-w-xs truncate text-muted-foreground">{advance.purpose}</td>
+                          <td className="p-4 text-right font-medium text-foreground">{formatCurrency(advance.amount)}</td>
                           <td className="p-4">
-                            <div className="flex items-center gap-1">
-                              <TrendingDown className="w-3 h-3 text-green-400" />
-                              <span className="text-green-300 font-medium">{formatCurrency(advance.amount_returned ?? 0)}</span>
+                            <div className="flex items-center justify-end gap-1">
+                              <TrendingDown className="w-3 h-3 text-income" />
+                              <span className="text-income font-medium">{formatCurrency(advance.amount_returned ?? 0)}</span>
                             </div>
                           </td>
                           <td className="p-4">
-                            <div className="flex items-center gap-1">
-                              <TrendingUp className="w-3 h-3 text-red-400" />
-                              <span className={`font-medium ${remainingBalance > 0 ? 'text-red-300' : 'text-green-300'}`}>
+                            <div className="flex items-center justify-end gap-1">
+                              <TrendingUp className="w-3 h-3 text-expense" />
+                              <span className={`font-medium ${remainingBalance > 0 ? 'text-expense' : 'text-income'}`}>
                                 {formatCurrency(remainingBalance)}
                               </span>
                             </div>
                           </td>
                           <td className="p-4">
-                            <div className={isOverdue ? 'text-red-300 font-medium' : 'text-white/90'}>
+                            <div className={isOverdue ? 'text-destructive font-medium' : 'text-muted-foreground'}>
                               {returnDate.toLocaleDateString()}
                               {isOverdue && <AlertCircle className="inline w-4 h-4 ml-1" />}
                             </div>
@@ -672,7 +659,7 @@ export default function AdvancesPage() {
                                   isOverdue ? 'destructive' :
                                     advance.status === 'partial' ? 'warning' : 'secondary'
                               }
-                              className={`${isOverdue ? 'bg-red-500/20 text-red-300 border-red-500/30' : advance.status === 'returned' ? 'bg-green-500/20 text-green-300 border-green-500/30' : advance.status === 'partial' ? 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30' : 'bg-gray-500/20 text-gray-300 border-gray-500/30'} backdrop-blur-sm`}
+                              className={`${isOverdue ? 'bg-destructive/15 text-destructive border-destructive/30' : advance.status === 'returned' ? 'bg-income/15 text-income border-income/30' : advance.status === 'partial' ? 'bg-pending/15 text-pending border-pending/30' : 'bg-muted text-muted-foreground border-border'}`}
                             >
                               {isOverdue && advance.status !== 'returned' ? 'overdue' : advance.status}
                             </Badge>
@@ -681,23 +668,23 @@ export default function AdvancesPage() {
                             {(hasRole('admin') || hasRole('treasurer')) && (
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
-                                  <GlassButton variant="ghost" size="sm" className="h-8 w-8 p-0">
+                                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0" aria-label="Advance actions">
                                     <MoreHorizontal className="h-4 w-4" />
-                                  </GlassButton>
+                                  </Button>
                                 </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end" className="bg-white/10 backdrop-blur-xl border-white/20">
-                                  <DropdownMenuItem onClick={() => openAdvanceDialog(advance)} className="text-white/90 hover:bg-white/10">
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem onClick={() => openAdvanceDialog(advance)}>
                                     Edit
                                   </DropdownMenuItem>
                                   {advance.status === 'outstanding' || advance.status === 'partial' ? (
-                                    <DropdownMenuItem onClick={() => openRepaymentDialog(advance)} className="text-white/90 hover:bg-white/10">
+                                    <DropdownMenuItem onClick={() => openRepaymentDialog(advance)}>
                                       Record Repayment
                                     </DropdownMenuItem>
                                   ) : null}
 
                                   <DropdownMenuItem
                                     onClick={() => deleteAdvance(advance.id)}
-                                    className="text-red-300 hover:bg-red-500/10"
+                                    className="text-destructive focus:text-destructive"
                                   >
                                     Delete
                                   </DropdownMenuItem>
@@ -712,7 +699,7 @@ export default function AdvancesPage() {
                 </table>
               </div>
               {advances.length === 0 && (
-                <div className="text-center py-8 text-white/60">
+                <div className="text-center py-8 text-muted-foreground">
                   No advances found. Create your first advance to get started.
                 </div>
               )}
@@ -724,31 +711,31 @@ export default function AdvancesPage() {
         <Dialog open={repaymentDialogOpen} onOpenChange={setRepaymentDialogOpen}>
           <DialogContent className="sm:max-w-[425px]">
             <DialogHeader>
-              <DialogTitle className="text-white">Confirm Repayment</DialogTitle>
-              <DialogDescription className="text-white/70">
+              <DialogTitle className="text-foreground">Confirm Repayment</DialogTitle>
+              <DialogDescription className="text-muted-foreground">
                 Are you sure you want to mark this advance as repaid?
               </DialogDescription>
             </DialogHeader>
             {selectedAdvanceForRepayment && (
               <div className="space-y-4">
-                <div className="bg-white/5 p-4 rounded-lg space-y-2">
+                <div className="bg-muted/50 p-4 rounded-lg space-y-2">
                   <div className="flex justify-between">
-                    <span className="text-sm text-white/60">Original Amount:</span>
-                    <span className="font-medium text-white/90">{formatCurrency(selectedAdvanceForRepayment.amount)}</span>
+                    <span className="text-sm text-muted-foreground">Original Amount:</span>
+                    <span className="font-medium text-foreground">{formatCurrency(selectedAdvanceForRepayment.amount)}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-sm text-white/60">Already Repaid:</span>
-                    <span className="font-medium text-green-300">{formatCurrency(selectedAdvanceForRepayment.amount_returned ?? 0)}</span>
+                    <span className="text-sm text-muted-foreground">Already Repaid:</span>
+                    <span className="font-medium text-income">{formatCurrency(selectedAdvanceForRepayment.amount_returned ?? 0)}</span>
                   </div>
-                  <div className="flex justify-between border-t border-white/20 pt-2">
-                    <span className="text-sm font-medium text-white/90">Remaining Balance:</span>
-                    <span className="font-bold text-white">{formatCurrency(selectedAdvanceForRepayment.amount - (selectedAdvanceForRepayment.amount_returned ?? 0))}</span>
+                  <div className="flex justify-between border-t border-border pt-2">
+                    <span className="text-sm font-medium text-foreground">Remaining Balance:</span>
+                    <span className="font-bold text-foreground">{formatCurrency(selectedAdvanceForRepayment.amount - (selectedAdvanceForRepayment.amount_returned ?? 0))}</span>
                   </div>
                 </div>
 
                 <form onSubmit={handleRepaymentSubmit} className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="repayment_amount" className="text-white/90">Repayment Amount *</Label>
+                    <Label htmlFor="repayment_amount">Repayment Amount *</Label>
                     <Input
                       id="repayment_amount"
                       type="number"
@@ -758,40 +745,38 @@ export default function AdvancesPage() {
                       value={repaymentForm.amount}
                       onChange={(e) => setRepaymentForm({ ...repaymentForm, amount: e.target.value })}
                       placeholder="Enter repayment amount"
-                      className="bg-white/10 border-white/20 text-white placeholder:text-white/50 focus:border-white/40"
                       required
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="payment_method" className="text-white/90">Payment Method *</Label>
+                    <Label htmlFor="payment_method">Payment Method *</Label>
                     <Select
                       value={repaymentForm.payment_method}
                       onValueChange={(value: 'cash' | 'bank') => setRepaymentForm({ ...repaymentForm, payment_method: value })}
                     >
-                      <SelectTrigger className="bg-white/10 border-white/20 text-white focus:border-white/40">
+                      <SelectTrigger>
                         <SelectValue placeholder="Select payment method" />
                       </SelectTrigger>
-                      <SelectContent className="bg-white/10 backdrop-blur-xl border-white/20">
-                        <SelectItem value="cash" className="text-white/90 hover:bg-white/10">Cash</SelectItem>
-                        <SelectItem value="bank" className="text-white/90 hover:bg-white/10">Bank Transfer</SelectItem>
+                      <SelectContent>
+                        <SelectItem value="cash">Cash</SelectItem>
+                        <SelectItem value="bank">Bank Transfer</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="repayment_notes" className="text-white/90">Notes</Label>
+                    <Label htmlFor="repayment_notes">Notes</Label>
                     <Textarea
                       id="repayment_notes"
                       value={repaymentForm.notes}
                       onChange={(e) => setRepaymentForm({ ...repaymentForm, notes: e.target.value })}
                       placeholder="Additional notes about this repayment"
-                      className="bg-white/10 border-white/20 text-white placeholder:text-white/50 focus:border-white/40"
                     />
                   </div>
                   <DialogFooter>
-                    <Button type="button" variant="outline" onClick={() => setRepaymentDialogOpen(false)} className="bg-white/10 border-white/20 text-white/90 hover:bg-white/20">
+                    <Button type="button" variant="outline" onClick={() => setRepaymentDialogOpen(false)}>
                       Cancel
                     </Button>
-                    <Button type="submit" className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white border-0">
+                    <Button type="submit">
                       Record Repayment
                     </Button>
                   </DialogFooter>

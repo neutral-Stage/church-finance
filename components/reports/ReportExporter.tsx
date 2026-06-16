@@ -184,7 +184,7 @@ export function ReportExporter({ data, dateRange }: ReportExporterProps) {
   return (
     <Dialog open={exportDialogOpen} onOpenChange={setExportDialogOpen}>
       <DialogTrigger asChild>
-        <Button className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700">
+        <Button>
           <Download className="mr-2 h-4 w-4" />
           Advanced Export
         </Button>
@@ -210,21 +210,21 @@ export function ReportExporter({ data, dateRange }: ReportExporterProps) {
                   key={format.value}
                   className={`border rounded-lg p-4 cursor-pointer transition-all ${
                     exportConfig.format === format.value
-                      ? 'border-blue-500 bg-blue-50/50'
-                      : 'border-gray-200 hover:border-gray-300'
+                      ? 'border-primary bg-primary/10'
+                      : 'border-border hover:border-muted-foreground/50'
                   }`}
                   onClick={() => updateConfig({ format: format.value as ExportFormat })}
                 >
                   <div className="flex items-start gap-3">
                     <format.icon className={`h-5 w-5 mt-0.5 ${
-                      exportConfig.format === format.value ? 'text-blue-600' : 'text-gray-500'
+                      exportConfig.format === format.value ? 'text-primary' : 'text-muted-foreground'
                     }`} />
                     <div className="flex-1">
                       <div className="font-medium">{format.label}</div>
-                      <div className="text-sm text-gray-600">{format.description}</div>
+                      <div className="text-sm text-muted-foreground">{format.description}</div>
                     </div>
                     {exportConfig.format === format.value && (
-                      <Badge variant="secondary" className="bg-blue-100 text-blue-700">Selected</Badge>
+                      <Badge variant="secondary" className="bg-primary/15 text-primary border-primary/30">Selected</Badge>
                     )}
                   </div>
                 </div>
@@ -247,7 +247,7 @@ export function ReportExporter({ data, dateRange }: ReportExporterProps) {
                   <SelectItem key={type.value} value={type.value}>
                     <div>
                       <div className="font-medium">{type.label}</div>
-                      <div className="text-xs text-gray-500">{type.description}</div>
+                      <div className="text-xs text-muted-foreground">{type.description}</div>
                     </div>
                   </SelectItem>
                 ))}
@@ -304,9 +304,9 @@ export function ReportExporter({ data, dateRange }: ReportExporterProps) {
           </div>
 
           {/* Export Summary */}
-          <div className="bg-gray-50 rounded-lg p-4 space-y-2">
+          <div className="bg-muted rounded-lg p-4 space-y-2">
             <div className="font-medium text-sm">Export Summary</div>
-            <div className="text-sm text-gray-600 space-y-1">
+            <div className="text-sm text-muted-foreground space-y-1">
               <div>Format: {exportFormats.find(f => f.value === exportConfig.format)?.label}</div>
               <div>Type: {reportTypes.find(t => t.value === exportConfig.reportType)?.label}</div>
               <div>Estimated size: {getEstimatedSize()}</div>
@@ -322,7 +322,7 @@ export function ReportExporter({ data, dateRange }: ReportExporterProps) {
           <Button onClick={handleExport} disabled={exporting}>
             {exporting ? (
               <>
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-2"></div>
                 Exporting...
               </>
             ) : (

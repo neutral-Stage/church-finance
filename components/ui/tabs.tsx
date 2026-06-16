@@ -8,7 +8,7 @@ const tabsVariants = cva(
     variants: {
       variant: {
         default: '',
-        glass: 'bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl p-1',
+        glass: 'bg-card border border-border rounded-xl p-1',
       },
     },
     defaultVariants: {
@@ -18,12 +18,12 @@ const tabsVariants = cva(
 );
 
 const tabsListVariants = cva(
-  'inline-flex h-10 items-center justify-center rounded-md p-1 text-white/70',
+  'inline-flex h-10 items-center justify-center rounded-md p-1 text-muted-foreground',
   {
     variants: {
       variant: {
-        default: 'bg-white/5 backdrop-blur-xl border border-white/10',
-        glass: 'bg-white/10 backdrop-blur-xl border border-white/20',
+        default: 'bg-muted',
+        glass: 'bg-muted border border-border',
       },
     },
     defaultVariants: {
@@ -37,8 +37,8 @@ const tabsTriggerVariants = cva(
   {
     variants: {
       variant: {
-        default: 'data-[state=active]:bg-white/20 data-[state=active]:text-white data-[state=active]:shadow-sm hover:bg-white/10 hover:text-white/90',
-        glass: 'data-[state=active]:bg-white/30 data-[state=active]:text-white data-[state=active]:shadow-lg hover:bg-white/15 hover:text-white/90',
+        default: 'data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm hover:text-foreground',
+        glass: 'data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm hover:text-foreground',
       },
     },
     defaultVariants: {
@@ -53,7 +53,7 @@ const tabsContentVariants = cva(
     variants: {
       variant: {
         default: '',
-        glass: 'bg-white/5 backdrop-blur-xl border border-white/10 rounded-lg p-4',
+        glass: 'bg-card border border-border rounded-lg p-4',
       },
     },
     defaultVariants: {

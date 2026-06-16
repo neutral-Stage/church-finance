@@ -1,0 +1,86 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm exec tsc --noEmit
+        env:
+          NEXT_PUBLIC_DEMO_MODE: 'true'
+
+      - name: Unit tests
+        run: pnpm test
+        env:
+          NEXT_PUBLIC_DEMO_MODE: 'true'
+
+      - name: Database types check
+        run: pnpm db:types:check
+
+      - name: Production build (demo mode)
+        run: pnpm build
+        env:
+          NEXT_PUBLIC_DEMO_MODE: 'true'
+          NEXT_PUBLIC_SUPABASE_URL: 'https://demo.supabase.co'
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: 'demo-anon-key'
+
+      - name: Bundle budget check
+        run: pnpm check:bundle
+
+  e2e-smoke:
+    runs-on: ubuntu-latest
+    needs: quality
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browsers
+        run: pnpm exec playwright install chromium --with-deps
+
+      - name: E2E smoke (demo mode)
+        run: pnpm test:e2e
+        env:
+          NEXT_PUBLIC_DEMO_MODE: 'true'
+          NEXT_PUBLIC_SUPABASE_URL: 'https://demo.supabase.co'
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: 'demo-anon-key'
+          CI: 'true'

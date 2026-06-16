@@ -29,3 +29,6 @@
 
 # Generate all notifications every morning at 8 AM
 0 8 * * 1-5 cd /path/to/church-finance && node scripts/generate-notifications.js all >> logs/notifications.log 2>&1
+
+# Process recurring bills daily at 6 AM
+0 6 * * * cd /path/to/church-finance && node scripts/process-recurring-bills.js >> logs/recurring-bills.log 2>&1

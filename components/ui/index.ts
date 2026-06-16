@@ -12,9 +12,6 @@ export * from './typography';
 // Status & Badge Components
 export * from './status-badge';
 
-// Background Components
-export * from './animated-background';
-
 // Tabs Components
 export * from './tabs';
 
@@ -37,6 +34,11 @@ export { Switch } from './switch';
 
 // Loader Components
 export { FullScreenLoader, InlineLoader } from './loader';
+
+// UX State Components
+export { Skeleton } from './skeleton';
+export { EmptyState } from './empty-state';
+export { ErrorState } from './error-state';
 
 // Component Type Definitions
 export type {
@@ -102,8 +104,3 @@ export type {
   CategoryBadgeProps,
   AnimatedCounterBadgeProps,
 } from './status-badge';
-
-export type {
-  AnimatedBackgroundProps,
-  FloatingParticlesProps,
-} from './animated-background';

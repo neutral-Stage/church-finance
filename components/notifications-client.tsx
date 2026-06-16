@@ -39,15 +39,17 @@ const notificationIcons = {
   advance: DollarSign
 }
 
-const categoryColors = {
-  transaction: 'bg-green-500',
-  member: 'bg-blue-500',
-  offering: 'bg-purple-500',
-  bill: 'bg-red-500',
-  system: 'bg-gray-500',
-  report: 'bg-orange-500',
-  advance: 'bg-indigo-500'
+const categoryStyles: Record<string, { icon: string; badge: string }> = {
+  transaction: { icon: 'bg-income/15 text-income', badge: 'bg-income/15 text-income border-income/30' },
+  member: { icon: 'bg-primary/15 text-primary', badge: 'bg-primary/15 text-primary border-primary/30' },
+  offering: { icon: 'bg-purple-500/15 text-purple-700 dark:text-purple-300', badge: 'bg-purple-500/15 text-purple-700 dark:text-purple-300 border-purple-500/30' },
+  bill: { icon: 'bg-destructive/15 text-destructive', badge: 'bg-destructive/15 text-destructive border-destructive/30' },
+  system: { icon: 'bg-muted text-muted-foreground', badge: 'bg-muted text-muted-foreground border-border' },
+  report: { icon: 'bg-pending/15 text-pending', badge: 'bg-pending/15 text-pending border-pending/30' },
+  advance: { icon: 'bg-indigo-500/15 text-indigo-700 dark:text-indigo-300', badge: 'bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border-indigo-500/30' }
 }
+
+const defaultCategoryStyle = { icon: 'bg-muted text-muted-foreground', badge: 'bg-muted text-muted-foreground border-border' }
 
 interface NotificationsClientProps {
   initialData: NotificationData[]
@@ -197,24 +199,21 @@ export default function NotificationsClient({ initialData }: NotificationsClient
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-3">
-          <div className="relative">
-            <div className="absolute inset-0 bg-blue-400/20 rounded-full blur-md" />
-            <div className="relative bg-blue-400/10 p-3 rounded-full backdrop-blur-sm border border-blue-400/20">
-              <Bell className="h-6 w-6 text-blue-400" />
-            </div>
+          <div className="bg-primary/10 p-3 rounded-full border border-primary/20">
+            <Bell className="h-6 w-6 text-primary" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-white">Notifications</h1>
-            <p className="text-white/70">
+            <h1 className="text-2xl font-bold text-foreground">Notifications</h1>
+            <p className="text-muted-foreground">
               {unreadCount > 0 ? `${unreadCount} unread notifications` : 'All caught up!'}
             </p>
           </div>
         </div>
         <div className="flex items-center space-x-2">
           <Button
+            variant="outline"
             onClick={generateNotifications}
             disabled={loading}
-            className="bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 border border-blue-400/30"
           >
             <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
             Refresh
@@ -222,7 +221,6 @@ export default function NotificationsClient({ initialData }: NotificationsClient
           {unreadCount > 0 && (
             <Button
               onClick={markAllAsRead}
-              className="bg-green-500/20 hover:bg-green-500/30 text-green-400 border border-green-400/30"
             >
               <CheckCircle className="h-4 w-4 mr-2" />
               Mark All Read
@@ -232,24 +230,24 @@ export default function NotificationsClient({ initialData }: NotificationsClient
       </div>
 
       {/* Filters */}
-      <div className="glass-card-dark p-4 space-y-4">
+      <div className="glass-card p-4 space-y-4">
         <div className="flex items-center space-x-4">
           <div className="flex-1">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-white/50" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search notifications..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 bg-white/5 border-white/20 text-white placeholder:text-white/50"
+                className="pl-10"
               />
             </div>
           </div>
           <Select value={filterCategory} onValueChange={setFilterCategory}>
-            <SelectTrigger className="w-40 bg-white/5 border-white/20 text-white">
+            <SelectTrigger className="w-40">
               <SelectValue placeholder="Category" />
             </SelectTrigger>
-            <SelectContent className="glass-card-dark border-white/20">
+            <SelectContent>
               <SelectItem value="all">All Categories</SelectItem>
               <SelectItem value="bill">Bills</SelectItem>
               <SelectItem value="transaction">Transactions</SelectItem>
@@ -259,10 +257,10 @@ export default function NotificationsClient({ initialData }: NotificationsClient
             </SelectContent>
           </Select>
           <Select value={filterStatus} onValueChange={setFilterStatus}>
-            <SelectTrigger className="w-32 bg-white/5 border-white/20 text-white">
+            <SelectTrigger className="w-32">
               <SelectValue placeholder="Status" />
             </SelectTrigger>
-            <SelectContent className="glass-card-dark border-white/20">
+            <SelectContent>
               <SelectItem value="all">All</SelectItem>
               <SelectItem value="unread">Unread</SelectItem>
               <SelectItem value="read">Read</SelectItem>
@@ -272,35 +270,32 @@ export default function NotificationsClient({ initialData }: NotificationsClient
       </div>
 
       {/* Notifications List */}
-      <div className="glass-card-dark">
+      <div className="glass-card">
         {loading ? (
           <div className="flex items-center justify-center py-12">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-400"></div>
-            <span className="ml-3 text-white/70">Loading notifications...</span>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            <span className="ml-3 text-muted-foreground">Loading notifications...</span>
           </div>
         ) : filteredNotifications.length === 0 ? (
           <div className="text-center py-12">
-            <div className="relative mb-4">
-              <div className="absolute inset-0 bg-white/10 rounded-full blur-xl" />
-              <Bell className="relative h-16 w-16 text-white/30 mx-auto" />
-            </div>
-            <p className="text-white/70 font-medium text-lg">No notifications found</p>
-            <p className="text-white/50 text-sm mt-2">
+            <Bell className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+            <p className="text-foreground font-medium text-lg">No notifications found</p>
+            <p className="text-muted-foreground text-sm mt-2">
               {searchTerm || filterCategory !== 'all' || filterStatus !== 'all'
                 ? 'Try adjusting your filters'
                 : 'You\'re all caught up!'}
             </p>
           </div>
         ) : (
-          <div className="divide-y divide-white/5">
+          <div className="divide-y divide-border">
             {filteredNotifications.map((notification) => {
               const Icon = notificationIcons[notification.category] || Bell
-              const categoryColor = categoryColors[notification.category] || 'bg-gray-500'
+              const categoryStyle = categoryStyles[notification.category] || defaultCategoryStyle
 
               return (
                 <div
                   key={notification.id}
-                  className={`group p-6 hover:bg-white/5 transition-all duration-300 cursor-pointer relative ${!notification.read ? 'bg-blue-500/5 border-l-4 border-blue-400/50' : ''
+                  className={`group p-6 hover:bg-accent transition-all duration-300 cursor-pointer relative ${!notification.read ? 'bg-primary/5 border-l-4 border-primary/50' : ''
                     }`}
                   onClick={() => {
                     if (!notification.read) {
@@ -312,33 +307,33 @@ export default function NotificationsClient({ initialData }: NotificationsClient
                   }}
                 >
                   <div className="flex items-start space-x-4">
-                    <div className={`relative p-3 rounded-full ${categoryColor} flex-shrink-0`}>
-                      <Icon className="h-5 w-5 text-white" />
+                    <div className={`p-3 rounded-full ${categoryStyle.icon} flex-shrink-0`}>
+                      <Icon className="h-5 w-5" />
                     </div>
 
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
-                          <h3 className={`text-lg font-semibold ${!notification.read ? 'text-white' : 'text-white/80'
+                          <h3 className={`text-lg font-semibold ${!notification.read ? 'text-foreground' : 'text-muted-foreground'
                             }`}>
                             {notification.title}
                           </h3>
-                          <p className={`text-sm mt-1 ${!notification.read ? 'text-white/80' : 'text-white/60'
+                          <p className={`text-sm mt-1 ${!notification.read ? 'text-foreground' : 'text-muted-foreground'
                             }`}>
                             {notification.message}
                           </p>
                           <div className="flex items-center mt-3 space-x-4">
-                            <p className="text-xs text-white/50 font-medium">
+                            <p className="text-xs text-muted-foreground font-medium">
                               {formatDistanceToNow(new Date(notification.created_at), { addSuffix: true })}
                             </p>
                             <Badge
                               variant="secondary"
-                              className={`${categoryColor?.replace?.('bg-', 'bg-')?.replace?.('-500', '-500/20') || 'bg-gray-500/20'} text-white border-0`}
+                              className={`${categoryStyle.badge} border`}
                             >
                               {notification.category}
                             </Badge>
                             {!notification.read && (
-                              <Badge className="bg-blue-500/20 text-blue-400 border border-blue-400/30">
+                              <Badge className="bg-primary/15 text-primary border border-primary/30">
                                 New
                               </Badge>
                             )}
@@ -354,7 +349,8 @@ export default function NotificationsClient({ initialData }: NotificationsClient
                                 e.stopPropagation()
                                 markAsRead(notification.id)
                               }}
-                              className="text-white/50 hover:text-white hover:bg-white/10"
+                              aria-label="Mark as read"
+                              className="text-muted-foreground hover:text-foreground hover:bg-accent"
                             >
                               <CheckCircle className="h-4 w-4" />
                             </Button>
@@ -366,7 +362,8 @@ export default function NotificationsClient({ initialData }: NotificationsClient
                               e.stopPropagation()
                               deleteNotification(notification.id)
                             }}
-                            className="text-red-400/70 hover:text-red-400 hover:bg-red-500/10"
+                            aria-label="Delete notification"
+                            className="text-destructive hover:text-destructive hover:bg-destructive/10"
                           >
                             <X className="h-4 w-4" />
                           </Button>

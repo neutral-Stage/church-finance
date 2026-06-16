@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
-import { GlassCard, GlassCardContent, GlassCardDescription, GlassCardHeader, GlassCardTitle } from '@/components/ui/glass-card'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from 'sonner'
@@ -24,6 +24,10 @@ import {
   Lock,
   Database
 } from 'lucide-react'
+import {
+  DEFAULT_NOTIFICATION_CATEGORY_PREFERENCES,
+  type NotificationCategoryPreferences,
+} from '@/lib/notifications/preferences'
 import { supabase } from '@/lib/supabase'
 import { Json } from '@/types/database'
 
@@ -36,6 +40,7 @@ interface UserPreferences {
     push: boolean
     desktop: boolean
     sound: boolean
+    categories: NotificationCategoryPreferences
   }
   privacy: {
     profileVisibility: 'public' | 'members' | 'private'
@@ -57,7 +62,8 @@ const defaultPreferences: UserPreferences = {
     email: true,
     push: true,
     desktop: false,
-    sound: true
+    sound: true,
+    categories: { ...DEFAULT_NOTIFICATION_CATEGORY_PREFERENCES },
   },
   privacy: {
     profileVisibility: 'members',
@@ -91,7 +97,19 @@ export default function Preferences() {
         .single()
 
       if (data && data.preferences) {
-        setPreferences({ ...defaultPreferences, ...(data.preferences as unknown as UserPreferences) })
+        const stored = data.preferences as unknown as Partial<UserPreferences>
+        setPreferences({
+          ...defaultPreferences,
+          ...stored,
+          notifications: {
+            ...defaultPreferences.notifications,
+            ...(stored.notifications ?? {}),
+            categories: {
+              ...DEFAULT_NOTIFICATION_CATEGORY_PREFERENCES,
+              ...(stored.notifications?.categories ?? {}),
+            },
+          },
+        })
       }
     } catch {
       // Silently handle error - user will see default preferences
@@ -155,31 +173,22 @@ export default function Preferences() {
   }
 
   return (
-    <div className="min-h-screen relative overflow-hidden">
-      {/* Background Animation */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-purple-500/30 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob"></div>
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-yellow-500/30 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-2000"></div>
-        <div className="absolute top-40 left-1/2 transform -translate-x-1/2 w-80 h-80 bg-pink-500/30 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-4000"></div>
-      </div>
-      
-      <div className="container mx-auto p-6 space-y-6 relative z-10">
+    <div className="min-h-screen bg-background">
+      <div className="container mx-auto p-6 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-4">
-          <div className="relative">
-            <div className="absolute inset-0 bg-purple-400/20 rounded-full blur-lg" />
-            <Settings className="relative h-8 w-8 text-purple-400" />
+          <div className="bg-primary/10 p-2 rounded-full border border-primary/20">
+            <Settings className="h-8 w-8 text-primary" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-white">Preferences</h1>
-            <p className="text-white/70">Customize your experience and account settings</p>
+            <h1 className="text-2xl font-bold text-foreground">Preferences</h1>
+            <p className="text-muted-foreground">Customize your experience and account settings</p>
           </div>
         </div>
         <Button
           onClick={savePreferences}
           disabled={loading}
-          className="bg-white/10 backdrop-blur-xl border-white/20 text-white/90 hover:bg-white/20 hover:text-white transition-all duration-300"
         >
           <Save className="h-4 w-4 mr-2" />
           {loading ? 'Saving...' : 'Save Changes'}
@@ -188,40 +197,40 @@ export default function Preferences() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Appearance Settings */}
-        <GlassCard variant="default" className="animate-fade-in animate-slide-in-from-bottom-4">
-          <GlassCardHeader>
-            <GlassCardTitle className="text-white/90 flex items-center">
+        <Card className="animate-fade-in animate-slide-in-from-bottom-4">
+          <CardHeader>
+            <CardTitle className="text-foreground flex items-center">
               <Sun className="h-5 w-5 mr-2" />
               Appearance
-            </GlassCardTitle>
-            <GlassCardDescription className="text-white/70">
+            </CardTitle>
+            <CardDescription className="text-muted-foreground">
               Customize the look and feel of your dashboard
-            </GlassCardDescription>
-          </GlassCardHeader>
-          <GlassCardContent className="space-y-4">
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label className="text-white/90">Theme</Label>
+              <Label>Theme</Label>
               <Select
                 value={preferences.theme}
                 onValueChange={(value) => updatePreference('theme', value)}
               >
-                <SelectTrigger className="bg-white/5 border-white/20 text-white">
+                <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="bg-slate-800 border-white/20">
-                  <SelectItem value="light" className="text-white hover:bg-white/10">
+                <SelectContent>
+                  <SelectItem value="light">
                     <div className="flex items-center">
                       <Sun className="h-4 w-4 mr-2" />
                       Light
                     </div>
                   </SelectItem>
-                  <SelectItem value="dark" className="text-white hover:bg-white/10">
+                  <SelectItem value="dark">
                     <div className="flex items-center">
                       <Moon className="h-4 w-4 mr-2" />
                       Dark
                     </div>
                   </SelectItem>
-                  <SelectItem value="system" className="text-white hover:bg-white/10">
+                  <SelectItem value="system">
                     <div className="flex items-center">
                       <Settings className="h-4 w-4 mr-2" />
                       System
@@ -232,28 +241,28 @@ export default function Preferences() {
             </div>
 
             <div className="space-y-2">
-              <Label className="text-white/90">Language</Label>
+              <Label>Language</Label>
               <Select
                 value={preferences.language}
                 onValueChange={(value) => updatePreference('language', value)}
               >
-                <SelectTrigger className="bg-white/5 border-white/20 text-white">
+                <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="bg-slate-800 border-white/20">
-                  <SelectItem value="en" className="text-white hover:bg-white/10">
+                <SelectContent>
+                  <SelectItem value="en">
                     <div className="flex items-center">
                       <Globe className="h-4 w-4 mr-2" />
                       English
                     </div>
                   </SelectItem>
-                  <SelectItem value="es" className="text-white hover:bg-white/10">
+                  <SelectItem value="es">
                     <div className="flex items-center">
                       <Globe className="h-4 w-4 mr-2" />
                       Español
                     </div>
                   </SelectItem>
-                  <SelectItem value="fr" className="text-white hover:bg-white/10">
+                  <SelectItem value="fr">
                     <div className="flex items-center">
                       <Globe className="h-4 w-4 mr-2" />
                       Français
@@ -262,105 +271,129 @@ export default function Preferences() {
                 </SelectContent>
               </Select>
             </div>
-          </GlassCardContent>
-        </GlassCard>
+          </CardContent>
+        </Card>
 
         {/* Notification Settings */}
-        <GlassCard variant="default" className="animate-fade-in animate-slide-in-from-bottom-4">
-          <GlassCardHeader>
-            <GlassCardTitle className="text-white/90 flex items-center">
+        <Card className="animate-fade-in animate-slide-in-from-bottom-4">
+          <CardHeader>
+            <CardTitle className="text-foreground flex items-center">
               <Bell className="h-5 w-5 mr-2" />
               Notifications
-            </GlassCardTitle>
-            <GlassCardDescription className="text-white/70">
+            </CardTitle>
+            <CardDescription className="text-muted-foreground">
               Choose how you want to be notified
-            </GlassCardDescription>
-          </GlassCardHeader>
-          <GlassCardContent className="space-y-4">
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
-                  <Mail className="h-4 w-4 text-white/70" />
+                  <Mail className="h-4 w-4 text-muted-foreground" />
                   <div>
-                    <Label className="text-white/90">Email Notifications</Label>
-                    <p className="text-xs text-white/60">Receive updates via email</p>
+                    <Label>Email Notifications</Label>
+                    <p className="text-xs text-muted-foreground">Master switch for email delivery</p>
                   </div>
                 </div>
                 <Checkbox
                   checked={preferences.notifications.email}
                   onCheckedChange={(checked) => updatePreference('notifications.email', checked)}
-                  className="border-white/20 data-[state=checked]:bg-blue-500"
                 />
+
               </div>
+
+              {preferences.notifications.email && (
+                <div className="ml-4 pl-4 border-l border-border space-y-3">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                    Email by category
+                  </p>
+                  {(
+                    Object.entries(preferences.notifications.categories) as [
+                      keyof NotificationCategoryPreferences,
+                      boolean,
+                    ][]
+                  ).map(([category, enabled]) => (
+                    <div key={category} className="flex items-center justify-between">
+                      <Label className="capitalize font-normal">{category}</Label>
+                      <Checkbox
+                        checked={enabled}
+                        onCheckedChange={(checked) =>
+                          updatePreference(`notifications.categories.${category}`, checked)
+                        }
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
 
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
-                  <Smartphone className="h-4 w-4 text-white/70" />
+                  <Smartphone className="h-4 w-4 text-muted-foreground" />
                   <div>
-                    <Label className="text-white/90">Push Notifications</Label>
-                    <p className="text-xs text-white/60">Mobile and browser notifications</p>
+                    <Label>Push Notifications</Label>
+                    <p className="text-xs text-muted-foreground">Mobile and browser notifications</p>
                   </div>
                 </div>
                 <Checkbox
                   checked={preferences.notifications.push}
                   onCheckedChange={(checked) => updatePreference('notifications.push', checked)}
-                  className="border-white/20 data-[state=checked]:bg-blue-500"
                 />
+
               </div>
 
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
-                  <Volume2 className="h-4 w-4 text-white/70" />
+                  <Volume2 className="h-4 w-4 text-muted-foreground" />
                   <div>
-                    <Label className="text-white/90">Sound Notifications</Label>
-                    <p className="text-xs text-white/60">Play sound for notifications</p>
+                    <Label>Sound Notifications</Label>
+                    <p className="text-xs text-muted-foreground">Play sound for notifications</p>
                   </div>
                 </div>
                 <Checkbox
                   checked={preferences.notifications.sound}
                   onCheckedChange={(checked) => updatePreference('notifications.sound', checked)}
-                  className="border-white/20 data-[state=checked]:bg-blue-500"
                 />
+
               </div>
             </div>
-          </GlassCardContent>
-        </GlassCard>
+          </CardContent>
+        </Card>
 
         {/* Privacy Settings */}
-        <GlassCard variant="default" className="animate-fade-in animate-slide-in-from-bottom-4">
-          <GlassCardHeader>
-            <GlassCardTitle className="text-white/90 flex items-center">
+        <Card className="animate-fade-in animate-slide-in-from-bottom-4">
+          <CardHeader>
+            <CardTitle className="text-foreground flex items-center">
               <Shield className="h-5 w-5 mr-2" />
               Privacy
-            </GlassCardTitle>
-            <GlassCardDescription className="text-white/70">
+            </CardTitle>
+            <CardDescription className="text-muted-foreground">
               Control your privacy and data visibility
-            </GlassCardDescription>
-          </GlassCardHeader>
-          <GlassCardContent className="space-y-4">
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label className="text-white/90">Profile Visibility</Label>
+              <Label>Profile Visibility</Label>
               <Select
                 value={preferences.privacy.profileVisibility}
                 onValueChange={(value) => updatePreference('privacy.profileVisibility', value)}
               >
-                <SelectTrigger className="bg-white/5 border-white/20 text-white">
+                <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="bg-slate-800 border-white/20">
-                  <SelectItem value="public" className="text-white hover:bg-white/10">
+                <SelectContent>
+                  <SelectItem value="public">
                     <div className="flex items-center">
                       <Eye className="h-4 w-4 mr-2" />
                       Public
                     </div>
                   </SelectItem>
-                  <SelectItem value="members" className="text-white hover:bg-white/10">
+                  <SelectItem value="members">
                     <div className="flex items-center">
                       <Shield className="h-4 w-4 mr-2" />
                       Members Only
                     </div>
                   </SelectItem>
-                  <SelectItem value="private" className="text-white hover:bg-white/10">
+                  <SelectItem value="private">
                     <div className="flex items-center">
                       <Lock className="h-4 w-4 mr-2" />
                       Private
@@ -372,87 +405,86 @@ export default function Preferences() {
 
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <Label className="text-white/90">Show Email Address</Label>
+                <Label>Show Email Address</Label>
                 <Checkbox
                   checked={preferences.privacy.showEmail}
                   onCheckedChange={(checked) => updatePreference('privacy.showEmail', checked)}
-                  className="border-white/20 data-[state=checked]:bg-blue-500"
                 />
+
               </div>
 
               <div className="flex items-center justify-between">
-                <Label className="text-white/90">Show Phone Number</Label>
+                <Label>Show Phone Number</Label>
                 <Checkbox
                   checked={preferences.privacy.showPhone}
                   onCheckedChange={(checked) => updatePreference('privacy.showPhone', checked)}
-                  className="border-white/20 data-[state=checked]:bg-blue-500"
                 />
+
               </div>
             </div>
-          </GlassCardContent>
-        </GlassCard>
+          </CardContent>
+        </Card>
 
         {/* Dashboard Settings */}
-        <GlassCard variant="default" className="animate-fade-in animate-slide-in-from-bottom-4">
-          <GlassCardHeader>
-            <GlassCardTitle className="text-white/90 flex items-center">
+        <Card className="animate-fade-in animate-slide-in-from-bottom-4">
+          <CardHeader>
+            <CardTitle className="text-foreground flex items-center">
               <Database className="h-5 w-5 mr-2" />
               Dashboard
-            </GlassCardTitle>
-            <GlassCardDescription className="text-white/70">
+            </CardTitle>
+            <CardDescription className="text-muted-foreground">
               Customize your dashboard experience
-            </GlassCardDescription>
-          </GlassCardHeader>
-          <GlassCardContent className="space-y-4">
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label className="text-white/90">Default View</Label>
+              <Label>Default View</Label>
               <Select
                 value={preferences.dashboard.defaultView}
                 onValueChange={(value) => updatePreference('dashboard.defaultView', value)}
               >
-                <SelectTrigger className="bg-white/5 border-white/20 text-white">
+                <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="bg-slate-800 border-white/20">
-                  <SelectItem value="dashboard" className="text-white hover:bg-white/10">Dashboard</SelectItem>
-                  <SelectItem value="transactions" className="text-white hover:bg-white/10">Transactions</SelectItem>
-                  <SelectItem value="offerings" className="text-white hover:bg-white/10">Offerings</SelectItem>
-                  <SelectItem value="reports" className="text-white hover:bg-white/10">Reports</SelectItem>
+                <SelectContent>
+                  <SelectItem value="dashboard">Dashboard</SelectItem>
+                  <SelectItem value="transactions">Transactions</SelectItem>
+                  <SelectItem value="offerings">Offerings</SelectItem>
+                  <SelectItem value="reports">Reports</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div className="space-y-2">
-              <Label className="text-white/90">Items Per Page</Label>
+              <Label>Items Per Page</Label>
               <Select
                 value={preferences.dashboard.itemsPerPage.toString()}
                 onValueChange={(value) => updatePreference('dashboard.itemsPerPage', parseInt(value))}
               >
-                <SelectTrigger className="bg-white/5 border-white/20 text-white">
+                <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="bg-slate-800 border-white/20">
-                  <SelectItem value="5" className="text-white hover:bg-white/10">5</SelectItem>
-                  <SelectItem value="10" className="text-white hover:bg-white/10">10</SelectItem>
-                  <SelectItem value="25" className="text-white hover:bg-white/10">25</SelectItem>
-                  <SelectItem value="50" className="text-white hover:bg-white/10">50</SelectItem>
+                <SelectContent>
+                  <SelectItem value="5">5</SelectItem>
+                  <SelectItem value="10">10</SelectItem>
+                  <SelectItem value="25">25</SelectItem>
+                  <SelectItem value="50">50</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div className="flex items-center justify-between">
               <div>
-                <Label className="text-white/90">Auto Refresh</Label>
-                <p className="text-xs text-white/60">Automatically refresh data</p>
+                <Label>Auto Refresh</Label>
+                <p className="text-xs text-muted-foreground">Automatically refresh data</p>
               </div>
               <Checkbox
                 checked={preferences.dashboard.autoRefresh}
                 onCheckedChange={(checked) => updatePreference('dashboard.autoRefresh', checked)}
-                className="border-white/20 data-[state=checked]:bg-blue-500"
               />
             </div>
-          </GlassCardContent>
-        </GlassCard>
+          </CardContent>
+        </Card>
       </div>
       </div>
     </div>

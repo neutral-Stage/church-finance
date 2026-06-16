@@ -5,6 +5,10 @@ node_modules/
 
 # Testing
 /coverage
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
 
 # Next.js
 /.next/
@@ -48,19 +52,20 @@ next-env.d.ts
 # OS
 Thumbs.db
 
-# Internal / local-only (public repo keeps these untracked; see private mirror)
+# Internal / local-only tooling (see private mirror for full scripts tree)
 scripts/
-supabase/
 .trae/
 app/api/debug-offerings/
 lib/notificationService.ts
-*.sql
 test-*.js
 test-*.ts
 test-*.html
 debug-*.sql
 fix_*.sql
 fix_*.ts
+
+# Supabase: track migrations in repo; ignore local CLI temp only
+supabase/.temp/
 headers.txt
 DB_STATE_REPORT.md
 IMPLEMENTATION_STATUS.md

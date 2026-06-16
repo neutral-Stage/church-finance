@@ -300,57 +300,49 @@ export default function FundsClient({ initialData }: FundsClientProps) {
 
 
   return (
-    <div className="min-h-screen relative overflow-hidden">
-      {/* Animated Background Elements */}
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-gradient-to-r from-green-400/30 to-emerald-400/30 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute top-3/4 right-1/4 w-96 h-96 bg-gradient-to-r from-blue-400/20 to-teal-400/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }}></div>
-        <div className="absolute bottom-1/4 left-1/3 w-80 h-80 bg-gradient-to-r from-indigo-400/25 to-blue-400/25 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '4s' }}></div>
-      </div>
-
-      <div className="relative z-10 container mx-auto p-6 space-y-6">
+    <div className="min-h-screen bg-background">
+      <div className="container mx-auto p-6 space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between animate-fade-in">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent">
+            <h1 className="text-3xl font-bold tracking-tight text-foreground">
               Fund Management
             </h1>
-            <p className="text-white/70">Manage church funds, balances, and allocations</p>
+            <p className="text-muted-foreground">Manage church funds, balances, and allocations</p>
           </div>
           {hasRole('admin') && (
             <div className="flex gap-3">
               <Dialog open={transferDialogOpen} onOpenChange={setTransferDialogOpen}>
                 <DialogTrigger asChild>
-                  <Button onClick={resetTransferForm} className="glass-button hover:scale-105 transition-all duration-300">
+                  <Button onClick={resetTransferForm} className="hover:scale-105 transition-all duration-300">
                     <ArrowRightLeft className="mr-2 h-4 w-4" />
                     Transfer Funds
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-[500px]">
                   <DialogHeader className="space-y-3 pb-6">
-                    <DialogTitle className="text-xl font-semibold bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent">
+                    <DialogTitle className="text-xl font-semibold text-foreground">
                       Transfer Funds
                     </DialogTitle>
-                    <DialogDescription className="text-white/70 text-sm leading-relaxed">
+                    <DialogDescription className="text-muted-foreground text-sm leading-relaxed">
                       Transfer funds from one account to another.
                     </DialogDescription>
                   </DialogHeader>
                   <form onSubmit={handleTransferSubmit} className="space-y-6">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label htmlFor="from_fund" className="text-white/90 font-medium text-sm">
+                        <Label htmlFor="from_fund" className="font-medium text-sm">
                           From Fund *
                         </Label>
                         <Select value={transferForm.from_fund_id} onValueChange={(value) => setTransferForm({ ...transferForm, from_fund_id: value })}>
-                          <SelectTrigger className="glass-card-dark bg-white/10 backdrop-blur-xl border border-white/20 text-white rounded-xl hover:bg-white/15 transition-all duration-300">
+                          <SelectTrigger>
                             <SelectValue placeholder="Select source fund" />
                           </SelectTrigger>
-                          <SelectContent className="glass-card-dark bg-white/10 backdrop-blur-xl border border-white/20 rounded-xl">
+                          <SelectContent>
                             {funds.filter(fund => (fund.current_balance || 0) > 0).map((fund) => (
                               <SelectItem
                                 key={fund.id}
                                 value={fund.id}
-                                className="text-white hover:bg-white/20 focus:bg-white/20 rounded-lg transition-colors duration-200"
                               >
                                 {fund.name} (${(fund.current_balance || 0).toFixed(2)})
                               </SelectItem>
@@ -359,19 +351,18 @@ export default function FundsClient({ initialData }: FundsClientProps) {
                         </Select>
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="to_fund" className="text-white/90 font-medium text-sm">
+                        <Label htmlFor="to_fund" className="font-medium text-sm">
                           To Fund *
                         </Label>
                         <Select value={transferForm.to_fund_id} onValueChange={(value) => setTransferForm({ ...transferForm, to_fund_id: value })}>
-                          <SelectTrigger className="glass-card-dark bg-white/10 backdrop-blur-xl border border-white/20 text-white rounded-xl hover:bg-white/15 transition-all duration-300">
+                          <SelectTrigger>
                             <SelectValue placeholder="Select destination fund" />
                           </SelectTrigger>
-                          <SelectContent className="glass-card-dark bg-white/10 backdrop-blur-xl border border-white/20 rounded-xl">
+                          <SelectContent>
                             {funds.filter(fund => fund.id !== transferForm.from_fund_id).map((fund) => (
                               <SelectItem
                                 key={fund.id}
                                 value={fund.id}
-                                className="text-white hover:bg-white/20 focus:bg-white/20 rounded-lg transition-colors duration-200"
                               >
                                 {fund.name} (${(fund.current_balance || 0).toFixed(2)})
                               </SelectItem>
@@ -382,7 +373,7 @@ export default function FundsClient({ initialData }: FundsClientProps) {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="transfer_amount" className="text-white/90 font-medium text-sm">
+                      <Label htmlFor="transfer_amount" className="font-medium text-sm">
                         Transfer Amount *
                       </Label>
                       <Input
@@ -393,12 +384,11 @@ export default function FundsClient({ initialData }: FundsClientProps) {
                         placeholder="0.00"
                         value={transferForm.amount || ''}
                         onChange={(e) => setTransferForm({ ...transferForm, amount: parseFloat(e.target.value) || 0 })}
-                        className="glass-card-dark bg-white/10 backdrop-blur-xl border border-white/20 text-white placeholder:text-white/50 rounded-xl focus:border-white/40 focus:ring-white/20 hover:bg-white/15 transition-all duration-300"
                       />
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="transfer_description" className="text-white/90 font-medium text-sm">
+                      <Label htmlFor="transfer_description" className="font-medium text-sm">
                         Description *
                       </Label>
                       <Textarea
@@ -407,49 +397,49 @@ export default function FundsClient({ initialData }: FundsClientProps) {
                         onChange={(e) => setTransferForm({ ...transferForm, description: e.target.value })}
                         placeholder="Reason for transfer..."
                         rows={3}
-                        className="glass-card-dark bg-white/10 backdrop-blur-xl border border-white/20 text-white placeholder:text-white/50 rounded-xl focus:border-white/40 focus:ring-white/20 hover:bg-white/15 transition-all duration-300 resize-none"
+                        className="resize-none"
                       />
                     </div>
 
                     <DialogFooter className="flex flex-col sm:flex-row gap-3 pt-6">
-                      <GlassButton
+                      <Button
                         type="button"
                         variant="outline"
                         onClick={() => setTransferDialogOpen(false)}
                         className="order-2 sm:order-1"
                       >
                         Cancel
-                      </GlassButton>
-                      <GlassButton
+                      </Button>
+                      <Button
                         type="submit"
                         className="order-1 sm:order-2"
                       >
                         Transfer Funds
-                      </GlassButton>
+                      </Button>
                     </DialogFooter>
                   </form>
                 </DialogContent>
               </Dialog>
               <Dialog open={dialogOpen} onOpenChange={handleDialogChange}>
                 <DialogTrigger asChild>
-                  <Button onClick={() => { setEditingFund(null); resetForm(); }} className="glass-button hover:scale-105 transition-all duration-300">
+                  <Button onClick={() => { setEditingFund(null); resetForm(); }} className="hover:scale-105 transition-all duration-300">
                     <Plus className="mr-2 h-4 w-4" />
                     Create Fund
                   </Button>
                 </DialogTrigger>
               <DialogContent className="sm:max-w-[500px]">
                 <DialogHeader className="space-y-3 pb-6">
-                  <DialogTitle className="text-xl font-semibold bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent">
+                  <DialogTitle className="text-xl font-semibold text-foreground">
                     {editingFund ? 'Edit Fund' : 'Create New Fund'}
                   </DialogTitle>
-                  <DialogDescription className="text-white/70 text-sm leading-relaxed">
+                  <DialogDescription className="text-muted-foreground text-sm leading-relaxed">
                     {editingFund ? 'Update the fund details below.' : 'Create a new fund to track church finances.'}
                   </DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-6">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="name" className="text-white/90 font-medium text-sm">
+                      <Label htmlFor="name" className="font-medium text-sm">
                         Fund Name *
                       </Label>
                       <Input
@@ -457,24 +447,22 @@ export default function FundsClient({ initialData }: FundsClientProps) {
                         value={form.name}
                         onChange={(e) => setForm({ ...form, name: e.target.value })}
                         required
-                        className="glass-card-dark bg-white/10 backdrop-blur-xl border border-white/20 text-white placeholder:text-white/50 rounded-xl focus:border-white/40 focus:ring-white/20 hover:bg-white/15 transition-all duration-300"
                         placeholder="Enter fund name"
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="fund_type" className="text-white/90 font-medium text-sm">
+                      <Label htmlFor="fund_type" className="font-medium text-sm">
                         Fund Type *
                       </Label>
                       <Select value={form.fund_type} onValueChange={(value) => setForm({ ...form, fund_type: value })}>
-                        <SelectTrigger className="glass-card-dark bg-white/10 backdrop-blur-xl border border-white/20 text-white rounded-xl hover:bg-white/15 transition-all duration-300">
+                        <SelectTrigger>
                           <SelectValue placeholder="Select fund type" />
                         </SelectTrigger>
-                        <SelectContent className="glass-card-dark bg-white/10 backdrop-blur-xl border border-white/20 rounded-xl">
+                        <SelectContent>
                           {FUND_TYPES.map((type) => (
                             <SelectItem
                               key={type}
                               value={type}
-                              className="text-white hover:bg-white/20 focus:bg-white/20 rounded-lg transition-colors duration-200"
                             >
                               {type}
                             </SelectItem>
@@ -485,7 +473,7 @@ export default function FundsClient({ initialData }: FundsClientProps) {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="target_amount" className="text-white/90 font-medium text-sm">
+                    <Label htmlFor="target_amount" className="font-medium text-sm">
                       Target Amount (Optional)
                     </Label>
                     <Input
@@ -496,12 +484,11 @@ export default function FundsClient({ initialData }: FundsClientProps) {
                       placeholder="0.00"
                       value={form.target_amount || ''}
                       onChange={(e) => setForm({ ...form, target_amount: parseFloat(e.target.value) || undefined })}
-                      className="glass-card-dark bg-white/10 backdrop-blur-xl border border-white/20 text-white placeholder:text-white/50 rounded-xl focus:border-white/40 focus:ring-white/20 hover:bg-white/15 transition-all duration-300"
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="description" className="text-white/90 font-medium text-sm">
+                    <Label htmlFor="description" className="font-medium text-sm">
                       Description
                     </Label>
                     <Textarea
@@ -510,25 +497,25 @@ export default function FundsClient({ initialData }: FundsClientProps) {
                       onChange={(e) => setForm({ ...form, description: e.target.value })}
                       placeholder="Fund description and purpose..."
                       rows={3}
-                      className="glass-card-dark bg-white/10 backdrop-blur-xl border border-white/20 text-white placeholder:text-white/50 rounded-xl focus:border-white/40 focus:ring-white/20 hover:bg-white/15 transition-all duration-300 resize-none"
+                      className="resize-none"
                     />
                   </div>
 
                   <DialogFooter className="flex flex-col sm:flex-row gap-3 pt-6">
-                    <GlassButton
+                    <Button
                       type="button"
                       variant="outline"
                       onClick={() => setDialogOpen(false)}
                       className="order-2 sm:order-1"
                     >
                       Cancel
-                    </GlassButton>
-                    <GlassButton
+                    </Button>
+                    <Button
                       type="submit"
                       className="order-1 sm:order-2"
                     >
                       {editingFund ? 'Update' : 'Create'} Fund
-                    </GlassButton>
+                    </Button>
                   </DialogFooter>
                 </form>
               </DialogContent>
@@ -539,63 +526,63 @@ export default function FundsClient({ initialData }: FundsClientProps) {
 
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div className="glass-card p-6 animate-fade-in animate-slide-in-from-bottom-4" style={{ animationDelay: '0.1s' }}>
+          <Card className="p-6 animate-fade-in animate-slide-in-from-bottom-4" style={{ animationDelay: '0.1s' }}>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-white/70">Total Balance</p>
-                <p className="text-2xl font-bold bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent">
+                <p className="text-sm font-medium text-muted-foreground">Total Balance</p>
+                <p className="text-2xl font-bold text-income">
                   <AnimatedCounter value={totalBalance} />
                 </p>
               </div>
-              <div className="p-3 bg-green-500/20 backdrop-blur-sm rounded-xl">
-                <DollarSign className="h-8 w-8 text-green-400" />
+              <div className="p-3 bg-income/15 rounded-xl">
+                <DollarSign className="h-8 w-8 text-income" />
               </div>
             </div>
-          </div>
-          <div className="glass-card p-6 animate-fade-in animate-slide-in-from-bottom-4" style={{ animationDelay: '0.2s' }}>
+          </Card>
+          <Card className="p-6 animate-fade-in animate-slide-in-from-bottom-4" style={{ animationDelay: '0.2s' }}>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-white/70">Total Funds</p>
-                <p className="text-2xl font-bold bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent">
+                <p className="text-sm font-medium text-muted-foreground">Total Funds</p>
+                <p className="text-2xl font-bold text-foreground">
                   {filteredFunds.length}
                 </p>
               </div>
-              <div className="p-3 bg-blue-500/20 backdrop-blur-sm rounded-xl">
-                <Banknote className="h-8 w-8 text-blue-400" />
+              <div className="p-3 bg-primary/15 rounded-xl">
+                <Banknote className="h-8 w-8 text-primary" />
               </div>
             </div>
-          </div>
-          <div className="glass-card p-6 animate-fade-in animate-slide-in-from-bottom-4" style={{ animationDelay: '0.3s' }}>
+          </Card>
+          <Card className="p-6 animate-fade-in animate-slide-in-from-bottom-4" style={{ animationDelay: '0.3s' }}>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-white/70">Average Balance</p>
-                <p className="text-2xl font-bold bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent">
+                <p className="text-sm font-medium text-muted-foreground">Average Balance</p>
+                <p className="text-2xl font-bold text-foreground">
                   <AnimatedCounter value={averageBalance} />
                 </p>
               </div>
-              <div className="p-3 bg-purple-500/20 backdrop-blur-sm rounded-xl">
-                <TrendingUp className="h-8 w-8 text-purple-400" />
+              <div className="p-3 bg-purple-500/15 rounded-xl">
+                <TrendingUp className="h-8 w-8 text-purple-700 dark:text-purple-300" />
               </div>
             </div>
-          </div>
-          <div className="glass-card p-6 animate-fade-in animate-slide-in-from-bottom-4" style={{ animationDelay: '0.4s' }}>
+          </Card>
+          <Card className="p-6 animate-fade-in animate-slide-in-from-bottom-4" style={{ animationDelay: '0.4s' }}>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-white/70">Target Amount</p>
-                <p className="text-2xl font-bold bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent">
+                <p className="text-sm font-medium text-muted-foreground">Target Amount</p>
+                <p className="text-2xl font-bold text-foreground">
                   <AnimatedCounter value={totalTarget} />
                 </p>
               </div>
-              <div className="p-3 bg-orange-500/20 backdrop-blur-sm rounded-xl">
-                <Eye className="h-8 w-8 text-orange-400" />
+              <div className="p-3 bg-pending/15 rounded-xl">
+                <Eye className="h-8 w-8 text-pending" />
               </div>
             </div>
-          </div>
+          </Card>
         </div>
 
         {/* Filters */}
-        <div className="glass-card p-6 mb-8 animate-fade-in animate-slide-in-from-bottom-4" style={{ animationDelay: '0.5s' }}>
-          <h3 className="text-lg font-semibold bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent mb-4">
+        <Card className="p-6 mb-8 animate-fade-in animate-slide-in-from-bottom-4" style={{ animationDelay: '0.5s' }}>
+          <h3 className="text-lg font-semibold text-foreground mb-4">
             Fund Records
           </h3>
           <div className="flex flex-col sm:flex-row gap-4 mb-6">
@@ -603,13 +590,13 @@ export default function FundsClient({ initialData }: FundsClientProps) {
               placeholder="Search funds..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="glass-input sm:max-w-xs"
+              className="sm:max-w-xs"
             />
             <Select value={filterType} onValueChange={setFilterType}>
-              <SelectTrigger className="glass-input sm:max-w-xs">
+              <SelectTrigger className="sm:max-w-xs">
                 <SelectValue placeholder="Filter by type" />
               </SelectTrigger>
-              <SelectContent className="glass-dropdown">
+              <SelectContent>
                 <SelectItem value="all">All Types</SelectItem>
                 {FUND_TYPES.map((type) => (
                   <SelectItem key={type} value={type}>{type}</SelectItem>
@@ -621,18 +608,18 @@ export default function FundsClient({ initialData }: FundsClientProps) {
           {/* Funds Grid */}
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {filteredFunds.map((fund) => (
-              <Card key={fund.id} className="glass-card hover:bg-white/15 transition-all duration-300 hover:scale-105">
+              <Card key={fund.id} className="bg-muted/30 hover:bg-accent/50 transition-all duration-300 hover:scale-105">
                 <CardHeader>
                   <div className="flex items-center justify-between">
-                    <CardTitle className="text-white/90 flex items-center gap-2">
-                      <Banknote className="h-5 w-5 text-white/70" />
+                    <CardTitle className="flex items-center gap-2">
+                      <Banknote className="h-5 w-5 text-muted-foreground" />
                       {fund.name}
                     </CardTitle>
                     {hasRole('admin') && (
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <GlassButton variant="ghost" size="sm" className="h-8 w-8 p-0">
-                            <MoreHorizontal className="h-4 w-4 text-white/70" />
+                          <GlassButton variant="ghost" size="sm" className="h-8 w-8 p-0" aria-label={`Fund actions for ${fund.name}`}>
+                            <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
                           </GlassButton>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="glass-dropdown">
@@ -642,7 +629,7 @@ export default function FundsClient({ initialData }: FundsClientProps) {
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             onClick={() => handleDelete(fund.id)}
-                            className="text-red-400 hover:text-red-300"
+                            className="text-destructive focus:text-destructive"
                           >
                             <Trash2 className="mr-2 h-4 w-4" />
                             Delete
@@ -652,7 +639,7 @@ export default function FundsClient({ initialData }: FundsClientProps) {
                     )}
                   </div>
                   <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="border-white/30 text-white/80 text-xs">
+                    <Badge variant="outline" className="text-xs">
                       {(fund as ExtendedFund).fund_type || `${fund.name} Fund`}
                     </Badge>
                   </div>
@@ -660,34 +647,34 @@ export default function FundsClient({ initialData }: FundsClientProps) {
                 <CardContent>
                   <div className="space-y-4">
                     <div>
-                      <p className="text-2xl font-bold text-white/90">
+                      <p className="text-2xl font-bold text-foreground">
                         <AnimatedCounter value={fund.current_balance || 0} />
                       </p>
-                      <p className="text-sm text-white/60">Current Balance</p>
+                      <p className="text-sm text-muted-foreground">Current Balance</p>
                     </div>
                     
                     {(fund as ExtendedFund).target_amount && (fund as ExtendedFund).target_amount! > 0 && (
                       <div>
                         <div className="flex justify-between text-sm mb-2">
-                          <span className="text-white/70">Target Progress</span>
-                          <span className="text-white/80">
+                          <span className="text-muted-foreground">Target Progress</span>
+                          <span className="text-foreground">
                             {Math.min(100, ((fund.current_balance || 0) / ((fund as ExtendedFund).target_amount || 1)) * 100).toFixed(1)}%
                           </span>
                         </div>
-                        <div className="w-full bg-white/10 rounded-full h-2">
+                        <div className="w-full bg-muted rounded-full h-2">
                           <div 
-                            className="bg-gradient-to-r from-green-400 to-emerald-500 h-2 rounded-full transition-all duration-500"
+                            className="bg-income h-2 rounded-full transition-all duration-500"
                             style={{ width: `${Math.min(100, ((fund.current_balance || 0) / ((fund as ExtendedFund).target_amount || 1)) * 100)}%` }}
                           />
                         </div>
-                        <p className="text-xs text-white/50 mt-1">
+                        <p className="text-xs text-muted-foreground mt-1">
                           Target: <AnimatedCounter value={(fund as ExtendedFund).target_amount!} />
                         </p>
                       </div>
                     )}
                     
                     {fund.description && (
-                      <p className="text-sm text-white/60 line-clamp-3">
+                      <p className="text-sm text-muted-foreground line-clamp-3">
                         {fund.description}
                       </p>
                     )}
@@ -698,43 +685,43 @@ export default function FundsClient({ initialData }: FundsClientProps) {
           </div>
 
           {filteredFunds.length === 0 && (
-            <div className="text-center py-8 text-white/60">
+            <div className="text-center py-8 text-muted-foreground">
               No funds found matching your criteria.
             </div>
           )}
-        </div>
+        </Card>
 
         {/* Recent Transactions */}
-        <div className="glass-card p-6 animate-fade-in animate-slide-in-from-bottom-4" style={{ animationDelay: '0.6s' }}>
-          <h3 className="text-lg font-semibold bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent mb-4">
+        <Card className="p-6 animate-fade-in animate-slide-in-from-bottom-4" style={{ animationDelay: '0.6s' }}>
+          <h3 className="text-lg font-semibold text-foreground mb-4">
             Recent Fund Transactions
           </h3>
           <div className="space-y-2">
             {recentTransactions.slice(0, 10).map((transaction) => (
-              <div key={transaction.id} className="flex items-center justify-between p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-colors">
+              <div key={transaction.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg hover:bg-accent transition-colors">
                 <div>
-                  <div className="font-medium text-white/90">{transaction.description}</div>
-                  <div className="text-sm text-white/60">
+                  <div className="font-medium text-foreground">{transaction.description}</div>
+                  <div className="text-sm text-muted-foreground">
                     {transaction.category} • {transaction.fund?.name}
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className={`font-medium ${transaction.type === 'income' ? 'text-green-400' : 'text-red-400'}`}>
+                  <div className={`font-medium ${transaction.type === 'income' ? 'text-income' : 'text-expense'}`}>
                     {transaction.type === 'income' ? '+' : '-'}<AnimatedCounter value={transaction.amount} />
                   </div>
-                  <div className="text-sm text-white/60">
+                  <div className="text-sm text-muted-foreground">
                     {formatDate(transaction.transaction_date)}
                   </div>
                 </div>
               </div>
             ))}
             {recentTransactions.length === 0 && (
-              <div className="text-center py-4 text-white/60">
+              <div className="text-center py-4 text-muted-foreground">
                 No recent transactions found
               </div>
             )}
           </div>
-        </div>
+        </Card>
       </div>
       <ConfirmationDialog />
     </div>

@@ -1079,20 +1079,20 @@ export function ComprehensiveLedgerDialog({
                 onClick={handleDocumentClick}
                 onLoad={() => URL.revokeObjectURL(url)}
               />
-              <div className="absolute inset-0 bg-blue-500/20 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                <span className="text-xs text-white font-medium">View</span>
+              <div className="absolute inset-0 bg-primary/20 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                <span className="text-xs text-foreground font-medium">View</span>
               </div>
             </div>
           )
         } else {
           return (
             <div 
-              className="w-16 h-16 bg-white/10 border border-white/20 rounded-lg flex items-center justify-center cursor-pointer hover:bg-white/20 transition-colors group relative"
+              className="w-16 h-16 bg-muted/50 border border-border rounded-lg flex items-center justify-center cursor-pointer hover:bg-muted transition-colors group relative"
               onClick={handleDocumentClick}
             >
-              <FileText className="w-8 h-8 text-blue-400" />
-              <div className="absolute inset-0 bg-blue-500/20 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                <span className="text-xs text-white font-medium">Download</span>
+              <FileText className="w-8 h-8 text-primary" />
+              <div className="absolute inset-0 bg-primary/20 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                <span className="text-xs text-foreground font-medium">Download</span>
               </div>
             </div>
           )
@@ -1113,20 +1113,20 @@ export function ComprehensiveLedgerDialog({
                   e.currentTarget.style.display = 'none'
                 }}
               />
-              <div className="absolute inset-0 bg-green-500/20 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                <span className="text-xs text-white font-medium">View</span>
+              <div className="absolute inset-0 bg-income/20 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                <span className="text-xs text-foreground font-medium">View</span>
               </div>
             </div>
           )
         } else {
           return (
             <div 
-              className="w-16 h-16 bg-white/10 border border-white/20 rounded-lg flex items-center justify-center cursor-pointer hover:bg-white/20 transition-colors group relative"
+              className="w-16 h-16 bg-muted/50 border border-border rounded-lg flex items-center justify-center cursor-pointer hover:bg-muted transition-colors group relative"
               onClick={handleDocumentClick}
             >
-              <FileText className="w-8 h-8 text-green-400" />
-              <div className="absolute inset-0 bg-green-500/20 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                <span className="text-xs text-white font-medium">
+              <FileText className="w-8 h-8 text-income" />
+              <div className="absolute inset-0 bg-income/20 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                <span className="text-xs text-foreground font-medium">
                   {isImageFile(bill.existingDocument.type) ? 'View' : 'Download'}
                 </span>
               </div>
@@ -1150,27 +1150,27 @@ export function ComprehensiveLedgerDialog({
       })
       
       return (
-        <div className="flex items-center gap-3 p-3 bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 transition-colors">
+        <div className="flex items-center gap-3 p-3 bg-muted/30 border border-border rounded-lg hover:bg-muted/50 transition-colors">
           {getDocumentPreview()}
           <div className="flex-1">
             <p 
-              className="text-sm font-medium text-white cursor-pointer hover:text-blue-400 transition-colors flex items-center gap-2" 
+              className="text-sm font-medium text-foreground cursor-pointer hover:text-primary transition-colors flex items-center gap-2" 
               onClick={handleDocumentClick}
               title="Click to view/download document"
             >
               {documentName}
               {isExistingOnly && (
-                <span className="inline-flex items-center px-2 py-1 text-xs bg-green-500/20 text-green-400 rounded-full">
+                <span className="inline-flex items-center px-2 py-1 text-xs bg-income/15 text-income rounded-full">
                   Uploaded
                 </span>
               )}
               {hasNewDocument && (
-                <span className="inline-flex items-center px-2 py-1 text-xs bg-blue-500/20 text-blue-400 rounded-full">
+                <span className="inline-flex items-center px-2 py-1 text-xs bg-primary/15 text-primary rounded-full">
                   New
                 </span>
               )}
             </p>
-            <p className="text-xs text-white/60">
+            <p className="text-xs text-muted-foreground">
               {(documentSize / 1024 / 1024).toFixed(2)} MB
               {bill.existingDocument?.uploadedAt && (
                 <span className="ml-2">• {new Date(bill.existingDocument.uploadedAt).toLocaleDateString()}</span>
@@ -1180,18 +1180,18 @@ export function ComprehensiveLedgerDialog({
           {progress && (
             <div className="flex items-center gap-2">
               {progress.status === 'uploading' && (
-                <div className="w-16 bg-white/10 rounded-full h-2">
+                <div className="w-16 bg-muted/50 rounded-full h-2">
                   <div 
-                    className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+                    className="bg-primary h-2 rounded-full transition-all duration-300"
                     style={{ width: `${progress.progress}%` }}
                   />
                 </div>
               )}
               {progress.status === 'success' && (
-                <CheckCircle className="w-4 h-4 text-green-400" />
+                <CheckCircle className="w-4 h-4 text-income" />
               )}
               {progress.status === 'error' && (
-                <AlertCircle className="w-4 h-4 text-red-400" />
+                <AlertCircle className="w-4 h-4 text-destructive" />
               )}
             </div>
           )}
@@ -1201,7 +1201,7 @@ export function ComprehensiveLedgerDialog({
               variant="ghost"
               size="sm"
               onClick={() => document.getElementById(`file-${uploadId}`)?.click()}
-              className="text-blue-400 hover:text-blue-300 hover:bg-blue-500/20"
+              className="text-primary hover:text-primary hover:bg-accent"
               title={hasAnyDocument ? "Replace document" : "Upload document"}
             >
               <Upload className="w-4 h-4" />
@@ -1211,7 +1211,7 @@ export function ComprehensiveLedgerDialog({
               variant="ghost"
               size="sm"
               onClick={() => handleDocumentRemove(billIndex, isSubgroup, subgroupIndex)}
-              className="text-red-400 hover:text-red-300 hover:bg-red-500/20"
+              className="text-destructive hover:text-destructive hover:bg-accent"
               title="Remove document"
             >
               <X className="w-4 h-4" />
@@ -1222,11 +1222,11 @@ export function ComprehensiveLedgerDialog({
     }
 
     return (
-      <div className="border-2 border-dashed border-white/20 rounded-lg p-6 text-center hover:border-white/30 transition-colors">
+      <div className="border-2 border-dashed border-border rounded-lg p-6 text-center hover:border-border transition-colors">
         
-        <Upload className="w-8 h-8 text-white/40 mx-auto mb-2" />
-        <p className="text-sm text-white/60 mb-2">Upload document (PDF, Word, Excel, Images)</p>
-        <p className="text-xs text-white/40 mb-3">Maximum file size: 10MB</p>
+        <Upload className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+        <p className="text-sm text-muted-foreground mb-2">Upload document (PDF, Word, Excel, Images)</p>
+        <p className="text-xs text-muted-foreground mb-3">Maximum file size: 10MB</p>
         <Button
           type="button"
           variant="outline"
@@ -1237,7 +1237,7 @@ export function ComprehensiveLedgerDialog({
             console.debug('📁 File input element found:', !!fileInput)
             fileInput?.click()
           }}
-          className="bg-white/10 border-white/20 text-white hover:bg-white/20"
+          className="bg-muted/50 border-border text-foreground hover:bg-muted"
         >
           <Upload className="w-4 h-4 mr-2" />
           Choose File
@@ -1283,16 +1283,16 @@ export function ComprehensiveLedgerDialog({
     const uploadId = isSubgroup ? `subgroup-${subgroupIndex}-bill-${billIndex}` : `direct-bill-${billIndex}`
 
     return (
-      <Card key={billIndex} className="bg-white/5 backdrop-blur-sm border border-white/10">
+      <Card key={billIndex} className="bg-card border border-border">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-sm font-medium text-white">Bill {billIndex + 1}</CardTitle>
+            <CardTitle className="text-sm font-medium text-foreground">Bill {billIndex + 1}</CardTitle>
             <Button
               type="button"
               variant="ghost"
               size="sm"
               onClick={() => removeBill(billIndex, isSubgroup, subgroupIndex)}
-              className="text-red-400 hover:text-red-300 hover:bg-red-500/20"
+              className="text-destructive hover:text-destructive hover:bg-accent"
             >
               <Trash2 className="w-4 h-4" />
             </Button>
@@ -1301,46 +1301,43 @@ export function ComprehensiveLedgerDialog({
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <Label htmlFor={`vendor-${uploadId}`} className="text-white/90">Vendor Name *</Label>
+              <Label htmlFor={`vendor-${uploadId}`}>Vendor Name *</Label>
               <Input
                 id={`vendor-${uploadId}`}
                 value={bill.vendor_name}
                 onChange={(e) => updateBill('vendor_name', e.target.value)}
-                className="bg-white/10 border-white/20 text-white placeholder:text-white/50"
                 placeholder="Enter vendor name"
                 required
               />
             </div>
             <div>
-              <Label htmlFor={`amount-${uploadId}`} className="text-white/90">Amount *</Label>
+              <Label htmlFor={`amount-${uploadId}`}>Amount *</Label>
               <Input
                 id={`amount-${uploadId}`}
                 type="number"
                 step="0.01"
                 value={bill.amount}
                 onChange={(e) => updateBill('amount', e.target.value)}
-                className="bg-white/10 border-white/20 text-white placeholder:text-white/50"
                 placeholder="0.00"
                 required
               />
             </div>
             <div>
-              <Label htmlFor={`due-date-${uploadId}`} className="text-white/90">Due Date</Label>
+              <Label htmlFor={`due-date-${uploadId}`}>Due Date</Label>
               <Input
                 id={`due-date-${uploadId}`}
                 type="date"
                 value={bill.due_date}
                 onChange={(e) => updateBill('due_date', e.target.value)}
-                className="bg-white/10 border-white/20 text-white"
               />
             </div>
             <div>
-              <Label htmlFor={`frequency-${uploadId}`} className="text-white/90">Frequency</Label>
+              <Label htmlFor={`frequency-${uploadId}`}>Frequency</Label>
               <Select value={bill.frequency} onValueChange={(value) => updateBill('frequency', value)}>
-                <SelectTrigger className="bg-white/10 border-white/20 text-white">
+                <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="bg-gray-900 border-white/20">
+                <SelectContent>
                   <SelectItem value="one-time">One-time</SelectItem>
                   <SelectItem value="monthly">Monthly</SelectItem>
                   <SelectItem value="quarterly">Quarterly</SelectItem>
@@ -1349,22 +1346,21 @@ export function ComprehensiveLedgerDialog({
               </Select>
             </div>
             <div>
-              <Label htmlFor={`category-${uploadId}`} className="text-white/90">Category</Label>
+              <Label htmlFor={`category-${uploadId}`}>Category</Label>
               <Input
                 id={`category-${uploadId}`}
                 value={bill.category}
                 onChange={(e) => updateBill('category', e.target.value)}
-                className="bg-white/10 border-white/20 text-white placeholder:text-white/50"
                 placeholder="Enter category"
               />
             </div>
             <div>
-              <Label htmlFor={`fund-${uploadId}`} className="text-white/90">Fund</Label>
+              <Label htmlFor={`fund-${uploadId}`}>Fund</Label>
               <Select value={bill.fund_id} onValueChange={(value) => updateBill('fund_id', value)}>
-                <SelectTrigger className="bg-white/10 border-white/20 text-white">
+                <SelectTrigger>
                   <SelectValue placeholder="Select fund" />
                 </SelectTrigger>
-                <SelectContent className="bg-gray-900 border-white/20">
+                <SelectContent>
                   {funds.map((fund) => (
                     <SelectItem key={fund.id} value={fund.id}>
                       {fund.name}
@@ -1374,12 +1370,12 @@ export function ComprehensiveLedgerDialog({
               </Select>
             </div>
             <div>
-              <Label htmlFor={`priority-${uploadId}`} className="text-white/90">Priority</Label>
+              <Label htmlFor={`priority-${uploadId}`}>Priority</Label>
               <Select value={bill.priority} onValueChange={(value) => updateBill('priority', value)}>
-                <SelectTrigger className="bg-white/10 border-white/20 text-white">
+                <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="bg-gray-900 border-white/20">
+                <SelectContent>
                   <SelectItem value="low">Low</SelectItem>
                   <SelectItem value="medium">Medium</SelectItem>
                   <SelectItem value="high">High</SelectItem>
@@ -1391,7 +1387,7 @@ export function ComprehensiveLedgerDialog({
 
           {/* Document Upload */}
           <div>
-            <Label className="text-white/90">Document Attachment</Label>
+            <Label>Document Attachment</Label>
             <div className="mt-2">
               <DocumentDisplay 
                 bill={bill}
@@ -1419,12 +1415,11 @@ export function ComprehensiveLedgerDialog({
           </div>
 
           <div>
-            <Label htmlFor={`notes-${uploadId}`} className="text-white/90">Notes</Label>
+            <Label htmlFor={`notes-${uploadId}`}>Notes</Label>
             <Textarea
               id={`notes-${uploadId}`}
               value={bill.notes}
               onChange={(e) => updateBill('notes', e.target.value)}
-              className="bg-white/10 border-white/20 text-white placeholder:text-white/50"
               placeholder="Additional notes..."
               rows={2}
             />
@@ -1438,40 +1433,39 @@ export function ComprehensiveLedgerDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-xl font-semibold text-white">
+          <DialogTitle className="text-xl font-semibold text-foreground">
             {editingEntry ? 'Edit Ledger Entry' : 'Create New Ledger Entry'}
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-6">
           {/* Basic Entry Information */}
-          <Card className="bg-white/5 backdrop-blur-sm border border-white/10">
+          <Card className="bg-card border border-border">
             <CardHeader>
-              <CardTitle className="text-white">Entry Details</CardTitle>
+              <CardTitle className="text-foreground">Entry Details</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="title" className="text-white/90">Title *</Label>
+                  <Label htmlFor="title">Title *</Label>
                   <Input
                     id="title"
                     value={entryForm.title}
                     onChange={(e) => setEntryForm(prev => ({ ...prev, title: e.target.value }))}
-                    className="bg-white/10 border-white/20 text-white placeholder:text-white/50"
                     placeholder="Enter entry title"
                     required
                   />
                 </div>
                 <div>
-                  <Label htmlFor="status" className="text-white/90">Status</Label>
+                  <Label htmlFor="status">Status</Label>
                   <Select 
                     value={entryForm.status} 
                     onValueChange={(value) => setEntryForm(prev => ({ ...prev, status: value as 'draft' | 'active' | 'completed' | 'cancelled' }))}
                   >
-                    <SelectTrigger className="bg-white/10 border-white/20 text-white">
+                    <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="bg-gray-900 border-white/20">
+                    <SelectContent>
                       <SelectItem value="draft">Draft</SelectItem>
                       <SelectItem value="active">Active</SelectItem>
                       <SelectItem value="completed">Completed</SelectItem>
@@ -1480,15 +1474,15 @@ export function ComprehensiveLedgerDialog({
                   </Select>
                 </div>
                 <div>
-                  <Label htmlFor="priority" className="text-white/90">Priority</Label>
+                  <Label htmlFor="priority">Priority</Label>
                   <Select 
                     value={entryForm.priority} 
                     onValueChange={(value) => setEntryForm(prev => ({ ...prev, priority: value as 'low' | 'medium' | 'high' | 'urgent' }))}
                   >
-                    <SelectTrigger className="bg-white/10 border-white/20 text-white">
+                    <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="bg-gray-900 border-white/20">
+                    <SelectContent>
                       <SelectItem value="low">Low</SelectItem>
                       <SelectItem value="medium">Medium</SelectItem>
                       <SelectItem value="high">High</SelectItem>
@@ -1497,24 +1491,23 @@ export function ComprehensiveLedgerDialog({
                   </Select>
                 </div>
                 <div>
-                  <Label htmlFor="due-date" className="text-white/90">Default Due Date</Label>
+                  <Label htmlFor="due-date">Default Due Date</Label>
                   <Input
                     id="due-date"
                     type="date"
                     value={entryForm.default_due_date}
                     onChange={(e) => setEntryForm(prev => ({ ...prev, default_due_date: e.target.value }))}
-                    className="bg-white/10 border-white/20 text-white"
                   />
                 </div>
               </div>
 
               <div>
-                <Label htmlFor="description" className="text-white/90">Description</Label>
+                <Label htmlFor="description">Description</Label>
                 <Textarea
                   id="description"
                   value={entryForm.description}
                   onChange={(e) => setEntryForm(prev => ({ ...prev, description: e.target.value }))}
-                  className="bg-white/10 border-white/20 text-white placeholder:text-white/50"
+                  className="bg-muted/50 border-border text-foreground placeholder:text-muted-foreground"
                   placeholder="Enter entry description"
                   rows={3}
                 />
@@ -1522,19 +1515,18 @@ export function ComprehensiveLedgerDialog({
 
               {/* Responsible Parties */}
               <div>
-                <Label className="text-white/90">Responsible Parties</Label>
+                <Label>Responsible Parties</Label>
                 <div className="flex gap-2 mt-2">
                   <Input
                     value={responsiblePartyInput}
                     onChange={(e) => setResponsiblePartyInput(e.target.value)}
                     onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addResponsibleParty())}
-                    className="bg-white/10 border-white/20 text-white placeholder:text-white/50"
+                    className="bg-muted/50 border-border text-foreground placeholder:text-muted-foreground"
                     placeholder="Add responsible party"
                   />
                   <Button
                     type="button"
                     onClick={addResponsibleParty}
-                    className="bg-blue-600 hover:bg-blue-700"
                   >
                     <Plus className="w-4 h-4" />
                   </Button>
@@ -1545,7 +1537,7 @@ export function ComprehensiveLedgerDialog({
                       <Badge
                         key={index}
                         variant="secondary"
-                        className="bg-white/10 text-white border-white/20 flex items-center gap-1"
+                        className="bg-muted/50 text-foreground border-border flex items-center gap-1"
                       >
                         {party}
                         <Button
@@ -1553,7 +1545,7 @@ export function ComprehensiveLedgerDialog({
                           variant="ghost"
                           size="sm"
                           onClick={() => removeResponsibleParty(index)}
-                          className="h-auto p-0 text-white/60 hover:text-white"
+                          className="h-auto p-0 text-muted-foreground hover:text-foreground"
                         >
                           <X className="w-3 h-3" />
                         </Button>
@@ -1564,12 +1556,12 @@ export function ComprehensiveLedgerDialog({
               </div>
 
               <div>
-                <Label htmlFor="notes" className="text-white/90">Notes</Label>
+                <Label htmlFor="notes">Notes</Label>
                 <Textarea
                   id="notes"
                   value={entryForm.notes}
                   onChange={(e) => setEntryForm(prev => ({ ...prev, notes: e.target.value }))}
-                  className="bg-white/10 border-white/20 text-white placeholder:text-white/50"
+                  className="bg-muted/50 border-border text-foreground placeholder:text-muted-foreground"
                   placeholder="Additional notes..."
                   rows={2}
                 />
@@ -1578,12 +1570,12 @@ export function ComprehensiveLedgerDialog({
           </Card>
 
           {/* Enable Subgroup Toggle */}
-          <Card className="bg-white/5 backdrop-blur-sm border border-white/10">
+          <Card className="bg-card border border-border">
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-lg font-medium text-white">Enable Subgroups</h3>
-                  <p className="text-sm text-white/60">
+                  <h3 className="text-lg font-medium text-foreground">Enable Subgroups</h3>
+                  <p className="text-sm text-muted-foreground">
                     {entryForm.subgroupsEnabled 
                       ? 'Bills are organized within subgroups' 
                       : 'Bills are added directly to the main entry'
@@ -1593,7 +1585,7 @@ export function ComprehensiveLedgerDialog({
                 <Switch
                   checked={entryForm.subgroupsEnabled}
                   onCheckedChange={handleSubgroupToggle}
-                  className="data-[state=checked]:bg-blue-600"
+                  className="data-[state=checked]:bg-primary"
                 />
               </div>
             </CardContent>
@@ -1601,14 +1593,13 @@ export function ComprehensiveLedgerDialog({
 
           {/* Subgroups Section */}
           {entryForm.subgroupsEnabled && (
-            <Card className="bg-white/5 backdrop-blur-sm border border-white/10">
+            <Card className="bg-card border border-border">
               <CardHeader>
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-white">Subgroups</CardTitle>
+                  <CardTitle className="text-foreground">Subgroups</CardTitle>
                   <Button
                     type="button"
                     onClick={addSubgroup}
-                    className="bg-blue-600 hover:bg-blue-700"
                   >
                     <Plus className="w-4 h-4 mr-2" />
                     Add Subgroup
@@ -1617,10 +1608,10 @@ export function ComprehensiveLedgerDialog({
               </CardHeader>
               <CardContent className="space-y-6">
                 {entryForm.subgroups.map((subgroup, subgroupIndex) => (
-                  <Card key={subgroupIndex} className="bg-white/5 backdrop-blur-sm border border-white/10">
+                  <Card key={subgroupIndex} className="bg-card border border-border">
                     <CardHeader className="pb-3">
                       <div className="flex items-center justify-between">
-                        <CardTitle className="text-sm font-medium text-white">
+                        <CardTitle className="text-sm font-medium text-foreground">
                           Subgroup {subgroupIndex + 1}
                         </CardTitle>
                         <Button
@@ -1628,7 +1619,7 @@ export function ComprehensiveLedgerDialog({
                           variant="ghost"
                           size="sm"
                           onClick={() => removeSubgroup(subgroupIndex)}
-                          className="text-red-400 hover:text-red-300 hover:bg-red-500/20"
+                          className="text-destructive hover:text-destructive hover:bg-accent"
                         >
                           <Trash2 className="w-4 h-4" />
                         </Button>
@@ -1637,7 +1628,7 @@ export function ComprehensiveLedgerDialog({
                     <CardContent className="space-y-4">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                          <Label className="text-white/90">Title *</Label>
+                          <Label>Title *</Label>
                           <Input
                             value={subgroup.title}
                             onChange={(e) => {
@@ -1648,13 +1639,13 @@ export function ComprehensiveLedgerDialog({
                                 )
                               }))
                             }}
-                            className="bg-white/10 border-white/20 text-white placeholder:text-white/50"
+                            className="bg-muted/50 border-border text-foreground placeholder:text-muted-foreground"
                             placeholder="Enter subgroup title"
                             required
                           />
                         </div>
                         <div>
-                          <Label className="text-white/90">Status</Label>
+                          <Label>Status</Label>
                           <Select 
                             value={subgroup.status} 
                             onValueChange={(value) => {
@@ -1666,10 +1657,10 @@ export function ComprehensiveLedgerDialog({
                               }))
                             }}
                           >
-                            <SelectTrigger className="bg-white/10 border-white/20 text-white">
+                            <SelectTrigger>
                               <SelectValue />
                             </SelectTrigger>
-                            <SelectContent className="bg-gray-900 border-white/20">
+                            <SelectContent>
                               <SelectItem value="draft">Draft</SelectItem>
                               <SelectItem value="active">Active</SelectItem>
                               <SelectItem value="completed">Completed</SelectItem>
@@ -1678,7 +1669,7 @@ export function ComprehensiveLedgerDialog({
                           </Select>
                         </div>
                         <div>
-                          <Label className="text-white/90">Priority</Label>
+                          <Label>Priority</Label>
                           <Select 
                             value={subgroup.priority} 
                             onValueChange={(value) => {
@@ -1690,10 +1681,10 @@ export function ComprehensiveLedgerDialog({
                               }))
                             }}
                           >
-                            <SelectTrigger className="bg-white/10 border-white/20 text-white">
+                            <SelectTrigger>
                               <SelectValue />
                             </SelectTrigger>
-                            <SelectContent className="bg-gray-900 border-white/20">
+                            <SelectContent>
                               <SelectItem value="low">Low</SelectItem>
                               <SelectItem value="medium">Medium</SelectItem>
                               <SelectItem value="high">High</SelectItem>
@@ -1702,7 +1693,7 @@ export function ComprehensiveLedgerDialog({
                           </Select>
                         </div>
                         <div>
-                          <Label className="text-white/90">Allocation %</Label>
+                          <Label>Allocation %</Label>
                           <Input
                             type="number"
                             step="0.01"
@@ -1717,14 +1708,14 @@ export function ComprehensiveLedgerDialog({
                                 )
                               }))
                             }}
-                            className="bg-white/10 border-white/20 text-white placeholder:text-white/50"
+                            className="bg-muted/50 border-border text-foreground placeholder:text-muted-foreground"
                             placeholder="0.00"
                           />
                         </div>
                       </div>
 
                       <div>
-                        <Label className="text-white/90">Description</Label>
+                        <Label>Description</Label>
                         <Textarea
                           value={subgroup.description}
                           onChange={(e) => {
@@ -1735,7 +1726,7 @@ export function ComprehensiveLedgerDialog({
                               )
                             }))
                           }}
-                          className="bg-white/10 border-white/20 text-white placeholder:text-white/50"
+                          className="bg-muted/50 border-border text-foreground placeholder:text-muted-foreground"
                           placeholder="Enter subgroup description"
                           rows={2}
                         />
@@ -1744,12 +1735,11 @@ export function ComprehensiveLedgerDialog({
                       {/* Subgroup Bills */}
                       <div>
                         <div className="flex items-center justify-between mb-4">
-                          <h4 className="text-sm font-medium text-white">Bills</h4>
+                          <h4 className="text-sm font-medium text-foreground">Bills</h4>
                           <Button
                             type="button"
                             onClick={() => addBill(true, subgroupIndex)}
                             size="sm"
-                            className="bg-green-600 hover:bg-green-700"
                           >
                             <Plus className="w-4 h-4 mr-1" />
                             Add Bill
@@ -1762,7 +1752,7 @@ export function ComprehensiveLedgerDialog({
                             </div>
                           )}
                           {subgroup.bills.length === 0 && (
-                            <div className="text-center py-8 text-white/60">
+                            <div className="text-center py-8 text-muted-foreground">
                               <p>No bills added yet</p>
                             </div>
                           )}
@@ -1772,7 +1762,7 @@ export function ComprehensiveLedgerDialog({
                   </Card>
                 ))}
                 {entryForm.subgroups.length === 0 && (
-                  <div className="text-center py-8 text-white/60">
+                  <div className="text-center py-8 text-muted-foreground">
                     <p>No subgroups created yet</p>
                   </div>
                 )}
@@ -1782,14 +1772,13 @@ export function ComprehensiveLedgerDialog({
 
           {/* Direct Bills Section */}
           {!entryForm.subgroupsEnabled && (
-            <Card className="bg-white/5 backdrop-blur-sm border border-white/10">
+            <Card className="bg-card border border-border">
               <CardHeader>
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-white">Bills</CardTitle>
+                  <CardTitle className="text-foreground">Bills</CardTitle>
                   <Button
                     type="button"
                     onClick={() => addBill(false)}
-                    className="bg-green-600 hover:bg-green-700"
                   >
                     <Plus className="w-4 h-4 mr-2" />
                     Add Bill
@@ -1803,7 +1792,7 @@ export function ComprehensiveLedgerDialog({
                   </div>
                 )}
                 {entryForm.directBills.length === 0 && (
-                  <div className="text-center py-8 text-white/60">
+                  <div className="text-center py-8 text-muted-foreground">
                     <p>No bills added yet</p>
                   </div>
                 )}
@@ -1817,14 +1806,13 @@ export function ComprehensiveLedgerDialog({
               type="button"
               variant="outline"
               onClick={() => onOpenChange(false)}
-              className="bg-white/10 border-white/20 text-white hover:bg-white/20"
+              className="bg-muted/50 border-border text-foreground hover:bg-muted"
             >
               Cancel
             </Button>
             <Button
               onClick={handleSave}
               disabled={loading || !entryForm.title.trim()}
-              className="bg-blue-600 hover:bg-blue-700"
             >
               {loading ? 'Saving...' : editingEntry ? 'Update Entry' : 'Create Entry'}
             </Button>

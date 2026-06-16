@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient, createAdminClient } from '@/lib/supabase-server'
 import { createServices } from '@/lib/type-safe-api'
+import { logAuditEvent } from '@/lib/audit'
+import { checkPlanLimit } from '@/lib/plan-limits'
+import {
+  parsePaginationParams,
+  buildPaginatedResponse,
+  decodeCursor,
+} from '@/lib/pagination'
 import type { Database } from '@/types/database'
 
 // Force dynamic rendering since this route uses cookies for authentication
@@ -49,26 +56,57 @@ export async function GET(request: NextRequest) {
       )
     }
 
+    const pagination = parsePaginationParams(searchParams, { defaultLimit: 50 })
+
     const options = {
       fundId: searchParams.get('fund_id') || undefined,
       churchId: churchId,
       type: searchParams.get('type') || undefined,
       startDate: searchParams.get('start_date') || undefined,
       endDate: searchParams.get('end_date') || undefined,
-      limit: searchParams.get('limit') ? parseInt(searchParams.get('limit')!) : undefined,
+      limit: pagination.limit,
+      offset: pagination.mode === 'offset' ? pagination.offset : undefined,
+      cursor: pagination.cursor,
     }
 
-    const result = await services.transactions.getTransactions(options)
+    let query = supabase
+      .from('transactions')
+      .select('*, funds(name, church_id)', { count: pagination.mode === 'offset' ? 'exact' : undefined })
+      .eq('church_id', churchId)
+      .order('created_at', { ascending: false })
 
-    if (!result.success) {
+    if (options.fundId) query = query.eq('fund_id', options.fundId)
+    if (options.type) query = query.eq('type', options.type)
+    if (options.startDate) query = query.gte('transaction_date', options.startDate)
+    if (options.endDate) query = query.lte('transaction_date', options.endDate)
+
+    if (pagination.mode === 'cursor' && pagination.cursor) {
+      const cursorValue = decodeCursor(pagination.cursor)
+      if (cursorValue) {
+        query = query.lt('created_at', cursorValue)
+      }
+    }
+
+    if (pagination.mode === 'offset') {
+      query = query.range(pagination.offset, pagination.offset + pagination.limit - 1)
+    } else {
+      query = query.limit(pagination.limit)
+    }
+
+    const { data, error, count } = await query
+
+    if (error) {
       return NextResponse.json(
-        { error: result.error },
+        { error: error.message },
         { status: 500 }
       )
     }
 
+    const paginated = buildPaginatedResponse(data ?? [], pagination, count ?? undefined)
+
     return NextResponse.json({
-      transactions: result.data,
+      transactions: paginated.data,
+      pagination: paginated.pagination,
       success: true
     })
   } catch (error) {
@@ -121,6 +159,20 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    const transactionLimit = await checkPlanLimit(churchId, 'transactions')
+    if (!transactionLimit.allowed) {
+      return NextResponse.json(
+        {
+          error: transactionLimit.message ?? 'Transaction limit reached for your plan',
+          code: 'PLAN_LIMIT_EXCEEDED',
+          planId: transactionLimit.planId,
+          usage: transactionLimit.usage,
+          limit: transactionLimit.limit,
+        },
+        { status: 402 }
+      )
+    }
+
     const transactionData = {
       type: body.type,
       amount: body.amount,
@@ -144,6 +196,16 @@ export async function POST(request: NextRequest) {
         { status }
       )
     }
+
+    const adminSupabase = createAdminClient()
+    await logAuditEvent(adminSupabase as never, {
+      churchId,
+      userId: user.id,
+      action: 'create',
+      entityType: 'transaction',
+      entityId: result.data?.id ?? '',
+      newData: result.data as Record<string, unknown>,
+    })
 
     return NextResponse.json({
       transaction: result.data,
@@ -212,6 +274,16 @@ export async function PATCH(request: NextRequest) {
         { status: 500 }
       )
     }
+
+    await logAuditEvent(adminSupabase as never, {
+      churchId: (currentTransaction as { church_id?: string }).church_id ?? null,
+      userId: user.id,
+      action: 'update',
+      entityType: 'transaction',
+      entityId: id,
+      oldData: currentTransaction as Record<string, unknown>,
+      newData: transaction as Record<string, unknown>,
+    })
     
     // If amount or type changed, update fund balance
     if (updates.amount !== undefined || updates.type !== undefined) {
@@ -313,6 +385,15 @@ export async function DELETE(request: NextRequest) {
         { status: 500 }
       )
     }
+
+    await logAuditEvent(adminSupabase as never, {
+      churchId: (transaction as { church_id?: string }).church_id ?? null,
+      userId: user.id,
+      action: 'delete',
+      entityType: 'transaction',
+      entityId: id,
+      oldData: transaction as Record<string, unknown>,
+    })
     
     // Reverse the transaction's effect on fund balance
     const { data: fund, error: fundError } = await supabase

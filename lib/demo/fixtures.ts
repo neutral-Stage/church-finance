@@ -122,7 +122,7 @@ const demoBill1: BillWithFund = {
   status: 'pending',
   notes: 'Property liability',
   allocation_percentage: null,
-  approval_status: null,
+  approval_status: 'pending',
   approved_at: null,
   approved_by: null,
   created_at: now,
@@ -411,6 +411,71 @@ export function getDemoMemberContributions(): MemberContribution[] {
       average_monthly_amount: 180,
       average_annual_amount: 180,
       months_with_contributions: 1,
+    },
+  ]
+}
+
+export function getDemoBudgets() {
+  const year = new Date().getFullYear()
+  return [
+    {
+      id: '00000000-0000-4000-8000-000000000701',
+      church_id: DEMO_CHURCH_ID,
+      fund_id: DEMO_FUND_GENERAL,
+      category: 'Operations',
+      year,
+      month: null,
+      amount: 48000,
+      created_by: DEMO_USER_ID,
+      created_at: now,
+      updated_at: now,
+    },
+    {
+      id: '00000000-0000-4000-8000-000000000702',
+      church_id: DEMO_CHURCH_ID,
+      fund_id: DEMO_FUND_BUILDING,
+      category: 'Building',
+      year,
+      month: null,
+      amount: 25000,
+      created_by: DEMO_USER_ID,
+      created_at: now,
+      updated_at: now,
+    },
+  ]
+}
+
+export function getDemoAuditLog() {
+  return [
+    {
+      id: '00000000-0000-4000-8000-000000000801',
+      church_id: DEMO_CHURCH_ID,
+      user_id: DEMO_USER_ID,
+      action: 'create',
+      entity_type: 'transaction',
+      entity_id: '00000000-0000-4000-8000-000000000301',
+      old_data: null,
+      new_data: { amount: 500, type: 'income' },
+      created_at: now,
+    },
+  ]
+}
+
+export function getDemoImportStaging() {
+  return [
+    {
+      id: '00000000-0000-4000-8000-000000000901',
+      church_id: DEMO_CHURCH_ID,
+      user_id: DEMO_USER_ID,
+      import_type: 'bank_csv',
+      row_data: { raw: 'Demo row' },
+      parsed_amount: 125.5,
+      parsed_date: month + '-01',
+      parsed_description: 'Demo deposit',
+      matched_entity_id: null,
+      matched_at: null,
+      status: 'pending',
+      created_at: now,
     },
   ]
 }

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient, createAdminClient } from '@/lib/supabase-server'
 import type { Database } from '@/types/database'
+import { checkPlanLimit } from '@/lib/plan-limits'
+import { parsePaginationParams, buildPaginatedResponse, decodeCursor } from '@/lib/pagination'
 
 // Force dynamic rendering since this route uses cookies for authentication
 export const dynamic = 'force-dynamic';
@@ -22,21 +24,33 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Get church_id from query parameters
     const { searchParams } = new URL(request.url)
     const church_id = searchParams.get('church_id')
+    const pagination = parsePaginationParams(searchParams, { defaultLimit: 50 })
 
     let query = supabase
       .from('members')
-      .select('*')
-      .order('name')
+      .select('*', { count: pagination.mode === 'offset' ? 'exact' : undefined })
+      .order('created_at', { ascending: false })
 
-    // Filter by church if provided
     if (church_id) {
       query = query.eq('church_id', church_id)
     }
 
-    const { data: members, error } = await query
+    if (pagination.mode === 'cursor' && pagination.cursor) {
+      const cursorValue = decodeCursor(pagination.cursor)
+      if (cursorValue) {
+        query = query.lt('created_at', cursorValue)
+      }
+    }
+
+    if (pagination.mode === 'offset') {
+      query = query.range(pagination.offset, pagination.offset + pagination.limit - 1)
+    } else {
+      query = query.limit(pagination.limit)
+    }
+
+    const { data: members, error, count } = await query
     
     if (error) {
       return NextResponse.json(
@@ -44,8 +58,13 @@ export async function GET(request: NextRequest) {
         { status: 500 }
       )
     }
+
+    const paginated = buildPaginatedResponse(members ?? [], pagination, count ?? undefined)
     
-    return NextResponse.json({ members })
+    return NextResponse.json({
+      members: paginated.data,
+      pagination: paginated.pagination,
+    })
   } catch {
     return NextResponse.json(
       { error: 'Internal server error' },
@@ -85,6 +104,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: 'Church context is required. Please select a church.' },
         { status: 400 }
+      )
+    }
+
+    const memberLimit = await checkPlanLimit(church_id, 'members')
+    if (!memberLimit.allowed) {
+      return NextResponse.json(
+        {
+          error: memberLimit.message ?? 'Member limit reached for your plan',
+          code: 'PLAN_LIMIT_EXCEEDED',
+          planId: memberLimit.planId,
+          usage: memberLimit.usage,
+          limit: memberLimit.limit,
+        },
+        { status: 402 }
       )
     }
     

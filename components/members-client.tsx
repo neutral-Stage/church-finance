@@ -1,17 +1,19 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { createAuthenticatedClient } from '@/lib/supabase'
 import { useChurch } from '@/contexts/ChurchContext'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
-import { Plus, Edit, Trash2, Phone, MapPin, Briefcase, Users } from 'lucide-react'
+import { Plus, Edit, Trash2, Phone, MapPin, Briefcase, Users, Upload } from 'lucide-react'
+import { ImportDialog } from '@/components/import-dialog'
 import { AnimatedCounter } from '@/components/ui/animated-counter'
 import type { Member } from '@/lib/server-data'
 import type { RealtimeChannel } from '@supabase/supabase-js'
@@ -48,31 +50,44 @@ export function MembersClient({ initialData, permissions }: MembersClientProps) 
     location: ''
   })
   const [submitting, setSubmitting] = useState(false)
+  const [importOpen, setImportOpen] = useState(false)
 
-  const fetchMembers = useCallback(async () => {
-    try {
-      // Build URL with church_id if available
+  const queryClient = useQueryClient()
+
+  const membersQueryKey = useMemo(
+    () => ['members', selectedChurch?.id ?? 'all'] as const,
+    [selectedChurch?.id]
+  )
+
+  const { data: queriedMembers } = useQuery({
+    queryKey: membersQueryKey,
+    queryFn: async () => {
       const url = selectedChurch ? `/api/members?church_id=${selectedChurch.id}` : '/api/members'
-
       const response = await fetch(url, {
         method: 'GET',
         credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json'
-        }
+        headers: { 'Content-Type': 'application/json' },
       })
-      
       if (!response.ok) {
         const errorData = await response.json()
         throw new Error(errorData.error || 'Failed to fetch members')
       }
-      
       const data = await response.json()
-      setMembers(data.members || [])
-    } catch {
-      toast.error('Failed to load members')
+      return (data.members || []) as Member[]
+    },
+    initialData: initialData,
+    enabled: Boolean(selectedChurch),
+  })
+
+  useEffect(() => {
+    if (queriedMembers) {
+      setMembers(queriedMembers)
     }
-  }, [selectedChurch])
+  }, [queriedMembers])
+
+  const fetchMembers = useCallback(async () => {
+    await queryClient.invalidateQueries({ queryKey: membersQueryKey })
+  }, [queryClient, membersQueryKey])
 
   // Set up real-time subscription only for updates
   useEffect(() => {
@@ -239,91 +254,88 @@ export function MembersClient({ initialData, permissions }: MembersClientProps) 
   )
 
   return (
-    <div className="min-h-screen relative overflow-hidden">
-      {/* Background Animation */}
-      <div className="absolute inset-0">
-        <div className="absolute top-20 left-20 w-72 h-72 bg-white/10 rounded-full blur-3xl animate-pulse" style={{animationDelay: '0s'}}></div>
-        <div className="absolute top-40 right-32 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl animate-pulse" style={{animationDelay: '2s'}}></div>
-        <div className="absolute bottom-32 left-1/3 w-80 h-80 bg-purple-500/10 rounded-full blur-3xl animate-pulse" style={{animationDelay: '4s'}}></div>
-        <div className="absolute bottom-20 right-20 w-64 h-64 bg-green-500/10 rounded-full blur-3xl animate-pulse" style={{animationDelay: '1s'}}></div>
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[32rem] h-[32rem] bg-gradient-to-r from-blue-500/5 to-purple-500/5 rounded-full blur-3xl animate-pulse" style={{animationDelay: '3s'}}></div>
-      </div>
-      
-      <div className="relative z-10 container mx-auto p-6 space-y-6">
+    <div className="min-h-screen bg-background">
+      <div className="container mx-auto p-6 space-y-6">
         <div className="flex justify-between items-center animate-fade-in">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent">
+            <h1 className="text-3xl font-bold tracking-tight text-foreground">
               Members Management
             </h1>
-            <p className="text-white/70">
+            <p className="text-muted-foreground">
               Manage brothers and sisters database with personal information
             </p>
           </div>
           {permissions.canEdit && (
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setImportOpen(true)}>
+                <Upload className="mr-2 h-4 w-4" />
+                Import CSV
+              </Button>
             <Button 
               onClick={openAddDialog}
-              className="glass-button hover:scale-105 transition-all duration-300"
+              className="hover:scale-105 transition-all duration-300"
             >
               <Plus className="mr-2 h-4 w-4" />
               Add Member
             </Button>
+            </div>
           )}
         </div>
 
         {/* Stats Cards */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <div className="glass-card hover:scale-105 transition-all duration-300 animate-fade-in animate-slide-in-from-bottom-4" style={{animationDelay: '0.1s'}}>
+          <Card className="hover:scale-105 transition-all duration-300 animate-fade-in animate-slide-in-from-bottom-4" style={{animationDelay: '0.1s'}}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-white/90">Total Members</CardTitle>
-              <div className="p-2 bg-blue-500/20 backdrop-blur-sm rounded-lg">
-                <Users className="h-4 w-4 text-blue-400" />
+              <CardTitle className="text-sm font-medium text-muted-foreground">Total Members</CardTitle>
+              <div className="p-2 bg-primary/15 rounded-lg">
+                <Users className="h-4 w-4 text-primary" />
               </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold bg-gradient-to-r from-white to-blue-200 bg-clip-text text-transparent">
+              <div className="text-2xl font-bold text-foreground">
                 <AnimatedCounter value={members.length} />
               </div>
             </CardContent>
-          </div>
-          <div className="glass-card hover:scale-105 transition-all duration-300 animate-fade-in animate-slide-in-from-bottom-4" style={{animationDelay: '0.2s'}}>
+          </Card>
+          <Card className="hover:scale-105 transition-all duration-300 animate-fade-in animate-slide-in-from-bottom-4" style={{animationDelay: '0.2s'}}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-white/90">Fellowships</CardTitle>
-              <div className="p-2 bg-green-500/20 backdrop-blur-sm rounded-lg">
-                <Users className="h-4 w-4 text-green-400" />
+              <CardTitle className="text-sm font-medium text-muted-foreground">Fellowships</CardTitle>
+              <div className="p-2 bg-income/15 rounded-lg">
+                <Users className="h-4 w-4 text-income" />
               </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold bg-gradient-to-r from-white to-green-200 bg-clip-text text-transparent">
+              <div className="text-2xl font-bold text-foreground">
                 <AnimatedCounter value={new Set(members.filter(m => m.fellowship_name).map(m => m.fellowship_name)).size} />
               </div>
             </CardContent>
-          </div>
-          <div className="glass-card hover:scale-105 transition-all duration-300 animate-fade-in animate-slide-in-from-bottom-4" style={{animationDelay: '0.3s'}}>
+          </Card>
+          <Card className="hover:scale-105 transition-all duration-300 animate-fade-in animate-slide-in-from-bottom-4" style={{animationDelay: '0.3s'}}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-white/90">With Phone</CardTitle>
-              <div className="p-2 bg-purple-500/20 backdrop-blur-sm rounded-lg">
-                <Phone className="h-4 w-4 text-purple-400" />
+              <CardTitle className="text-sm font-medium text-muted-foreground">With Phone</CardTitle>
+              <div className="p-2 bg-purple-500/15 rounded-lg">
+                <Phone className="h-4 w-4 text-purple-700 dark:text-purple-300" />
               </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold bg-gradient-to-r from-white to-purple-200 bg-clip-text text-transparent">
+              <div className="text-2xl font-bold text-foreground">
                 <AnimatedCounter value={members.filter(m => m.phone).length} />
               </div>
             </CardContent>
-          </div>
-          <div className="glass-card hover:scale-105 transition-all duration-300 animate-fade-in animate-slide-in-from-bottom-4" style={{animationDelay: '0.4s'}}>
+          </Card>
+          <Card className="hover:scale-105 transition-all duration-300 animate-fade-in animate-slide-in-from-bottom-4" style={{animationDelay: '0.4s'}}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-white/90">With Jobs</CardTitle>
-              <div className="p-2 bg-orange-500/20 backdrop-blur-sm rounded-lg">
-                <Briefcase className="h-4 w-4 text-orange-400" />
+              <CardTitle className="text-sm font-medium text-muted-foreground">With Jobs</CardTitle>
+              <div className="p-2 bg-pending/15 rounded-lg">
+                <Briefcase className="h-4 w-4 text-pending" />
               </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold bg-gradient-to-r from-white to-orange-200 bg-clip-text text-transparent">
+              <div className="text-2xl font-bold text-foreground">
                 <AnimatedCounter value={members.filter(m => m.job).length} />
               </div>
             </CardContent>
-          </div>
+          </Card>
         </div>
 
         {/* Search */}
@@ -332,69 +344,69 @@ export function MembersClient({ initialData, permissions }: MembersClientProps) 
             placeholder="Search members by name, fellowship, or job..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="max-w-sm glass-input"
+            className="max-w-sm"
           />
         </div>
 
         {/* Members Table */}
-        <div className="glass-card animate-fade-in animate-slide-in-from-bottom-4" style={{animationDelay: '0.6s'}}>
+        <Card className="animate-fade-in animate-slide-in-from-bottom-4" style={{animationDelay: '0.6s'}}>
           <CardHeader>
-            <CardTitle className="text-white/90">Members List</CardTitle>
-            <CardDescription className="text-white/60">
+            <CardTitle>Members List</CardTitle>
+            <CardDescription>
               A list of all brothers and sisters with their personal information
             </CardDescription>
           </CardHeader>
           <CardContent>
             <Table>
               <TableHeader>
-                <TableRow className="border-white/10 hover:bg-white/5">
-                  <TableHead className="text-white/80">Name</TableHead>
-                  <TableHead className="text-white/80">Phone</TableHead>
-                  <TableHead className="text-white/80">Fellowship</TableHead>
-                  <TableHead className="text-white/80">Job</TableHead>
-                  <TableHead className="text-white/80">Location</TableHead>
-                  {(permissions.canEdit || permissions.canDelete) && <TableHead className="text-white/80">Actions</TableHead>}
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Phone</TableHead>
+                  <TableHead>Fellowship</TableHead>
+                  <TableHead>Job</TableHead>
+                  <TableHead>Location</TableHead>
+                  {(permissions.canEdit || permissions.canDelete) && <TableHead>Actions</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredMembers.map((member) => (
-                  <TableRow key={member.id} className="border-white/10 hover:bg-white/5 transition-colors">
-                    <TableCell className="font-medium text-white/90">{member.name}</TableCell>
+                  <TableRow key={member.id} className="transition-colors">
+                    <TableCell className="font-medium text-foreground">{member.name}</TableCell>
                     <TableCell>
                       {member.phone ? (
-                        <div className="flex items-center text-white/80">
+                        <div className="flex items-center text-muted-foreground">
                           <Phone className="mr-1 h-3 w-3" />
                           {member.phone}
                         </div>
                       ) : (
-                        <span className="text-white/40">-</span>
+                        <span className="text-muted-foreground">-</span>
                       )}
                     </TableCell>
                     <TableCell>
                       {member.fellowship_name ? (
-                        <Badge variant="secondary" className="bg-white/10 text-white/90 border-white/20">{member.fellowship_name}</Badge>
+                        <Badge variant="secondary">{member.fellowship_name}</Badge>
                       ) : (
-                        <span className="text-white/40">-</span>
+                        <span className="text-muted-foreground">-</span>
                       )}
                     </TableCell>
                     <TableCell>
                       {member.job ? (
-                        <div className="flex items-center text-white/80">
+                        <div className="flex items-center text-muted-foreground">
                           <Briefcase className="mr-1 h-3 w-3" />
                           {member.job}
                         </div>
                       ) : (
-                        <span className="text-white/40">-</span>
+                        <span className="text-muted-foreground">-</span>
                       )}
                     </TableCell>
                     <TableCell>
                       {member.location ? (
-                        <div className="flex items-center text-white/80">
+                        <div className="flex items-center text-muted-foreground">
                           <MapPin className="mr-1 h-3 w-3" />
                           {member.location}
                         </div>
                       ) : (
-                        <span className="text-white/40">-</span>
+                        <span className="text-muted-foreground">-</span>
                       )}
                     </TableCell>
                     {(permissions.canEdit || permissions.canDelete) && (
@@ -405,7 +417,8 @@ export function MembersClient({ initialData, permissions }: MembersClientProps) 
                               variant="outline"
                               size="sm"
                               onClick={() => handleEdit(member)}
-                              className="glass-button-outline hover:scale-105 transition-all duration-300"
+                              aria-label={`Edit ${member.name}`}
+                              className="hover:scale-105 transition-all duration-300"
                             >
                               <Edit className="h-3 w-3" />
                             </Button>
@@ -415,7 +428,8 @@ export function MembersClient({ initialData, permissions }: MembersClientProps) 
                               variant="outline"
                               size="sm"
                               onClick={() => handleDelete(member)}
-                              className="glass-button-outline hover:scale-105 transition-all duration-300 hover:bg-red-500/20"
+                              aria-label={`Delete ${member.name}`}
+                              className="hover:scale-105 transition-all duration-300 text-destructive hover:bg-destructive/10 hover:text-destructive"
                             >
                               <Trash2 className="h-3 w-3" />
                             </Button>
@@ -428,71 +442,66 @@ export function MembersClient({ initialData, permissions }: MembersClientProps) 
               </TableBody>
             </Table>
             {filteredMembers.length === 0 && (
-              <div className="text-center py-8 text-white/60">
+              <div className="text-center py-8 text-muted-foreground">
                 No members found
               </div>
             )}
           </CardContent>
-        </div>
+        </Card>
 
         {/* Add/Edit Member Dialog */}
         {permissions.canEdit && (
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogContent className="sm:max-w-[425px]">
               <DialogHeader>
-                <DialogTitle className="text-white/90">
+                <DialogTitle>
                   {editingMember ? 'Edit Member' : 'Add New Member'}
                 </DialogTitle>
-                <DialogDescription className="text-white/60">
+                <DialogDescription>
                   {editingMember ? 'Update member information' : 'Add a new brother or sister to the database'}
                 </DialogDescription>
               </DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="name" className="text-white/90">Name *</Label>
+                  <Label htmlFor="name">Name *</Label>
                   <Input
                     id="name"
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     required
-                    className="glass-input"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="phone" className="text-white/90">Phone</Label>
+                  <Label htmlFor="phone">Phone</Label>
                   <Input
                     id="phone"
                     value={formData.phone}
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                     placeholder="+8801XXXXXXXXX"
-                    className="glass-input"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="fellowship_name" className="text-white/90">Fellowship/Church Name</Label>
+                  <Label htmlFor="fellowship_name">Fellowship/Church Name</Label>
                   <Input
                     id="fellowship_name"
                     value={formData.fellowship_name}
                     onChange={(e) => setFormData({ ...formData, fellowship_name: e.target.value })}
-                    className="glass-input"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="job" className="text-white/90">Job/Occupation</Label>
+                  <Label htmlFor="job">Job/Occupation</Label>
                   <Input
                     id="job"
                     value={formData.job}
                     onChange={(e) => setFormData({ ...formData, job: e.target.value })}
-                    className="glass-input"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="location" className="text-white/90">Location</Label>
+                  <Label htmlFor="location">Location</Label>
                   <Input
                     id="location"
                     value={formData.location}
                     onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                    className="glass-input"
                   />
                 </div>
                 <div className="flex justify-end space-x-2">
@@ -500,13 +509,11 @@ export function MembersClient({ initialData, permissions }: MembersClientProps) 
                     type="button" 
                     variant="outline" 
                     onClick={() => setIsDialogOpen(false)}
-                    className="glass-button-outline"
                   >
                     Cancel
                   </Button>
                   <Button 
                     type="submit"
-                    className="glass-button"
                     disabled={submitting}
                   >
                     {submitting ? 'Saving...' : editingMember ? 'Update' : 'Add'} Member
@@ -515,6 +522,16 @@ export function MembersClient({ initialData, permissions }: MembersClientProps) 
               </form>
             </DialogContent>
           </Dialog>
+        )}
+        {selectedChurch?.id && (
+          <ImportDialog
+            open={importOpen}
+            onOpenChange={setImportOpen}
+            importType="members"
+            churchId={selectedChurch.id}
+            memberMode="direct"
+            onSuccess={fetchMembers}
+          />
         )}
       </div>
     </div>

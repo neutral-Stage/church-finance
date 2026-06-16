@@ -179,15 +179,14 @@ export default function NotificationsDropdown({ className }: NotificationsDropdo
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="sm" className={`relative text-white/70 hover:text-white hover:bg-white/10 hover:scale-105 transition-all duration-300 ${className}`}>
+        <Button variant="ghost" size="icon" className={`relative ${className}`}>
           <div className="relative">
             <Bell className="h-5 w-5" />
             {unreadCount > 0 && (
               <div className="absolute -top-1 -right-1">
-                <div className="absolute inset-0 bg-red-400/30 rounded-full blur-sm animate-pulse" />
                 <Badge
                   variant="destructive"
-                  className="relative h-5 w-5 p-0 flex items-center justify-center text-xs bg-gradient-to-br from-red-500 to-red-600 font-semibold border border-red-400/30 backdrop-blur-sm"
+                  className="relative h-5 w-5 p-0 flex items-center justify-center text-xs font-semibold"
                 >
                   {unreadCount > 9 ? '9+' : unreadCount}
                 </Badge>
@@ -199,19 +198,16 @@ export default function NotificationsDropdown({ className }: NotificationsDropdo
 
       <DropdownMenuContent
         align="end"
-        className="w-80 glass-card-dark border-white/10 p-0 max-h-96 backdrop-blur-xl shadow-2xl"
+        className="w-80 p-0 max-h-96"
         sideOffset={8}
       >
-        <div className="p-4 border-b border-white/10 bg-gradient-to-r from-white/5 to-white/10">
+        <div className="p-4 border-b border-border bg-muted/40">
           <div className="flex items-center justify-between">
             <div className="flex items-center">
-              <div className="relative mr-3">
-                <div className="absolute inset-0 bg-blue-400/20 rounded-full blur-md" />
-                <div className="relative bg-blue-400/10 p-2 rounded-full backdrop-blur-sm border border-blue-400/20">
-                  <Bell className="h-4 w-4 text-blue-400" />
-                </div>
+              <div className="mr-3 bg-primary/10 p-2 rounded-full border border-primary/20">
+                <Bell className="h-4 w-4 text-primary" />
               </div>
-              <h3 className="text-white font-semibold">Notifications</h3>
+              <h3 className="text-foreground font-semibold">Notifications</h3>
             </div>
             <div className="flex items-center space-x-2">
               {unreadCount > 0 && (
@@ -219,12 +215,12 @@ export default function NotificationsDropdown({ className }: NotificationsDropdo
                   variant="ghost"
                   size="sm"
                   onClick={markAllAsRead}
-                  className="text-xs text-white/70 hover:text-white hover:bg-white/10 h-6 px-2 hover:scale-105 transition-all duration-300"
+                  className="text-xs h-6 px-2"
                 >
                   Mark all read
                 </Button>
               )}
-              <Badge variant="secondary" className="bg-transparent border border-white/20 text-white/80 backdrop-blur-sm">
+              <Badge variant="outline">
                 {unreadCount} new
               </Badge>
             </div>
@@ -234,37 +230,31 @@ export default function NotificationsDropdown({ className }: NotificationsDropdo
         <div className="max-h-80 overflow-y-auto">
           {loading ? (
             <div className="flex items-center justify-center py-8">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-400"></div>
-              <span className="ml-2 text-white/70 text-sm">Loading...</span>
+              <div className="animate-spin rounded-full h-6 w-6 border-2 border-muted border-t-primary"></div>
+              <span className="ml-2 text-muted-foreground text-sm">Loading...</span>
             </div>
           ) : error ? (
-            <div className="text-center py-8">
-              <div className="relative mb-4">
-                <div className="absolute inset-0 bg-red-500/20 rounded-full blur-xl" />
-                <X className="relative h-12 w-12 text-red-400 mx-auto" />
-              </div>
-              <p className="text-red-400 font-medium">Error loading notifications</p>
-              <p className="text-white/50 text-sm mt-1">{error}</p>
+            <div className="text-center py-8 px-4">
+              <X className="h-12 w-12 text-destructive mx-auto mb-4" />
+              <p className="text-destructive font-medium">Error loading notifications</p>
+              <p className="text-muted-foreground text-sm mt-1">{error}</p>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => { setError(null); loadNotifications(); }}
-                className="mt-3 text-xs text-white/70 hover:text-white hover:bg-white/10"
+                className="mt-3 text-xs"
               >
                 Try again
               </Button>
             </div>
           ) : notifications.length === 0 ? (
             <div className="text-center py-8">
-              <div className="relative mb-4">
-                <div className="absolute inset-0 bg-white/10 rounded-full blur-xl" />
-                <Bell className="relative h-12 w-12 text-white/30 mx-auto" />
-              </div>
-              <p className="text-white/70 font-medium">No notifications</p>
-              <p className="text-white/50 text-sm mt-1">You&apos;re all caught up!</p>
+              <Bell className="h-12 w-12 text-muted-foreground/40 mx-auto mb-4" />
+              <p className="text-foreground font-medium">No notifications</p>
+              <p className="text-muted-foreground text-sm mt-1">You&apos;re all caught up!</p>
             </div>
           ) : (
-            <div className="divide-y divide-white/5">
+            <div className="divide-y divide-border">
               {notifications.map((notification) => {
                 const Icon = notificationIcons[notification.category] || Bell
                 const categoryColor = categoryColors[notification.category] || 'bg-gray-500'
@@ -272,7 +262,7 @@ export default function NotificationsDropdown({ className }: NotificationsDropdo
                 return (
                   <div
                     key={notification.id}
-                    className={`group p-4 hover:bg-white/10 transition-all duration-300 cursor-pointer relative overflow-hidden ${!notification.read ? 'bg-blue-500/10 border-l-2 border-blue-400/50' : 'hover:scale-[1.01]'
+                    className={`group p-4 hover:bg-accent transition-colors cursor-pointer relative ${!notification.read ? 'bg-primary/5 border-l-2 border-primary/50' : ''
                       }`}
                     onClick={() => {
                       if (!notification.read) {
@@ -284,36 +274,27 @@ export default function NotificationsDropdown({ className }: NotificationsDropdo
                       }
                     }}
                   >
-                    {!notification.read && (
-                      <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-blue-400 to-purple-400" />
-                    )}
                     <div className="flex items-start space-x-3">
-                      <div className={`relative p-2 rounded-full ${categoryColor} flex-shrink-0 backdrop-blur-sm border border-white/20 transition-all duration-300`}>
-                        <div className={`absolute inset-0 rounded-full blur-md ${categoryColor?.replace?.('bg-', 'bg-')?.replace?.('-500', '-400/20') || 'bg-gray-400/20'}`} />
-                        <div className="relative">
-                          <Icon className="h-4 w-4 text-white" />
-                        </div>
+                      <div className={`p-2 rounded-full ${categoryColor} flex-shrink-0`}>
+                        <Icon className="h-4 w-4 text-white" />
                       </div>
 
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
-                            <h4 className={`text-sm font-semibold transition-colors ${!notification.read ? 'text-white group-hover:text-white' : 'text-white/80 group-hover:text-white/90'}`}>
+                            <h4 className={`text-sm font-semibold ${!notification.read ? 'text-foreground' : 'text-foreground/80'}`}>
                               {notification.title}
                             </h4>
-                            <p className={`text-sm mt-1 transition-colors ${!notification.read ? 'text-white/80 group-hover:text-white/90' : 'text-white/60 group-hover:text-white/70'}`}>
+                            <p className="text-sm mt-1 text-muted-foreground">
                               {notification.message}
                             </p>
-                            <p className="text-xs text-white/50 mt-2 font-medium">
+                            <p className="text-xs text-muted-foreground mt-2 font-medium">
                               {formatDistanceToNow(new Date(notification.created_at), { addSuffix: true })}
                             </p>
                             {!notification.read && (
                               <div className="flex items-center mt-2">
-                                <div className="relative">
-                                  <div className="absolute inset-0 bg-blue-400/30 rounded-full blur-sm animate-pulse" />
-                                  <div className="relative w-2 h-2 bg-blue-400 rounded-full"></div>
-                                </div>
-                                <span className="ml-2 text-blue-400 text-xs font-medium">New</span>
+                                <div className="w-2 h-2 bg-primary rounded-full"></div>
+                                <span className="ml-2 text-primary text-xs font-medium">New</span>
                               </div>
                             )}
                           </div>
@@ -323,17 +304,17 @@ export default function NotificationsDropdown({ className }: NotificationsDropdo
                               <DropdownMenuTrigger asChild>
                                 <Button
                                   variant="ghost"
-                                  size="sm"
-                                  className="h-6 w-6 p-0 text-white/50 hover:text-white hover:bg-white/10 hover:scale-110 transition-all duration-300"
+                                  size="icon"
+                                  className="h-6 w-6"
                                   onClick={(e) => e.stopPropagation()}
                                 >
                                   <MoreHorizontal className="h-3 w-3" />
                                 </Button>
                               </DropdownMenuTrigger>
-                              <DropdownMenuContent className="glass-card-dark border-white/20">
+                              <DropdownMenuContent>
                                 {!notification.read && (
                                   <button
-                                    className="w-full px-3 py-2 text-left text-sm text-white/80 hover:bg-white/10 flex items-center transition-colors"
+                                    className="w-full px-3 py-2 text-left text-sm text-popover-foreground hover:bg-accent flex items-center transition-colors rounded-sm"
                                     onClick={(e) => {
                                       e.stopPropagation()
                                       markAsRead(notification.id)
@@ -344,7 +325,7 @@ export default function NotificationsDropdown({ className }: NotificationsDropdo
                                   </button>
                                 )}
                                 <button
-                                  className="w-full px-3 py-2 text-left text-sm text-red-400 hover:bg-white/10 flex items-center transition-colors"
+                                  className="w-full px-3 py-2 text-left text-sm text-destructive hover:bg-accent flex items-center transition-colors rounded-sm"
                                   onClick={(e) => {
                                     e.stopPropagation()
                                     deleteNotification(notification.id)
@@ -359,7 +340,6 @@ export default function NotificationsDropdown({ className }: NotificationsDropdo
                         </div>
                       </div>
                     </div>
-                    <div className="absolute inset-0 bg-gradient-to-r from-white/5 to-white/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                   </div>
                 )
               })}
@@ -368,11 +348,11 @@ export default function NotificationsDropdown({ className }: NotificationsDropdo
         </div>
 
         {notifications.length > 0 && (
-          <div className="p-3 border-t border-white/10 bg-gradient-to-r from-white/5 to-white/10">
+          <div className="p-3 border-t border-border bg-muted/40">
             <Button
-              variant="ghost"
+              variant="outline"
               size="sm"
-              className="w-full text-white/70 hover:text-white hover:bg-white/10 text-sm font-medium hover:scale-105 transition-all duration-300 backdrop-blur-sm border border-white/10 hover:border-white/20"
+              className="w-full text-sm font-medium"
               onClick={() => window.location.href = '/notifications'}
             >
               <div className="flex items-center justify-center">

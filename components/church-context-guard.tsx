@@ -27,8 +27,8 @@ export function ChurchContextGuard({
     return (
       <div className="flex items-center justify-center min-h-[200px]">
         <div className="flex items-center space-x-2">
-          <Loader2 className="w-6 h-6 animate-spin text-blue-500" />
-          <span className="text-lg text-gray-600">Loading church context...</span>
+          <Loader2 className="w-6 h-6 animate-spin text-primary" />
+          <span className="text-lg text-muted-foreground">Loading church context...</span>
         </div>
       </div>
     )
@@ -64,10 +64,10 @@ export function ChurchContextGuard({
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-muted-foreground">
               To access the church finance system, you need to be granted access to at least one church.
             </p>
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-muted-foreground">
               Please contact your church administrator to request access, or if you&apos;re an administrator,
               you may need to set up your church first.
             </p>
@@ -92,7 +92,7 @@ export function ChurchContextGuard({
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-muted-foreground">
               You have access to {availableChurches.length} church{availableChurches.length !== 1 ? 'es' : ''}.
               Please select a church to continue.
             </p>

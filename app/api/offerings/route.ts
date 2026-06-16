@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient, createAdminClient } from '@/lib/supabase-server';
 import { retrySupabaseQuery, logNetworkError } from '@/lib/retry-utils';
+import { logAuditEvent, auditFinancialMutation } from '@/lib/audit';
 
 // Force dynamic rendering since this route uses cookies for authentication
 export const dynamic = 'force-dynamic';
@@ -257,6 +258,17 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    await auditFinancialMutation(adminSupabase as never, {
+      churchId: church_id,
+      userId: user.id,
+      action: 'create',
+      entityType: 'offering',
+      entityId: (offering as { id?: string })?.id ?? '',
+      newData: offering as Record<string, unknown>,
+      amount: parseFloat(amount),
+      transactionDate: service_date,
+    });
+
     return NextResponse.json({ offering }, { status: 201 });
   } catch (error) {
     return NextResponse.json(
@@ -380,6 +392,18 @@ export async function PUT(request: NextRequest) {
       }
     }
 
+    await auditFinancialMutation(adminSupabase as never, {
+      churchId: (currentOffering as { church_id?: string }).church_id ?? null,
+      userId: user.id,
+      action: 'update',
+      entityType: 'offering',
+      entityId: id,
+      oldData: currentOffering as Record<string, unknown>,
+      newData: offering as Record<string, unknown>,
+      amount: amount !== undefined ? parseFloat(amount) : Number((currentOffering as { amount?: number }).amount),
+      transactionDate: service_date || (currentOffering as { service_date?: string }).service_date,
+    });
+
     return NextResponse.json({ offering });
   } catch {
     return NextResponse.json(
@@ -393,8 +417,14 @@ export async function PUT(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
     const supabase = await createServerClient();
+    const adminSupabase = createAdminClient();
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+    }
 
     if (!id) {
       return NextResponse.json(
@@ -461,6 +491,17 @@ export async function DELETE(request: NextRequest) {
         }
       }
     }
+
+    await auditFinancialMutation(adminSupabase as never, {
+      churchId: (offering as { church_id?: string }).church_id ?? null,
+      userId: user.id,
+      action: 'delete',
+      entityType: 'offering',
+      entityId: id,
+      oldData: offering as Record<string, unknown>,
+      amount: Number((offering as { amount?: number }).amount),
+      transactionDate: (offering as { service_date?: string }).service_date,
+    });
 
     return NextResponse.json({ message: 'Offering deleted successfully' });
   } catch {

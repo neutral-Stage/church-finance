@@ -4,36 +4,36 @@ import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '@/lib/utils';
 
 const glassButtonVariants = cva(
-  'inline-flex items-center justify-center whitespace-nowrap rounded-lg text-sm font-medium ring-offset-background transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 backdrop-blur-xl border active:scale-95',
+  'inline-flex items-center justify-center whitespace-nowrap rounded-lg text-sm font-medium ring-offset-background transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border',
   {
     variants: {
       variant: {
         default:
-          'bg-white/10 text-white border-white/20 hover:bg-white/20 hover:border-white/30 shadow-lg hover:shadow-xl',
+          'bg-secondary text-secondary-foreground border-border hover:bg-accent shadow-sm',
         primary:
-          'bg-primary/20 text-white border-primary/30 hover:bg-primary/30 hover:border-primary/40 shadow-lg shadow-primary/20 hover:shadow-primary/30',
+          'bg-primary text-primary-foreground border-transparent hover:bg-primary/90 shadow-sm',
         secondary:
-          'bg-secondary/20 text-white border-secondary/30 hover:bg-secondary/30 hover:border-secondary/40 shadow-lg shadow-secondary/20',
+          'bg-secondary text-secondary-foreground border-border hover:bg-secondary/80 shadow-sm',
         success:
-          'bg-green-500/20 text-white border-green-500/30 hover:bg-green-500/30 hover:border-green-500/40 shadow-lg shadow-green-500/20',
+          'bg-income text-income-foreground border-transparent hover:bg-income/90 shadow-sm',
         warning:
-          'bg-yellow-500/20 text-white border-yellow-500/30 hover:bg-yellow-500/30 hover:border-yellow-500/40 shadow-lg shadow-yellow-500/20',
+          'bg-pending text-pending-foreground border-transparent hover:bg-pending/90 shadow-sm',
         error:
-          'bg-red-500/20 text-white border-red-500/30 hover:bg-red-500/30 hover:border-red-500/40 shadow-lg shadow-red-500/20',
+          'bg-destructive text-destructive-foreground border-transparent hover:bg-destructive/90 shadow-sm',
         info:
-          'bg-blue-500/20 text-white border-blue-500/30 hover:bg-blue-500/30 hover:border-blue-500/40 shadow-lg shadow-blue-500/20',
+          'bg-primary text-primary-foreground border-transparent hover:bg-primary/90 shadow-sm',
         outline:
-          'border-white/30 text-white hover:bg-white/10 hover:border-white/40 shadow-lg',
+          'border-border bg-background text-foreground hover:bg-accent hover:text-accent-foreground',
         ghost:
-          'text-white hover:bg-white/10 border-transparent hover:border-white/20',
+          'text-foreground hover:bg-accent hover:text-accent-foreground border-transparent',
         link:
-          'text-white underline-offset-4 hover:underline border-transparent',
+          'text-primary underline-offset-4 hover:underline border-transparent',
         gradient:
-          'bg-gradient-to-r from-primary/20 to-secondary/20 text-white border-primary/30 hover:from-primary/30 hover:to-secondary/30 shadow-lg shadow-primary/20',
+          'bg-primary text-primary-foreground border-transparent hover:bg-primary/90 shadow-sm',
         transaction:
-          'relative overflow-hidden bg-gradient-to-r from-blue-500/20 via-cyan-500/15 to-blue-600/20 text-white border border-blue-400/30 hover:from-blue-500/30 hover:via-cyan-500/25 hover:to-blue-600/30 hover:border-blue-400/50 shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 backdrop-blur-2xl hover:backdrop-blur-3xl transition-all duration-500 hover:scale-105 before:absolute before:inset-0 before:bg-gradient-to-r before:from-transparent before:via-white/10 before:to-transparent before:translate-x-[-200%] hover:before:translate-x-[200%] before:transition-transform before:duration-1000 before:ease-out',
+          'bg-primary text-primary-foreground border-transparent hover:bg-primary/90 shadow-sm',
         offering:
-          'relative overflow-hidden bg-gradient-to-r from-green-500/20 via-emerald-500/15 to-green-600/20 text-white border border-green-400/30 hover:from-green-500/30 hover:via-emerald-500/25 hover:to-green-600/30 hover:border-green-400/50 shadow-lg shadow-green-500/25 hover:shadow-green-500/40 backdrop-blur-2xl hover:backdrop-blur-3xl transition-all duration-500 hover:scale-105 before:absolute before:inset-0 before:bg-gradient-to-r before:from-transparent before:via-white/10 before:to-transparent before:translate-x-[-200%] hover:before:translate-x-[200%] before:transition-transform before:duration-1000 before:ease-out',
+          'bg-income text-income-foreground border-transparent hover:bg-income/90 shadow-sm',
       },
       size: {
         sm: 'h-9 rounded-md px-3 text-xs',

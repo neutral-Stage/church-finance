@@ -1,9 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { GlassCard, GlassCardContent, GlassCardDescription, GlassCardHeader, GlassCardTitle, GlassCardFooter } from '@/components/ui/glass-card'
-import { GlassButton, GlassButtonGroup } from '@/components/ui/glass-button'
-import { GlassTable, GlassTableHeader, GlassTableBody, GlassTableRow, GlassTableHead, GlassTableCell, GlassTableEmpty, GlassTableLoading } from '@/components/ui/glass-table'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card'
+import { Button, } from '@/components/ui/button'
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -225,10 +225,10 @@ export default function RolesPage() {
   }
 
   const getRolePriorityColor = (roleName: string) => {
-    if (roleName.includes('super_admin')) return 'bg-red-500/20 text-red-300 border-red-500/30'
-    if (roleName.includes('admin')) return 'bg-orange-500/20 text-orange-300 border-orange-500/30'
-    if (roleName.includes('treasurer')) return 'bg-blue-500/20 text-blue-300 border-blue-500/30'
-    return 'bg-green-500/20 text-green-300 border-green-500/30'
+    if (roleName.includes('super_admin')) return 'bg-destructive/15 text-destructive border-destructive/30'
+    if (roleName.includes('admin')) return 'bg-orange-500/15 text-orange-700 dark:text-orange-300 border-orange-500/30'
+    if (roleName.includes('treasurer')) return 'bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/30'
+    return 'bg-income/15 text-income border-income/30'
   }
 
   const exportRolesReport = () => {
@@ -321,20 +321,20 @@ export default function RolesPage() {
       <div className="space-y-6">
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-3xl font-bold text-white">Role Management</h1>
-            <p className="text-white/70 mt-2">Create and manage user roles and permissions</p>
+            <h1 className="text-3xl font-bold text-foreground">Role Management</h1>
+            <p className="text-muted-foreground mt-2">Create and manage user roles and permissions</p>
           </div>
         </div>
 
         <div className="flex items-center justify-center py-16">
           <div className="flex flex-col items-center space-y-4">
             <div className="relative">
-              <div className="animate-spin rounded-full h-12 w-12 border-4 border-purple-400/30 border-t-purple-400"></div>
-              <Shield className="absolute inset-0 m-auto w-6 h-6 text-purple-400 animate-pulse" />
+              <div className="animate-spin rounded-full h-12 w-12 border-4 border-muted border-t-primary"></div>
+              <Shield className="absolute inset-0 m-auto w-6 h-6 text-primary animate-pulse" />
             </div>
             <div className="text-center">
-              <span className="text-white font-medium">Loading roles...</span>
-              <p className="text-white/60 text-sm mt-1">Fetching role definitions and permissions</p>
+              <span className="text-foreground font-medium">Loading roles...</span>
+              <p className="text-muted-foreground text-sm mt-1">Fetching role definitions and permissions</p>
             </div>
           </div>
         </div>
@@ -346,23 +346,23 @@ export default function RolesPage() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-white">Role Management</h1>
-          <p className="text-white/70 mt-2">Create and manage user roles and permissions</p>
+          <h1 className="text-3xl font-bold text-foreground">Role Management</h1>
+          <p className="text-muted-foreground mt-2">Create and manage user roles and permissions</p>
         </div>
 
         <div className="flex gap-2">
-          <GlassButton variant="primary" onClick={exportRolesReport}>
+          <Button onClick={exportRolesReport}>
             <Download className="w-4 h-4 mr-2" />
             Export Report
-          </GlassButton>
+          </Button>
           <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
             <DialogTrigger asChild>
-              <GlassButton onClick={resetForm} variant="success">
+              <Button onClick={resetForm} variant="secondary">
                 <Plus className="w-4 h-4 mr-2" />
                 Add Role
-              </GlassButton>
+              </Button>
             </DialogTrigger>
-            <DialogContent className="bg-slate-900/95 backdrop-blur-2xl border-white/20 text-white max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Create New Role</DialogTitle>
               <DialogDescription>
@@ -386,7 +386,6 @@ export default function RolesPage() {
                       })
                     }}
                     required
-                    className="bg-slate-700 border-slate-600"
                     placeholder="e.g., Financial Manager"
                   />
                 </div>
@@ -396,11 +395,11 @@ export default function RolesPage() {
                     id="name"
                     value={formData.name}
                     onChange={(e) => setFormData({...formData, name: e.target.value})}
-                    className="bg-slate-700 border-slate-600"
+                    className=""
                     placeholder="Auto-generated"
                     disabled
                   />
-                  <p className="text-xs text-gray-400 mt-1">Auto-generated from display name</p>
+                  <p className="text-xs text-muted-foreground mt-1">Auto-generated from display name</p>
                 </div>
               </div>
 
@@ -410,24 +409,24 @@ export default function RolesPage() {
                   id="description"
                   value={formData.description ?? ''}
                   onChange={(e) => setFormData({...formData, description: e.target.value})}
-                  className="bg-slate-700 border-slate-600"
+                  className=""
                   rows={3}
                   placeholder="Brief description of this role and its responsibilities"
                 />
               </div>
 
               <div>
-                <h3 className="text-lg font-semibold text-white mb-4">Permissions</h3>
+                <h3 className="text-lg font-semibold text-foreground mb-4">Permissions</h3>
                 <div className="space-y-4">
                   {PERMISSION_RESOURCES.map((resource) => (
-                    <GlassCard key={resource.key} variant="default">
-                      <GlassCardHeader className="pb-3">
-                        <GlassCardTitle className="text-sm">{resource.label}</GlassCardTitle>
-                        <GlassCardDescription className="text-xs">
+                    <Card key={resource.key}>
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-sm">{resource.label}</CardTitle>
+                        <CardDescription className="text-xs">
                           {resource.description}
-                        </GlassCardDescription>
-                      </GlassCardHeader>
-                      <GlassCardContent>
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent>
                         <div className="grid grid-cols-4 gap-4">
                           {PERMISSION_ACTIONS.map((action) => (
                             <div key={action.key} className="flex items-center space-x-2">
@@ -438,7 +437,7 @@ export default function RolesPage() {
                               />
                               <Label 
                                 htmlFor={`${resource.key}-${action.key}`}
-                                className="text-sm text-gray-300 cursor-pointer"
+                                className="text-sm text-muted-foreground cursor-pointer"
                                 title={action.description}
                               >
                                 {action.label}
@@ -446,8 +445,8 @@ export default function RolesPage() {
                             </div>
                           ))}
                         </div>
-                      </GlassCardContent>
-                    </GlassCard>
+                      </CardContent>
+                    </Card>
                   ))}
                 </div>
               </div>
@@ -459,12 +458,12 @@ export default function RolesPage() {
               )}
 
               <div className="flex gap-2 pt-4">
-                <GlassButton type="submit" variant="success">
+                <Button type="submit">
                   Create Role
-                </GlassButton>
-                <GlassButton type="button" variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
+                </Button>
+                <Button type="button" variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
                   Cancel
-                </GlassButton>
+                </Button>
               </div>
             </form>
           </DialogContent>
@@ -474,111 +473,111 @@ export default function RolesPage() {
 
       {/* System Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <GlassCard variant="primary">
-          <GlassCardContent className="flex items-center justify-between p-4">
+        <Card>
+          <CardContent className="flex items-center justify-between p-4">
             <div>
-              <p className="text-white/70 text-sm">Total Roles</p>
-              <p className="text-2xl font-bold text-white">{summary.totalRoles}</p>
-              <p className="text-xs text-purple-400">{summary.activeRoles} active</p>
+              <p className="text-muted-foreground text-sm">Total Roles</p>
+              <p className="text-2xl font-bold text-foreground">{summary.totalRoles}</p>
+              <p className="text-xs text-primary">{summary.activeRoles} active</p>
             </div>
-            <Shield className="w-8 h-8 text-purple-400" />
-          </GlassCardContent>
-        </GlassCard>
+            <Shield className="w-8 h-8 text-primary" />
+          </CardContent>
+        </Card>
 
-        <GlassCard variant="info">
-          <GlassCardContent className="flex items-center justify-between p-4">
+        <Card>
+          <CardContent className="flex items-center justify-between p-4">
             <div>
-              <p className="text-white/70 text-sm">System Roles</p>
-              <p className="text-2xl font-bold text-white">{summary.systemRoles}</p>
-              <p className="text-xs text-blue-400">Built-in</p>
+              <p className="text-muted-foreground text-sm">System Roles</p>
+              <p className="text-2xl font-bold text-foreground">{summary.systemRoles}</p>
+              <p className="text-xs text-primary">Built-in</p>
             </div>
-            <Crown className="w-8 h-8 text-blue-400" />
-          </GlassCardContent>
-        </GlassCard>
+            <Crown className="w-8 h-8 text-primary" />
+          </CardContent>
+        </Card>
 
-        <GlassCard variant="success">
-          <GlassCardContent className="flex items-center justify-between p-4">
+        <Card>
+          <CardContent className="flex items-center justify-between p-4">
             <div>
-              <p className="text-white/70 text-sm">Custom Roles</p>
-              <p className="text-2xl font-bold text-white">{summary.customRoles}</p>
-              <p className="text-xs text-green-400">User-defined</p>
+              <p className="text-muted-foreground text-sm">Custom Roles</p>
+              <p className="text-2xl font-bold text-foreground">{summary.customRoles}</p>
+              <p className="text-xs text-income">User-defined</p>
             </div>
-            <Users className="w-8 h-8 text-green-400" />
-          </GlassCardContent>
-        </GlassCard>
+            <Users className="w-8 h-8 text-income" />
+          </CardContent>
+        </Card>
 
-        <GlassCard variant="warning">
-          <GlassCardContent className="flex items-center justify-between p-4">
+        <Card>
+          <CardContent className="flex items-center justify-between p-4">
             <div>
-              <p className="text-white/70 text-sm">Avg Permissions</p>
-              <p className="text-2xl font-bold text-white">{summary.avgPermissionsPerRole}</p>
-              <p className="text-xs text-yellow-400">Per role</p>
+              <p className="text-muted-foreground text-sm">Avg Permissions</p>
+              <p className="text-2xl font-bold text-foreground">{summary.avgPermissionsPerRole}</p>
+              <p className="text-xs text-pending">Per role</p>
             </div>
-            <TrendingUp className="w-8 h-8 text-yellow-400" />
-          </GlassCardContent>
-        </GlassCard>
+            <TrendingUp className="w-8 h-8 text-pending" />
+          </CardContent>
+        </Card>
       </div>
 
       {/* Filters and Search */}
-      <GlassCard>
-        <GlassCardContent className="space-y-4">
+      <Card>
+        <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 z-10" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4 z-10" />
               <Input
                 placeholder="Search roles..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 bg-white/10 backdrop-blur-xl border-white/20 text-white placeholder:text-white/50 rounded-xl transition-all duration-300 hover:bg-white/15 focus:bg-white/15 focus:border-white/30"
+                className="pl-10"
               />
             </div>
 
-            <GlassButtonGroup spacing="sm">
-              <GlassButton
-                variant={viewMode === 'grid' ? 'primary' : 'outline'}
+            <div className="flex gap-2">
+              <Button
+                variant={viewMode === 'grid' ? 'default' : 'outline'}
                 size="sm"
                 onClick={() => setViewMode('grid')}
               >
                 <BarChart3 className="w-4 h-4 mr-2" />
                 Grid
-              </GlassButton>
-              <GlassButton
-                variant={viewMode === 'table' ? 'primary' : 'outline'}
+              </Button>
+              <Button
+                variant={viewMode === 'table' ? 'default' : 'outline'}
                 size="sm"
                 onClick={() => setViewMode('table')}
               >
                 <Settings className="w-4 h-4 mr-2" />
                 Table
-              </GlassButton>
-            </GlassButtonGroup>
+              </Button>
+            </div>
 
             <div className="flex gap-2">
               <Input
                 placeholder="Sort by..."
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as 'name' | 'created' | 'permissions')}
-                className="bg-slate-800 border-slate-700 text-white"
+                className="bg-muted border-border text-foreground"
               />
-              <GlassButton
+              <Button
                 variant="outline"
                 size="sm"
                 onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
               >
                 {sortOrder === 'asc' ? '↑' : '↓'}
-              </GlassButton>
+              </Button>
             </div>
           </div>
-        </GlassCardContent>
-      </GlassCard>
+        </CardContent>
+      </Card>
 
       {/* Roles Grid */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {sortedAndFilteredRoles.map((role) => (
-          <GlassCard key={role.id} variant="default" animation="fadeIn" className="hover:scale-[1.02]">
-            <GlassCardHeader className="pb-3">
+          <Card key={role.id} className="hover:scale-[1.02]">
+            <CardHeader className="pb-3">
               <div className="flex justify-between items-start">
                 <div className="space-y-1">
-                  <GlassCardTitle className="text-lg">{role.display_name}</GlassCardTitle>
+                  <CardTitle className="text-lg">{role.display_name}</CardTitle>
                   <div className="flex gap-2">
                     {role.is_system_role && (
                       <Badge variant="secondary" className="text-xs">System Role</Badge>
@@ -590,39 +589,41 @@ export default function RolesPage() {
                 </div>
                 {!role.is_system_role && (
                   <div className="flex gap-1">
-                    <GlassButton
+                    <Button
                       variant="ghost"
                       size="sm"
+                      aria-label="Edit role"
                       onClick={() => openEditDialog(role)}
-                      className="text-gray-400 hover:text-white"
+                      className="text-muted-foreground hover:text-foreground"
                     >
                       <Edit className="w-4 h-4" />
-                    </GlassButton>
-                    <GlassButton
+                    </Button>
+                    <Button
                       variant="ghost"
                       size="sm"
+                      aria-label="Delete role"
                       onClick={() => handleDeleteRole(role.id, role.display_name)}
-                      className="text-gray-400 hover:text-red-400"
+                      className="text-muted-foreground hover:text-destructive"
                     >
                       <Trash2 className="w-4 h-4" />
-                    </GlassButton>
+                    </Button>
                   </div>
                 )}
               </div>
               {role.description && (
-                <GlassCardDescription>
+                <CardDescription>
                   {role.description}
-                </GlassCardDescription>
+                </CardDescription>
               )}
-            </GlassCardHeader>
+            </CardHeader>
 
-            <GlassCardContent className="space-y-3">
-              <div className="text-sm text-gray-400">
+            <CardContent className="space-y-3">
+              <div className="text-sm text-muted-foreground">
                 <strong>System Name:</strong> {role.name}
               </div>
               
               <div>
-                <h4 className="text-sm font-medium text-white mb-2">Permissions</h4>
+                <h4 className="text-sm font-medium text-foreground mb-2">Permissions</h4>
                 <div className="flex flex-wrap gap-1">
                   {Object.entries(role.permissions as ChurchPermissions).map(([resource, permissions]) => { // eslint-disable-line @typescript-eslint/no-explicit-any
                     const activeActions = Object.entries(permissions || {} as Record<string, boolean>)
@@ -635,7 +636,7 @@ export default function RolesPage() {
                       <Badge 
                         key={resource} 
                         variant="outline" 
-                        className="text-xs bg-slate-700 border-slate-600"
+                        className="text-xs bg-muted text-muted-foreground border-border"
                       >
                         {resource}: {activeActions.join(', ')}
                       </Badge>
@@ -644,39 +645,39 @@ export default function RolesPage() {
                 </div>
               </div>
 
-              <div className="flex justify-between items-center pt-2 border-t border-slate-600">
-                <span className="text-xs text-gray-500">
+              <div className="flex justify-between items-center pt-2 border-t border-border">
+                <span className="text-xs text-muted-foreground">
                   Created {role.created_at ? new Date(role.created_at).toLocaleDateString() : 'Unknown'}
                 </span>
                 <div className="flex gap-1">
-                  <GlassButton variant="ghost" size="sm" className="text-gray-400 hover:text-white">
+                  <Button variant="ghost" size="sm" aria-label="View role users" className="text-muted-foreground hover:text-foreground">
                     <Users className="w-4 h-4" />
-                  </GlassButton>
-                  <GlassButton variant="ghost" size="sm" className="text-gray-400 hover:text-white">
+                  </Button>
+                  <Button variant="ghost" size="sm" aria-label="Role settings" className="text-muted-foreground hover:text-foreground">
                     <Settings className="w-4 h-4" />
-                  </GlassButton>
+                  </Button>
                 </div>
               </div>
-            </GlassCardContent>
-          </GlassCard>
+            </CardContent>
+          </Card>
         ))}
       </div>
 
       {sortedAndFilteredRoles.length === 0 && (
-        <GlassCard variant="default">
-          <GlassCardContent className="text-center py-8">
-            <Shield className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-white mb-2">
+        <Card>
+          <CardContent className="text-center py-8">
+            <Shield className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-foreground mb-2">
               {searchTerm ? 'No roles found' : 'No roles yet'}
             </h3>
-            <p className="text-gray-400">
+            <p className="text-muted-foreground">
               {searchTerm 
                 ? 'Try adjusting your search terms' 
                 : 'Create your first role to get started'
               }
             </p>
-          </GlassCardContent>
-        </GlassCard>
+          </CardContent>
+        </Card>
       )}
 
       {/* Error Display */}
@@ -694,7 +695,7 @@ export default function RolesPage() {
 
       {/* Edit Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="bg-slate-900/95 backdrop-blur-2xl border-white/20 text-white max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Edit Role</DialogTitle>
             <DialogDescription>
@@ -718,7 +719,7 @@ export default function RolesPage() {
                     })
                   }}
                   required
-                  className="bg-slate-700 border-slate-600"
+                  className=""
                   placeholder="e.g., Financial Manager"
                 />
               </div>
@@ -727,11 +728,11 @@ export default function RolesPage() {
                 <Input
                   id="edit-name"
                   value={formData.name}
-                  className="bg-slate-700 border-slate-600"
+                  className=""
                   placeholder="Auto-generated"
                   disabled={editingRole?.is_system_role ?? false}
                 />
-                <p className="text-xs text-gray-400 mt-1">
+                <p className="text-xs text-muted-foreground mt-1">
                   {editingRole?.is_system_role ? 'System role name cannot be changed' : 'Auto-generated from display name'}
                 </p>
               </div>
@@ -743,7 +744,7 @@ export default function RolesPage() {
                 id="edit-description"
                 value={formData.description ?? ''}
                 onChange={(e) => setFormData({...formData, description: e.target.value})}
-                className="bg-slate-700 border-slate-600"
+                className=""
                 rows={3}
                 placeholder="Brief description of this role and its responsibilities"
               />
@@ -751,17 +752,17 @@ export default function RolesPage() {
 
             {!editingRole?.is_system_role && (
               <div>
-                <h3 className="text-lg font-semibold text-white mb-4">Permissions</h3>
+                <h3 className="text-lg font-semibold text-foreground mb-4">Permissions</h3>
                 <div className="space-y-4">
                   {PERMISSION_RESOURCES.map((resource) => (
-                    <GlassCard key={resource.key} variant="default">
-                      <GlassCardHeader className="pb-3">
-                        <GlassCardTitle className="text-sm">{resource.label}</GlassCardTitle>
-                        <GlassCardDescription className="text-xs">
+                    <Card key={resource.key}>
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-sm">{resource.label}</CardTitle>
+                        <CardDescription className="text-xs">
                           {resource.description}
-                        </GlassCardDescription>
-                      </GlassCardHeader>
-                      <GlassCardContent>
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent>
                         <div className="grid grid-cols-4 gap-4">
                           {PERMISSION_ACTIONS.map((action) => (
                             <div key={action.key} className="flex items-center space-x-2">
@@ -772,7 +773,7 @@ export default function RolesPage() {
                               />
                               <Label
                                 htmlFor={`edit-${resource.key}-${action.key}`}
-                                className="text-sm text-gray-300 cursor-pointer"
+                                className="text-sm text-muted-foreground cursor-pointer"
                                 title={action.description}
                               >
                                 {action.label}
@@ -780,16 +781,16 @@ export default function RolesPage() {
                             </div>
                           ))}
                         </div>
-                      </GlassCardContent>
-                    </GlassCard>
+                      </CardContent>
+                    </Card>
                   ))}
                 </div>
               </div>
             )}
 
             {editingRole?.is_system_role && (
-              <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4">
-                <p className="text-yellow-400 text-sm">
+              <div className="bg-pending/15 border border-pending/30 rounded-lg p-4">
+                <p className="text-pending text-sm">
                   <strong>Note:</strong> This is a system role. Only the display name and description can be modified.
                   Permissions are managed by the system.
                 </p>
@@ -803,10 +804,10 @@ export default function RolesPage() {
             )}
 
             <div className="flex gap-2 pt-4">
-              <GlassButton type="submit" variant="primary">
+              <Button type="submit">
                 Update Role
-              </GlassButton>
-              <GlassButton
+              </Button>
+              <Button
                 type="button"
                 variant="outline"
                 onClick={() => {
@@ -816,7 +817,7 @@ export default function RolesPage() {
                 }}
               >
                 Cancel
-              </GlassButton>
+              </Button>
             </div>
           </form>
         </DialogContent>

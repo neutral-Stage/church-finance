@@ -120,20 +120,20 @@ export function MemberCombobox({
     <div className="relative">
       <div
         className={cn(
-          "glass-card-dark bg-white/10 backdrop-blur-xl border border-white/20 text-white rounded-xl hover:bg-white/15 transition-all duration-300 cursor-pointer",
+          "rounded-md border border-input bg-background text-foreground hover:bg-accent transition-colors cursor-pointer",
           "flex items-center justify-between px-3 py-2 min-h-[40px]",
           className
         )}
         onClick={() => setOpen(!open)}
       >
         <div className="flex items-center flex-1 min-w-0">
-          <Search className="h-4 w-4 text-white/50 mr-2 flex-shrink-0" />
+          <Search className="h-4 w-4 text-muted-foreground mr-2 flex-shrink-0" />
           {selectedMember ? (
-            <span className="truncate text-white">
+            <span className="truncate text-foreground">
               {displayValue}
             </span>
           ) : (
-            <span className="text-white/50 truncate">
+            <span className="text-muted-foreground truncate">
               {placeholder}
             </span>
           )}
@@ -146,14 +146,14 @@ export function MemberCombobox({
                 e.stopPropagation()
                 handleClear()
               }}
-              className="p-1 hover:bg-white/20 rounded transition-colors"
+              className="p-1 hover:bg-accent rounded transition-colors"
             >
-              <X className="h-3 w-3 text-white/70" />
+              <X className="h-3 w-3 text-muted-foreground" />
             </button>
           )}
           <ChevronDown 
             className={cn(
-              "h-4 w-4 text-white/70 transition-transform duration-200",
+              "h-4 w-4 text-muted-foreground transition-transform duration-200",
               open && "rotate-180"
             )} 
           />
@@ -161,16 +161,16 @@ export function MemberCombobox({
       </div>
 
       {open && (
-        <div className="absolute top-full left-0 right-0 z-50 mt-1 glass-card-dark bg-white/10 backdrop-blur-xl border border-white/20 rounded-xl shadow-2xl max-h-64 overflow-hidden">
-          <div className="p-2 border-b border-white/10">
+        <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-popover text-popover-foreground border border-border rounded-xl shadow-lg max-h-64 overflow-hidden">
+          <div className="p-2 border-b border-border">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-white/50" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <input
                 type="text"
                 placeholder="Type to search..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder:text-white/50 focus:outline-none focus:border-white/30 transition-colors"
+                className="w-full pl-10 pr-3 py-2 bg-background border border-input rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring transition-colors"
                 autoFocus
               />
             </div>
@@ -178,14 +178,14 @@ export function MemberCombobox({
           
           <div className="max-h-48 overflow-y-auto">
             {loading ? (
-              <div className="p-3 text-center text-white/70">
-                <div className="inline-block w-4 h-4 border-2 border-white/20 border-t-white/70 rounded-full animate-spin"></div>
+              <div className="p-3 text-center text-muted-foreground">
+                <div className="inline-block w-4 h-4 border-2 border-muted border-t-foreground rounded-full animate-spin"></div>
                 <span className="ml-2">Searching...</span>
               </div>
             ) : (
               <>
                 {members.length === 0 && searchTerm ? (
-                  <div className="p-3 text-center text-white/50">
+                  <div className="p-3 text-center text-muted-foreground">
                     No members found
                   </div>
                 ) : (
@@ -194,13 +194,13 @@ export function MemberCombobox({
                       key={member.id}
                       type="button"
                       onClick={() => handleSelect(member)}
-                      className="w-full px-3 py-2 text-left hover:bg-white/10 transition-colors text-white"
+                      className="w-full px-3 py-2 text-left hover:bg-accent transition-colors text-popover-foreground"
                     >
                       <div className="flex items-center justify-between">
                         <div className="min-w-0 flex-1">
                           <div className="font-medium truncate">{member.name}</div>
                           {member.fellowship_name && (
-                            <div className="text-sm text-white/60 truncate">
+                            <div className="text-sm text-muted-foreground truncate">
                               {member.fellowship_name}
                             </div>
                           )}

@@ -1,9 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { GlassCard, GlassCardHeader, GlassCardTitle, GlassCardDescription, GlassCardContent } from '@/components/ui/glass-card'
-import { GlassButton } from '@/components/ui/glass-button'
-import { GlassTable, GlassTableHeader, GlassTableBody, GlassTableRow, GlassTableHead, GlassTableCell } from '@/components/ui/glass-table'
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -188,11 +188,11 @@ export default function UsersPage() {
 
   const getRoleColor = (roleName: string) => {
     switch (roleName) {
-      case 'super_admin': return 'bg-red-100 text-red-800'
-      case 'church_admin': return 'bg-orange-100 text-orange-800'
-      case 'treasurer': return 'bg-blue-100 text-blue-800'
-      case 'finance_viewer': return 'bg-green-100 text-green-800'
-      default: return 'bg-gray-100 text-gray-800'
+      case 'super_admin': return 'bg-destructive/15 text-destructive border-destructive/30'
+      case 'church_admin': return 'bg-orange-500/15 text-orange-700 dark:text-orange-300 border-orange-500/30'
+      case 'treasurer': return 'bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/30'
+      case 'finance_viewer': return 'bg-income/15 text-income border-income/30'
+      default: return 'bg-muted text-muted-foreground border-border'
     }
   }
 
@@ -246,20 +246,20 @@ export default function UsersPage() {
       <div className="space-y-6">
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-3xl font-bold text-white">User Management</h1>
-            <p className="text-white/70 mt-2">Manage user access and permissions</p>
+            <h1 className="text-3xl font-bold text-foreground">User Management</h1>
+            <p className="text-muted-foreground mt-2">Manage user access and permissions</p>
           </div>
         </div>
 
         <div className="flex items-center justify-center py-16">
           <div className="flex flex-col items-center space-y-4">
             <div className="relative">
-              <div className="animate-spin rounded-full h-12 w-12 border-4 border-purple-400/30 border-t-purple-400"></div>
-              <Users className="absolute inset-0 m-auto w-6 h-6 text-purple-400 animate-pulse" />
+              <div className="animate-spin rounded-full h-12 w-12 border-4 border-muted border-t-primary"></div>
+              <Users className="absolute inset-0 m-auto w-6 h-6 text-primary animate-pulse" />
             </div>
             <div className="text-center">
-              <span className="text-white font-medium">Loading users...</span>
-              <p className="text-white/60 text-sm mt-1">Fetching user data and permissions</p>
+              <span className="text-foreground font-medium">Loading users...</span>
+              <p className="text-muted-foreground text-sm mt-1">Fetching user data and permissions</p>
             </div>
           </div>
         </div>
@@ -271,23 +271,23 @@ export default function UsersPage() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-white">User Management</h1>
-          <p className="text-white/70 mt-2">Manage user access and permissions</p>
+          <h1 className="text-3xl font-bold text-foreground">User Management</h1>
+          <p className="text-muted-foreground mt-2">Manage user access and permissions</p>
         </div>
         
         <div className="flex gap-2">
-          <GlassButton variant="primary" onClick={exportUsersReport}>
+          <Button onClick={exportUsersReport}>
             <Download className="w-4 h-4 mr-2" />
             Export Report
-          </GlassButton>
+          </Button>
           <Dialog open={isGrantRoleDialogOpen} onOpenChange={setIsGrantRoleDialogOpen}>
             <DialogTrigger asChild>
-              <GlassButton onClick={resetGrantRoleForm} variant="success">
+              <Button onClick={resetGrantRoleForm} variant="secondary">
                 <UserPlus className="w-4 h-4 mr-2" />
                 Grant Role
-              </GlassButton>
+              </Button>
             </DialogTrigger>
-          <DialogContent className="bg-slate-900/95 backdrop-blur-2xl border-white/20 text-white max-w-2xl">
+          <DialogContent className="max-w-2xl">
             <DialogHeader>
               <DialogTitle>Grant User Role</DialogTitle>
               <DialogDescription>
@@ -299,7 +299,7 @@ export default function UsersPage() {
               <div>
                 <Label htmlFor="user_id">User *</Label>
                 <Select value={grantRoleForm.user_id} onValueChange={(value) => setGrantRoleForm({...grantRoleForm, user_id: value})}>
-                  <SelectTrigger className="bg-slate-700 border-slate-600">
+                  <SelectTrigger>
                     <SelectValue placeholder="Select user" />
                   </SelectTrigger>
                   <SelectContent>
@@ -315,7 +315,7 @@ export default function UsersPage() {
               <div>
                 <Label htmlFor="role_id">Role *</Label>
                 <Select value={grantRoleForm.role_id} onValueChange={(value) => setGrantRoleForm({...grantRoleForm, role_id: value})}>
-                  <SelectTrigger className="bg-slate-700 border-slate-600">
+                  <SelectTrigger>
                     <SelectValue placeholder="Select role" />
                   </SelectTrigger>
                   <SelectContent>
@@ -335,7 +335,6 @@ export default function UsersPage() {
                   type="datetime-local"
                   value={grantRoleForm.expires_at}
                   onChange={(e) => setGrantRoleForm({...grantRoleForm, expires_at: e.target.value})}
-                  className="bg-slate-700 border-slate-600"
                 />
               </div>
 
@@ -345,7 +344,6 @@ export default function UsersPage() {
                   id="notes"
                   value={grantRoleForm.notes}
                   onChange={(e) => setGrantRoleForm({...grantRoleForm, notes: e.target.value})}
-                  className="bg-slate-700 border-slate-600"
                   rows={3}
                   placeholder="Reason for granting this role or any special notes"
                 />
@@ -358,12 +356,12 @@ export default function UsersPage() {
               )}
 
               <div className="flex gap-2 pt-4">
-                <GlassButton type="submit" variant="success">
+                <Button type="submit">
                   Grant Role
-                </GlassButton>
-                <GlassButton type="button" variant="outline" onClick={() => setIsGrantRoleDialogOpen(false)}>
+                </Button>
+                <Button type="button" variant="outline" onClick={() => setIsGrantRoleDialogOpen(false)}>
                   Cancel
-                </GlassButton>
+                </Button>
               </div>
             </form>
           </DialogContent>
@@ -372,86 +370,86 @@ export default function UsersPage() {
       </div>
 
       {/* Church Selector */}
-      <GlassCard variant="default">
-        <GlassCardHeader>
-          <GlassCardTitle>Select Church</GlassCardTitle>
-          <GlassCardDescription>Choose a church to manage user roles for</GlassCardDescription>
-        </GlassCardHeader>
-        <GlassCardContent>
+      <Card>
+        <CardHeader>
+          <CardTitle>Select Church</CardTitle>
+          <CardDescription>Choose a church to manage user roles for</CardDescription>
+        </CardHeader>
+        <CardContent>
           <ChurchSelector 
             currentChurch={selectedChurch} 
             onChurchChange={setSelectedChurch}
           />
-        </GlassCardContent>
-      </GlassCard>
+        </CardContent>
+      </Card>
 
       {selectedChurch && (
         <>
           {/* Search Bar */}
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 z-10" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4 z-10" />
             <Input
               placeholder="Search users..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 bg-white/10 backdrop-blur-xl border-white/20 text-white placeholder:text-white/50 rounded-xl transition-all duration-300 hover:bg-white/15 focus:bg-white/15 focus:border-white/30"
+              className="pl-10"
             />
           </div>
 
           {/* User Roles Table */}
-          <GlassCard variant="default">
-            <GlassCardHeader>
-              <GlassCardTitle className="flex items-center gap-2">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
                 <Users className="w-5 h-5" />
                 Users with Access to {selectedChurch.name}
-              </GlassCardTitle>
-              <GlassCardDescription>
+              </CardTitle>
+              <CardDescription>
                 Manage user roles and permissions for this church
-              </GlassCardDescription>
-            </GlassCardHeader>
-            <GlassCardContent>
-              <GlassTable>
-                <GlassTableHeader>
-                  <GlassTableRow>
-                    <GlassTableHead>User</GlassTableHead>
-                    <GlassTableHead>Role</GlassTableHead>
-                    <GlassTableHead>Granted By</GlassTableHead>
-                    <GlassTableHead>Granted Date</GlassTableHead>
-                    <GlassTableHead>Expires</GlassTableHead>
-                    <GlassTableHead>Status</GlassTableHead>
-                    <GlassTableHead>Actions</GlassTableHead>
-                  </GlassTableRow>
-                </GlassTableHeader>
-                <GlassTableBody>
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>User</TableHead>
+                    <TableHead>Role</TableHead>
+                    <TableHead>Granted By</TableHead>
+                    <TableHead>Granted Date</TableHead>
+                    <TableHead>Expires</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {filteredRoles.map((ucr) => (
-                    <GlassTableRow key={ucr.id}>
-                      <GlassTableCell>
+                    <TableRow key={ucr.id}>
+                      <TableCell>
                         <div>
-                          <div className="font-medium text-white">
+                          <div className="font-medium text-foreground">
                             {ucr.users?.full_name || 'Unknown'}
                           </div>
-                          <div className="text-sm text-gray-400">
+                          <div className="text-sm text-muted-foreground">
                             {ucr.users?.email}
                           </div>
                         </div>
-                      </GlassTableCell>
-                      <GlassTableCell>
-                        <Badge className="bg-blue-500/20 text-blue-300 border-blue-500/30">
+                      </TableCell>
+                      <TableCell>
+                        <Badge className="bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/30">
                           {ucr.roles?.display_name}
                         </Badge>
-                      </GlassTableCell>
-                      <GlassTableCell className="text-gray-300">
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
                         {ucr.granted_by?.full_name || ucr.granted_by?.email || 'System'}
-                      </GlassTableCell>
-                      <GlassTableCell className="text-gray-300">
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
                         <div className="flex items-center space-x-1">
                           <Calendar className="w-3 h-3" />
                           <span className="text-xs">
                             {new Date(ucr.granted_at).toLocaleDateString()}
                           </span>
                         </div>
-                      </GlassTableCell>
-                      <GlassTableCell className="text-gray-300">
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
                         {ucr.expires_at ? (
                           <div className="flex items-center space-x-1">
                             <Calendar className="w-3 h-3" />
@@ -460,39 +458,40 @@ export default function UsersPage() {
                             </span>
                           </div>
                         ) : (
-                          <span className="text-xs text-gray-500">Never</span>
+                          <span className="text-xs text-muted-foreground">Never</span>
                         )}
-                      </GlassTableCell>
-                      <GlassTableCell>
+                      </TableCell>
+                      <TableCell>
                         <Badge variant={ucr.is_active ? "default" : "destructive"}>
                           {ucr.is_active ? 'Active' : 'Inactive'}
                         </Badge>
-                      </GlassTableCell>
-                      <GlassTableCell>
+                      </TableCell>
+                      <TableCell>
                         <div className="flex gap-1">
                           {ucr.is_active && (
-                            <GlassButton
-                              variant="error"
+                            <Button
+                              variant="destructive"
                               size="sm"
+                              aria-label="Revoke role"
                               onClick={() => handleRevokeRole(ucr.id)}
                             >
                               <X className="w-4 h-4" />
-                            </GlassButton>
+                            </Button>
                           )}
                         </div>
-                      </GlassTableCell>
-                    </GlassTableRow>
+                      </TableCell>
+                    </TableRow>
                   ))}
-                </GlassTableBody>
-              </GlassTable>
+                </TableBody>
+              </Table>
 
               {filteredRoles.length === 0 && (
                 <div className="text-center py-8">
-                  <Shield className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-white mb-2">
+                  <Shield className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-foreground mb-2">
                     {searchTerm ? 'No users found' : 'No users with access'}
                   </h3>
-                  <p className="text-gray-400">
+                  <p className="text-muted-foreground">
                     {searchTerm 
                       ? 'Try adjusting your search terms' 
                       : 'Grant roles to users to get started'
@@ -500,8 +499,8 @@ export default function UsersPage() {
                   </p>
                 </div>
               )}
-            </GlassCardContent>
-          </GlassCard>
+            </CardContent>
+          </Card>
         </>
       )}
     </div>

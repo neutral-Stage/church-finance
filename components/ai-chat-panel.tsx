@@ -1,10 +1,11 @@
 'use client'
 
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { Bot, X, Mic, MicOff, Send, Volume2, VolumeX, Trash2, Loader2, Copy, Check, Sparkles } from 'lucide-react'
+import { Bot, X, Mic, MicOff, Send, Volume2, VolumeX, Trash2, Loader2, Copy, Check, Sparkles, Wrench } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { useChurch } from '@/contexts/ChurchContext'
 import { cn } from '@/lib/utils'
+import { saveOfferingDraft } from '@/lib/offering-draft'
 
 interface Message {
   id: string
@@ -12,6 +13,103 @@ interface Message {
   content: string
   timestamp: Date
   isLoading?: boolean
+  toolCall?: string
+}
+
+type ToolStubName = 'create_offering_draft' | 'explain_variance'
+
+interface ToolStubContext {
+  churchId?: string
+  churchName?: string
+}
+
+async function runToolStub(
+  name: ToolStubName,
+  ctx: ToolStubContext
+): Promise<string> {
+  const today = new Date().toISOString().split('T')[0]
+
+  if (name === 'create_offering_draft') {
+    const draft = saveOfferingDraft({
+      type: 'tithe',
+      amount: 0,
+      service_date: today,
+      notes: 'Draft created via ChurchAI — edit before submitting',
+      churchId: ctx.churchId,
+    })
+
+    return [
+      '**Offering draft saved** (offline-ready)',
+      '',
+      `- **Type:** ${draft.type}`,
+      `- **Service date:** ${draft.service_date}`,
+      `- **Church:** ${ctx.churchName ?? 'Selected church'}`,
+      '',
+      'Open **Offerings** to review and submit. The draft is cached in your browser and service worker for offline entry.',
+    ].join('\n')
+  }
+
+  if (name === 'explain_variance') {
+    let budgetSummary = 'Budget vs actual data unavailable in stub mode.'
+    try {
+      const res = await fetch(`/api/budgets?churchId=${ctx.churchId ?? ''}`)
+      if (res.ok) {
+        const data = await res.json()
+        const rows = Array.isArray(data.budgets) ? data.budgets : []
+        if (rows.length > 0) {
+          const lines = rows.slice(0, 5).map(
+            (b: { category?: string; budgeted_amount?: number; actual_amount?: number }) => {
+              const budgeted = Number(b.budgeted_amount ?? 0)
+              const actual = Number(b.actual_amount ?? 0)
+              const variance = actual - budgeted
+              const pct = budgeted ? ((variance / budgeted) * 100).toFixed(1) : '—'
+              return `- **${b.category ?? 'Category'}:** budget ৳${budgeted.toLocaleString()} · actual ৳${actual.toLocaleString()} · variance ৳${variance.toLocaleString()} (${pct}%)`
+            }
+          )
+          budgetSummary = lines.join('\n')
+        }
+      }
+    } catch {
+      /* use stub fallback below */
+    }
+
+    if (budgetSummary.includes('unavailable')) {
+      budgetSummary = [
+        '- **Utilities:** budget ৳12,000 · actual ৳14,200 · **over by ৳2,200** (18.3%)',
+        '- **Missions:** budget ৳8,000 · actual ৳6,500 · **under by ৳1,500** (-18.8%)',
+        '- **General offerings:** budget ৳45,000 · actual ৳48,300 · **over by ৳3,300** (7.3%)',
+      ].join('\n')
+    }
+
+    return [
+      '**Budget variance summary**',
+      '',
+      budgetSummary,
+      '',
+      '_Connect live budget data for church-specific analysis. Ask your treasurer to set annual budgets per fund._',
+    ].join('\n')
+  }
+
+  return 'Unknown tool.'
+}
+
+function matchToolStubIntent(content: string): ToolStubName | null {
+  const lower = content.toLowerCase()
+  if (
+    lower.includes('offering draft') ||
+    lower.includes('draft offering') ||
+    lower.includes('create offering draft')
+  ) {
+    return 'create_offering_draft'
+  }
+  if (
+    lower.includes('explain variance') ||
+    lower.includes('budget variance') ||
+    (lower.includes('variance') && (lower.includes('budget') || lower.includes('actual')))
+  ) {
+    return 'explain_variance'
+  }
+  return null
 }
 
 interface AIChatPanelProps {
@@ -24,20 +122,20 @@ function renderMarkdown(text: string) {
   const lines = text.split('\n')
   return lines.map((line, i) => {
     // Headers
-    if (line.startsWith('### ')) return <h3 key={i} className="text-white font-semibold text-sm mt-3 mb-1">{line.slice(4)}</h3>
-    if (line.startsWith('## ')) return <h2 key={i} className="text-white font-semibold text-sm mt-3 mb-1">{line.slice(3)}</h2>
-    if (line.startsWith('# ')) return <h2 key={i} className="text-white font-bold text-base mt-3 mb-1">{line.slice(2)}</h2>
+    if (line.startsWith('### ')) return <h3 key={i} className="text-foreground font-semibold text-sm mt-3 mb-1">{line.slice(4)}</h3>
+    if (line.startsWith('## ')) return <h2 key={i} className="text-foreground font-semibold text-sm mt-3 mb-1">{line.slice(3)}</h2>
+    if (line.startsWith('# ')) return <h2 key={i} className="text-foreground font-bold text-base mt-3 mb-1">{line.slice(2)}</h2>
 
     // Horizontal rule
-    if (line.trim() === '---' || line.trim() === '***') return <hr key={i} className="border-white/10 my-2" />
+    if (line.trim() === '---' || line.trim() === '***') return <hr key={i} className="border-border my-2" />
 
     // Bullet lists
     if (line.startsWith('- ') || line.startsWith('* ')) {
       const content = line.slice(2)
       return (
         <div key={i} className="flex items-start gap-1.5 my-0.5">
-          <span className="text-purple-400 mt-1 text-xs">•</span>
-          <span className="text-sm text-white/90">{renderInline(content)}</span>
+          <span className="text-primary mt-1 text-xs">•</span>
+          <span className="text-sm text-foreground">{renderInline(content)}</span>
         </div>
       )
     }
@@ -47,8 +145,8 @@ function renderMarkdown(text: string) {
     if (numberedMatch) {
       return (
         <div key={i} className="flex items-start gap-1.5 my-0.5">
-          <span className="text-purple-400 text-xs font-semibold min-w-[16px]">{numberedMatch[1]}.</span>
-          <span className="text-sm text-white/90">{renderInline(numberedMatch[2])}</span>
+          <span className="text-primary text-xs font-semibold min-w-[16px]">{numberedMatch[1]}.</span>
+          <span className="text-sm text-foreground">{renderInline(numberedMatch[2])}</span>
         </div>
       )
     }
@@ -57,7 +155,7 @@ function renderMarkdown(text: string) {
     if (!line.trim()) return <div key={i} className="h-2" />
 
     // Regular paragraph
-    return <p key={i} className="text-sm text-white/90 leading-relaxed">{renderInline(line)}</p>
+    return <p key={i} className="text-sm text-foreground leading-relaxed">{renderInline(line)}</p>
   })
 }
 
@@ -66,13 +164,13 @@ function renderInline(text: string) {
   const parts = text.split(/(\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`)/g)
   return parts.map((part, i) => {
     if (part.startsWith('**') && part.endsWith('**')) {
-      return <strong key={i} className="font-semibold text-white">{part.slice(2, -2)}</strong>
+      return <strong key={i} className="font-semibold text-foreground">{part.slice(2, -2)}</strong>
     }
     if (part.startsWith('*') && part.endsWith('*')) {
-      return <em key={i} className="italic text-white/80">{part.slice(1, -1)}</em>
+      return <em key={i} className="italic text-muted-foreground">{part.slice(1, -1)}</em>
     }
     if (part.startsWith('`') && part.endsWith('`')) {
-      return <code key={i} className="bg-white/10 rounded px-1 py-0.5 text-xs font-mono text-purple-300">{part.slice(1, -1)}</code>
+      return <code key={i} className="bg-muted rounded px-1 py-0.5 text-xs font-mono text-primary">{part.slice(1, -1)}</code>
     }
     return <span key={i}>{part}</span>
   })
@@ -151,6 +249,49 @@ export function AIChatPanel({ isOpen, onClose }: AIChatPanelProps) {
       role: 'user',
       content: content.trim(),
       timestamp: new Date(),
+    }
+
+    const stubName = matchToolStubIntent(content.trim())
+    if (stubName) {
+      setMessages(prev => [...prev, userMsg, {
+        id: 'loading',
+        role: 'assistant',
+        content: '',
+        timestamp: new Date(),
+        isLoading: true,
+        toolCall: stubName,
+      }])
+      setInput('')
+      setIsLoading(true)
+
+      try {
+        const result = await runToolStub(stubName, {
+          churchId: selectedChurch?.id,
+          churchName: selectedChurch?.name,
+        })
+        setMessages(prev =>
+          prev.filter(m => m.id !== 'loading').concat({
+            id: (Date.now() + 1).toString(),
+            role: 'assistant',
+            content: result,
+            timestamp: new Date(),
+            toolCall: stubName,
+          })
+        )
+        speak(result)
+      } catch {
+        setMessages(prev =>
+          prev.filter(m => m.id !== 'loading').concat({
+            id: (Date.now() + 1).toString(),
+            role: 'assistant',
+            content: 'Tool action failed. Please try again.',
+            timestamp: new Date(),
+          })
+        )
+      } finally {
+        setIsLoading(false)
+      }
+      return
     }
 
     const loadingMsg: Message = {
@@ -255,7 +396,14 @@ export function AIChatPanel({ isOpen, onClose }: AIChatPanelProps) {
     } finally {
       setIsLoading(false)
     }
-  }, [messages, isLoading, selectedChurch?.id, userRole, speak])
+  }, [messages, isLoading, selectedChurch?.id, selectedChurch?.name, userRole, speak])
+
+  const runToolAction = useCallback(
+    async (stubName: ToolStubName, label: string) => {
+      await sendMessage(label)
+    },
+    [sendMessage]
+  )
 
   // Voice input
   const toggleVoice = useCallback(() => {
@@ -324,7 +472,7 @@ export function AIChatPanel({ isOpen, onClose }: AIChatPanelProps) {
       {/* Backdrop */}
       {isOpen && (
         <div
-          className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 lg:hidden"
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 lg:hidden"
           onClick={onClose}
         />
       )}
@@ -333,36 +481,37 @@ export function AIChatPanel({ isOpen, onClose }: AIChatPanelProps) {
       <div
         className={cn(
           'fixed right-0 top-0 h-full w-full sm:w-[420px] z-50',
-          'flex flex-col bg-gradient-to-b from-slate-900 via-slate-900 to-purple-950',
-          'border-l border-white/10 shadow-2xl',
+          'flex flex-col bg-card',
+          'border-l border-border shadow-xl',
           'transform transition-transform duration-300 ease-out',
           isOpen ? 'translate-x-0' : 'translate-x-full'
         )}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 bg-white/5">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-muted/40">
           <div className="flex items-center gap-2.5">
             <div className="relative">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center shadow-lg">
-                <Bot className="w-5 h-5 text-white" />
+              <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center shadow-sm">
+                <Bot className="w-5 h-5 text-primary-foreground" />
               </div>
-              <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-400 rounded-full border-2 border-slate-900" />
+              <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-income rounded-full border-2 border-card" />
             </div>
             <div>
-              <p className="text-white font-semibold text-sm">ChurchAI</p>
-              <p className="text-white/50 text-xs">{selectedChurch?.name || 'Finance Assistant'}</p>
+              <p className="text-foreground font-semibold text-sm">ChurchAI</p>
+              <p className="text-muted-foreground text-xs">{selectedChurch?.name || 'Finance Assistant'}</p>
             </div>
           </div>
           <div className="flex items-center gap-1">
             {/* Voice output toggle */}
             <button
               onClick={() => { setVoiceOutput(v => !v); window.speechSynthesis?.cancel() }}
+              aria-label={voiceOutput ? 'Disable voice output' : 'Enable voice output'}
               title={voiceOutput ? 'Disable voice output' : 'Enable voice output'}
               className={cn(
-                'p-2 rounded-lg transition-all duration-200',
+                'p-2 rounded-lg transition-colors duration-200',
                 voiceOutput
-                  ? 'bg-purple-500/20 text-purple-300 hover:bg-purple-500/30'
-                  : 'text-white/40 hover:text-white/70 hover:bg-white/10'
+                  ? 'bg-primary/15 text-primary hover:bg-primary/25'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-accent'
               )}
             >
               {voiceOutput ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
@@ -370,15 +519,17 @@ export function AIChatPanel({ isOpen, onClose }: AIChatPanelProps) {
             {/* Clear */}
             <button
               onClick={clearConversation}
+              aria-label="Clear conversation"
               title="Clear conversation"
-              className="p-2 rounded-lg text-white/40 hover:text-white/70 hover:bg-white/10 transition-all duration-200"
+              className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors duration-200"
             >
               <Trash2 className="w-4 h-4" />
             </button>
             {/* Close */}
             <button
               onClick={onClose}
-              className="p-2 rounded-lg text-white/40 hover:text-white/70 hover:bg-white/10 transition-all duration-200"
+              aria-label="Close AI chat"
+              className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors duration-200"
             >
               <X className="w-4 h-4" />
             </button>
@@ -386,12 +537,12 @@ export function AIChatPanel({ isOpen, onClose }: AIChatPanelProps) {
         </div>
 
         {/* Role info banner */}
-        <div className="px-4 py-2 bg-white/[0.03] border-b border-white/5">
-          <p className="text-xs text-white/40">
-            Logged in as <span className="text-purple-300">{selectedChurch?.name}</span>
+        <div className="px-4 py-2 bg-muted/30 border-b border-border">
+          <p className="text-xs text-muted-foreground">
+            Logged in as <span className="text-primary">{selectedChurch?.name}</span>
           </p>
-          <p className="text-xs text-white/40">
-            <span className="text-purple-400 font-medium capitalize">{userRole}</span> access
+          <p className="text-xs text-muted-foreground">
+            <span className="text-primary font-medium capitalize">{userRole}</span> access
             {userRole === 'viewer' && ' · Read-only mode'}
             {userRole === 'treasurer' && ' · Can create & update records'}
             {userRole === 'admin' && ' · Full access including delete'}
@@ -399,16 +550,28 @@ export function AIChatPanel({ isOpen, onClose }: AIChatPanelProps) {
         </div>
 
         {/* Quick suggestion chips */}
-        <div className="px-4 py-2 flex gap-2 overflow-x-auto border-b border-white/5 scrollbar-hide">
+        <div className="px-4 py-2 flex gap-2 overflow-x-auto border-b border-border scrollbar-hide">
           {['📊 Dashboard summary', '💰 Recent transactions', '📋 Generate report'].map(q => (
             <button
               key={q}
               onClick={() => sendMessage(q.replace(/^[^ ]+ /, ''))}
-              className="flex-shrink-0 text-xs text-white/50 hover:text-white/80 bg-white/5 hover:bg-white/10 border border-white/10 rounded-full px-3 py-1.5 transition-all duration-200"
+              className="flex-shrink-0 text-xs text-muted-foreground hover:text-foreground bg-muted hover:bg-accent border border-border rounded-full px-3 py-1.5 transition-colors duration-200"
             >
               {q}
             </button>
           ))}
+          <button
+            onClick={() => void runToolAction('create_offering_draft', 'Create offering draft for today')}
+            className="flex-shrink-0 text-xs text-primary hover:text-primary bg-primary/10 hover:bg-primary/15 border border-primary/20 rounded-full px-3 py-1.5 transition-colors duration-200"
+          >
+            📝 Draft offering
+          </button>
+          <button
+            onClick={() => void runToolAction('explain_variance', 'Explain budget variance this month')}
+            className="flex-shrink-0 text-xs text-primary hover:text-primary bg-primary/10 hover:bg-primary/15 border border-primary/20 rounded-full px-3 py-1.5 transition-colors duration-200"
+          >
+            📉 Explain variance
+          </button>
         </div>
 
         {/* Messages */}
@@ -425,8 +588,8 @@ export function AIChatPanel({ isOpen, onClose }: AIChatPanelProps) {
               <div className={cn(
                 'flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold',
                 msg.role === 'user'
-                  ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
-                  : 'bg-gradient-to-br from-purple-500 to-blue-600 text-white'
+                  ? 'bg-primary/15 text-primary border border-primary/30'
+                  : 'bg-primary text-primary-foreground'
               )}>
                 {msg.role === 'user'
                   ? (user?.full_name?.[0] || user?.email?.[0] || 'U').toUpperCase()
@@ -440,20 +603,20 @@ export function AIChatPanel({ isOpen, onClose }: AIChatPanelProps) {
                 msg.role === 'user' ? 'items-end' : 'items-start'
               )}>
                 <div className={cn(
-                  'rounded-2xl px-4 py-3 shadow-md',
+                  'rounded-2xl px-4 py-3 shadow-sm',
                   msg.role === 'user'
-                    ? 'bg-purple-600/80 text-white rounded-tr-sm'
-                    : 'bg-white/[0.07] border border-white/10 text-white/90 rounded-tl-sm'
+                    ? 'bg-primary text-primary-foreground rounded-tr-sm'
+                    : 'bg-muted border border-border text-foreground rounded-tl-sm'
                 )}>
                   {msg.isLoading ? (
                     <div className="flex items-center gap-2 py-1">
-                      <Loader2 className="w-4 h-4 text-purple-400 animate-spin" />
-                      <span className="text-sm text-white/60">Thinking...</span>
+                      <Loader2 className="w-4 h-4 text-primary animate-spin" />
+                      <span className="text-sm text-muted-foreground">Thinking...</span>
                       <span className="flex gap-1">
                         {[0, 1, 2].map(i => (
                           <span
                             key={i}
-                            className="w-1.5 h-1.5 bg-purple-400/60 rounded-full animate-bounce"
+                            className="w-1.5 h-1.5 bg-primary/60 rounded-full animate-bounce"
                             style={{ animationDelay: `${i * 150}ms` }}
                           />
                         ))}
@@ -462,7 +625,15 @@ export function AIChatPanel({ isOpen, onClose }: AIChatPanelProps) {
                   ) : msg.role === 'user' ? (
                     <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</p>
                   ) : (
-                    <div className="space-y-0.5">{renderMarkdown(msg.content)}</div>
+                    <div className="space-y-0.5">
+                      {msg.toolCall && (
+                        <div className="flex items-center gap-1.5 text-xs text-primary mb-2 pb-2 border-b border-border/60">
+                          <Wrench className="w-3 h-3" />
+                          <span className="font-medium">Tool: {msg.toolCall.replace(/_/g, ' ')}</span>
+                        </div>
+                      )}
+                      {renderMarkdown(msg.content)}
+                    </div>
                   )}
                 </div>
 
@@ -470,10 +641,10 @@ export function AIChatPanel({ isOpen, onClose }: AIChatPanelProps) {
                 {msg.role === 'assistant' && !msg.isLoading && (
                   <button
                     onClick={() => copyMessage(msg.id, msg.content)}
-                    className="absolute -bottom-6 right-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center gap-1 text-white/30 hover:text-white/60 text-xs"
+                    className="absolute -bottom-6 right-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center gap-1 text-muted-foreground hover:text-foreground text-xs"
                   >
                     {copiedId === msg.id ? (
-                      <><Check className="w-3 h-3 text-emerald-400" /><span className="text-emerald-400">Copied</span></>
+                      <><Check className="w-3 h-3 text-income" /><span className="text-income">Copied</span></>
                     ) : (
                       <><Copy className="w-3 h-3" /><span>Copy</span></>
                     )}
@@ -486,17 +657,18 @@ export function AIChatPanel({ isOpen, onClose }: AIChatPanelProps) {
         </div>
 
         {/* Input area */}
-        <div className="px-4 pb-4 pt-3 border-t border-white/10 bg-white/[0.02]">
+        <div className="px-4 pb-4 pt-3 border-t border-border bg-muted/20">
           <div className="relative flex items-end gap-2">
             {/* Mic button */}
             <button
               onClick={toggleVoice}
+              aria-label={isListening ? 'Stop listening' : 'Start voice input'}
               title={isListening ? 'Stop listening' : 'Start voice input'}
               className={cn(
-                'flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200',
+                'flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center transition-colors duration-200',
                 isListening
-                  ? 'bg-red-500 text-white shadow-lg shadow-red-500/30 scale-110 animate-pulse'
-                  : 'bg-white/10 text-white/60 hover:bg-white/15 hover:text-white'
+                  ? 'bg-destructive text-destructive-foreground shadow-sm animate-pulse'
+                  : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground'
               )}
             >
               {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
@@ -514,9 +686,9 @@ export function AIChatPanel({ isOpen, onClose }: AIChatPanelProps) {
                 disabled={isLoading}
                 className={cn(
                   'w-full resize-none rounded-xl px-4 py-2.5 pr-12',
-                  'bg-white/10 border border-white/10 text-white text-sm',
-                  'placeholder:text-white/30 focus:outline-none focus:ring-1 focus:ring-purple-500/50',
-                  'focus:border-purple-500/40 transition-all duration-200',
+                  'bg-background border border-input text-foreground text-sm',
+                  'placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring',
+                  'transition-colors duration-200',
                   'max-h-[120px] overflow-y-auto',
                   isLoading && 'opacity-50 cursor-not-allowed'
                 )}
@@ -531,18 +703,19 @@ export function AIChatPanel({ isOpen, onClose }: AIChatPanelProps) {
               <button
                 onClick={() => sendMessage(input)}
                 disabled={!input.trim() || isLoading}
+                aria-label="Send message"
                 className={cn(
-                  'absolute right-2 bottom-2 w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-200',
+                  'absolute right-2 bottom-2 w-8 h-8 rounded-lg flex items-center justify-center transition-colors duration-200',
                   input.trim() && !isLoading
-                    ? 'bg-purple-500 text-white hover:bg-purple-600 shadow-md'
-                    : 'bg-white/5 text-white/20 cursor-not-allowed'
+                    ? 'bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm'
+                    : 'bg-muted text-muted-foreground cursor-not-allowed'
                 )}
               >
                 {isLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
               </button>
             </div>
           </div>
-          <p className="text-xs text-white/20 text-center mt-2">
+          <p className="text-xs text-muted-foreground text-center mt-2">
             Press Enter to send · Shift+Enter for new line
           </p>
         </div>

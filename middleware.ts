@@ -15,6 +15,7 @@ export async function middleware(request: NextRequest) {
   const isHomePage = request.nextUrl.pathname === '/'
   const protectedPrefixes = [
     '/dashboard',
+    '/onboarding',
     '/admin',
     '/transactions',
     '/bills',
@@ -29,6 +30,7 @@ export async function middleware(request: NextRequest) {
     '/cash-breakdown',
     '/member-contributions',
     '/profile-settings',
+    '/settings',
   ]
   const isProtectedRoute = protectedPrefixes.some((p) =>
     request.nextUrl.pathname.startsWith(p)

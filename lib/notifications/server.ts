@@ -1,4 +1,6 @@
 import { createAdminClient } from '@/lib/supabase-server'
+import { buildNotificationEmailHtml, sendEmail } from '@/lib/email'
+import { shouldSendEmailForCategory, type StoredNotificationPreferences } from '@/lib/notifications/preferences'
 import { Notification } from '@/types/notifications'
 
 /**
@@ -232,6 +234,137 @@ export class ServerNotificationService {
    * Batch create notifications for multiple users
    * This is an admin operation for system-wide notifications
    */
+  /**
+   * Generate notifications then deliver pending ones via email (Resend).
+   */
+  static async generateAndDeliverNotifications(type: 'all' | 'bills' | 'transactions' | 'offerings' | 'advances' = 'all'): Promise<{
+    generated: boolean
+    emailsSent: number
+    emailsSkipped: number
+    emailsFailed: number
+  }> {
+    switch (type) {
+      case 'bills':
+        await this.generateBillNotifications()
+        break
+      case 'transactions':
+        await this.generateTransactionNotifications()
+        break
+      case 'offerings':
+        await this.generateOfferingNotifications()
+        break
+      case 'advances':
+        await this.generateAdvanceNotifications()
+        break
+      case 'all':
+      default:
+        await this.generateAllNotifications()
+        break
+    }
+
+    const delivery = await this.deliverPendingEmailNotifications()
+    return { generated: true, ...delivery }
+  }
+
+  /**
+   * Send emails for notifications that have not been emailed yet.
+   */
+  static async deliverPendingEmailNotifications(limit = 100): Promise<{
+    emailsSent: number
+    emailsSkipped: number
+    emailsFailed: number
+  }> {
+    let emailsSent = 0
+    let emailsSkipped = 0
+    let emailsFailed = 0
+
+    try {
+      const { data: pending, error } = await this.supabase
+        .from('notifications')
+        .select('id, user_id, title, message, category, action_url, created_at')
+        .is('email_sent_at', null)
+        .order('created_at', { ascending: true })
+        .limit(limit)
+
+      if (error) throw error
+      if (!pending?.length) {
+        return { emailsSent, emailsSkipped, emailsFailed }
+      }
+
+      const userIds = [...new Set(pending.map((n) => n.user_id).filter(Boolean))] as string[]
+
+      const [{ data: users }, { data: prefRows }] = await Promise.all([
+        this.supabase.from('users').select('id, email, full_name').in('id', userIds),
+        this.supabase.from('user_preferences').select('user_id, preferences').in('user_id', userIds),
+      ])
+
+      const emailByUser = new Map((users ?? []).map((u) => [u.id, u.email]))
+      const prefsByUser = new Map(
+        (prefRows ?? []).map((row) => [
+          row.user_id,
+          row.preferences as StoredNotificationPreferences | null,
+        ])
+      )
+
+      for (const notification of pending) {
+        if (!notification.user_id) {
+          emailsSkipped++
+          continue
+        }
+
+        const prefs = prefsByUser.get(notification.user_id)
+        if (!shouldSendEmailForCategory(prefs, notification.category)) {
+          await this.markNotificationEmailed(notification.id)
+          emailsSkipped++
+          continue
+        }
+
+        const recipient = emailByUser.get(notification.user_id)
+        if (!recipient) {
+          emailsSkipped++
+          continue
+        }
+
+        const result = await sendEmail({
+          to: recipient,
+          subject: notification.title,
+          html: buildNotificationEmailHtml({
+            title: notification.title,
+            message: notification.message,
+            actionUrl: notification.action_url,
+          }),
+          idempotencyKey: `notification/${notification.id}`,
+        })
+
+        if (result.sent) {
+          await this.markNotificationEmailed(notification.id)
+          emailsSent++
+        } else if (result.skipped) {
+          emailsSkipped++
+        } else {
+          emailsFailed++
+        }
+      }
+    } catch (error) {
+      console.error('Error delivering notification emails:', error)
+      throw new Error(
+        `Failed to deliver notification emails: ${error instanceof Error ? error.message : 'Unknown error'}`
+      )
+    }
+
+    return { emailsSent, emailsSkipped, emailsFailed }
+  }
+
+  private static async markNotificationEmailed(notificationId: string): Promise<void> {
+    const { error } = await (this.supabase.from('notifications') as any)
+      .update({ email_sent_at: new Date().toISOString() })
+      .eq('id', notificationId)
+
+    if (error) {
+      console.error('Failed to mark notification as emailed:', error.message)
+    }
+  }
+
   static async createBulkNotifications({
     userIds,
     title,

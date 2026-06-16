@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient, createAdminClient } from '@/lib/supabase-server';
 import { safeSelect, safeInsert, safeUpdate, safeDelete, safeRpc } from '@/lib/supabase-helpers';
+import { logAuditEvent } from '@/lib/audit';
 
 // Force dynamic rendering since this route uses cookies for authentication
 export const dynamic = 'force-dynamic';
@@ -122,6 +123,15 @@ export async function POST(request: NextRequest) {
 
     const bill = result.data?.[0];
 
+    await logAuditEvent(adminSupabase as never, {
+      churchId: bodyChurchId ?? null,
+      userId: user.id,
+      action: 'create',
+      entityType: 'bill',
+      entityId: (bill as { id?: string })?.id ?? '',
+      newData: bill as Record<string, unknown>,
+    });
+
     return NextResponse.json({
       bill,
       success: true
@@ -213,6 +223,16 @@ export async function PUT(request: NextRequest) {
 
     const bill = result.data?.[0];
 
+    await logAuditEvent(adminSupabase as never, {
+      churchId: billChurchId ?? null,
+      userId: user.id,
+      action: 'update',
+      entityType: 'bill',
+      entityId: id,
+      oldData: currentBill as Record<string, unknown>,
+      newData: bill as Record<string, unknown>,
+    });
+
     return NextResponse.json({ bill });
   } catch {
     return NextResponse.json(
@@ -253,6 +273,8 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: 'Bill not found' }, { status: 404 })
     }
 
+    const billRecord = billCheck[0] as Record<string, unknown>
+
     // Delete the bill
     const result = await safeDelete(adminSupabase, 'bills', {
       column: 'id',
@@ -265,6 +287,15 @@ export async function DELETE(request: Request) {
         { status: 500 }
       );
     }
+
+    await logAuditEvent(adminSupabase as never, {
+      churchId: (billRecord.church_id as string) ?? null,
+      userId: user.id,
+      action: 'delete',
+      entityType: 'bill',
+      entityId: id,
+      oldData: billRecord,
+    });
 
     return NextResponse.json({ message: 'Bill deleted successfully' });
   } catch {

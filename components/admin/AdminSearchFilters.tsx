@@ -42,12 +42,12 @@ export function AdminSearchFilters<F extends AdminFilters>({
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-4">
           {/* Search Input */}
           <div className="relative lg:col-span-4">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 z-10" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4 z-10" />
             <Input
               placeholder={searchPlaceholder}
               value={filters.search}
               onChange={(e) => onFiltersChange({ search: e.target.value } as Partial<F>)}
-              className="pl-10 bg-white/10 backdrop-blur-xl border-white/20 text-white placeholder:text-white/50 rounded-xl transition-all duration-300 hover:bg-white/15 focus:bg-white/15 focus:border-white/30"
+              className="pl-10"
             />
           </div>
 
@@ -60,7 +60,7 @@ export function AdminSearchFilters<F extends AdminFilters>({
                   onFiltersChange({ [filter.key]: value } as Partial<F>)
                 }
               >
-                <SelectTrigger className="bg-slate-800 border-slate-700 text-white">
+                <SelectTrigger>
                   <SelectValue placeholder={filter.label} />
                 </SelectTrigger>
                 <SelectContent>
@@ -82,7 +82,7 @@ export function AdminSearchFilters<F extends AdminFilters>({
                 onFiltersChange({ sortBy: value } as Partial<F>)
               }
             >
-              <SelectTrigger className="bg-slate-800 border-slate-700 text-white">
+              <SelectTrigger>
                 <SelectValue placeholder="Sort By" />
               </SelectTrigger>
               <SelectContent>
@@ -103,7 +103,7 @@ export function AdminSearchFilters<F extends AdminFilters>({
                 onFiltersChange({ sortOrder: value } as Partial<F>)
               }
             >
-              <SelectTrigger className="bg-slate-800 border-slate-700 text-white">
+              <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>

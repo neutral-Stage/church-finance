@@ -72,9 +72,9 @@ export class ErrorBoundary extends Component<Props, State> {
           <CardHeader className="text-center">
             <div className="flex justify-center mb-4">
               {isNetwork ? (
-                <WifiOff className="h-12 w-12 text-red-500" />
+                <WifiOff className="h-12 w-12 text-destructive" />
               ) : (
-                <AlertCircle className="h-12 w-12 text-red-500" />
+                <AlertCircle className="h-12 w-12 text-destructive" />
               )}
             </div>
             <CardTitle className="text-xl">
@@ -93,9 +93,9 @@ export class ErrorBoundary extends Component<Props, State> {
             </Button>
             
             {process.env.NODE_ENV === 'development' && this.state.error && (
-              <details className="text-left text-sm text-gray-600 mt-4">
+              <details className="text-left text-sm text-muted-foreground mt-4">
                 <summary className="cursor-pointer font-medium">Error Details</summary>
-                <pre className="mt-2 p-2 bg-gray-100 rounded text-xs overflow-auto">
+                <pre className="mt-2 p-2 bg-muted rounded text-xs overflow-auto">
                   {this.state.error.toString()}
                   {this.state.errorInfo?.componentStack}
                 </pre>
@@ -162,8 +162,8 @@ export function NetworkStatus() {
   return (
     <div className={`fixed top-4 right-4 z-50 p-3 rounded-lg shadow-lg transition-all duration-300 ${
       isOnline 
-        ? 'bg-green-500 text-white' 
-        : 'bg-red-500 text-white'
+        ? 'bg-income text-income-foreground' 
+        : 'bg-destructive text-destructive-foreground'
     }`}>
       <div className="flex items-center space-x-2">
         {isOnline ? (
@@ -200,9 +200,9 @@ export function ErrorFallback({
         <CardHeader className="text-center">
           <div className="flex justify-center mb-2">
             {isNetwork ? (
-              <WifiOff className="h-8 w-8 text-red-500" />
+              <WifiOff className="h-8 w-8 text-destructive" />
             ) : (
-              <AlertCircle className="h-8 w-8 text-red-500" />
+              <AlertCircle className="h-8 w-8 text-destructive" />
             )}
           </div>
           <CardTitle className="text-lg">

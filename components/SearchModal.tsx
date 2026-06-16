@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -14,11 +14,18 @@ import {
   TrendingUp,
   Clock,
   ArrowRight,
-  X
+  X,
+  Plus,
+  Gift,
+  Building2,
+  Command,
+  Zap,
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
+import { useChurch } from '@/contexts/ChurchContext'
+import { cn } from '@/lib/utils'
 
 interface SearchResult {
   id: string
@@ -27,6 +34,15 @@ interface SearchResult {
   type: 'member' | 'transaction' | 'offering' | 'report' | 'bill' | 'advance'
   url: string
   metadata?: Record<string, unknown>
+}
+
+interface CommandAction {
+  id: string
+  label: string
+  description: string
+  icon: typeof Plus
+  shortcut?: string
+  onSelect: () => void
 }
 
 interface SearchModalProps {
@@ -40,7 +56,7 @@ const searchCategories = [
   { type: 'offering', label: 'Offerings', icon: TrendingUp, color: 'bg-purple-500' },
   { type: 'report', label: 'Reports', icon: FileText, color: 'bg-orange-500' },
   { type: 'bill', label: 'Bills', icon: Calendar, color: 'bg-red-500' },
-  { type: 'advance', label: 'Advances', icon: Clock, color: 'bg-yellow-500' }
+  { type: 'advance', label: 'Advances', icon: Clock, color: 'bg-yellow-500' },
 ]
 
 export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
@@ -48,219 +64,372 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
   const [results, setResults] = useState<SearchResult[]>([])
   const [loading, setLoading] = useState(false)
   const [selectedIndex, setSelectedIndex] = useState(0)
+  const [churchPickerOpen, setChurchPickerOpen] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
   const router = useRouter()
   const { user } = useAuth()
+  const { availableChurches, setSelectedChurch, selectedChurch } = useChurch()
+
+  const navigateAndClose = useCallback(
+    (path: string) => {
+      router.push(path)
+      onClose()
+      setQuery('')
+      setResults([])
+      setChurchPickerOpen(false)
+    },
+    [router, onClose]
+  )
+
+  const quickActions: CommandAction[] = useMemo(
+    () => [
+      {
+        id: 'new-transaction',
+        label: 'New Transaction',
+        description: 'Record income or expense',
+        icon: Plus,
+        shortcut: 'T',
+        onSelect: () => navigateAndClose('/transactions'),
+      },
+      {
+        id: 'record-offering',
+        label: 'Record Offering',
+        description: 'Log tithes and offerings',
+        icon: Gift,
+        shortcut: 'O',
+        onSelect: () => navigateAndClose('/offerings'),
+      },
+      {
+        id: 'switch-church',
+        label: 'Switch Church',
+        description: selectedChurch?.name ?? 'Change active church',
+        icon: Building2,
+        shortcut: 'C',
+        onSelect: () => setChurchPickerOpen(true),
+      },
+    ],
+    [navigateAndClose, selectedChurch?.name]
+  )
+
+  const flatItems = useMemo(() => {
+    if (query.trim().length > 2) {
+      return results.map((r) => ({ kind: 'result' as const, data: r }))
+    }
+    if (churchPickerOpen) {
+      return availableChurches.map((c) => ({ kind: 'church' as const, data: c }))
+    }
+    return quickActions.map((a) => ({ kind: 'action' as const, data: a }))
+  }, [query, results, quickActions, churchPickerOpen, availableChurches])
 
   useEffect(() => {
     if (isOpen && inputRef.current) {
       inputRef.current.focus()
     }
+    if (!isOpen) {
+      setQuery('')
+      setResults([])
+      setChurchPickerOpen(false)
+      setSelectedIndex(0)
+    }
   }, [isOpen])
 
-  const performSearch = useCallback(async (searchQuery: string) => {
-    if (!user) return
+  useEffect(() => {
+    setSelectedIndex(0)
+  }, [query, churchPickerOpen])
 
-    setLoading(true)
-    try {
-      const searchResults: SearchResult[] = []
+  const performSearch = useCallback(
+    async (searchQuery: string) => {
+      if (!user) return
 
-      // Search members
-      const { data: members } = await supabase
-        .from('members')
-        .select('id, name, phone')
-        .or(`name.ilike.%${searchQuery}%,phone.ilike.%${searchQuery}%`)
-        .limit(5)
+      setLoading(true)
+      try {
+        const searchResults: SearchResult[] = []
 
-      if (members) {
-        members.forEach((member: any) => {
+        const { data: members } = await supabase
+          .from('members')
+          .select('id, name, phone')
+          .or(`name.ilike.%${searchQuery}%,phone.ilike.%${searchQuery}%`)
+          .limit(5)
+
+        members?.forEach((member) => {
           searchResults.push({
             id: member.id,
             title: member.name,
             description: `Phone: ${member.phone || 'N/A'}`,
             type: 'member',
             url: `/members/${member.id}`,
-            metadata: member
           })
         })
-      }
 
-      // Search transactions
-      const { data: transactions } = await supabase
-        .from('transactions')
-        .select('id, description, amount, transaction_date, type')
-        .or(`description.ilike.%${searchQuery}%,type.ilike.%${searchQuery}%`)
-        .order('transaction_date', { ascending: false })
-        .limit(5)
+        const { data: transactions } = await supabase
+          .from('transactions')
+          .select('id, description, amount, transaction_date, type')
+          .or(`description.ilike.%${searchQuery}%,type.ilike.%${searchQuery}%`)
+          .order('transaction_date', { ascending: false })
+          .limit(5)
 
-      if (transactions) {
-        transactions.forEach(transaction => {
+        transactions?.forEach((transaction) => {
           searchResults.push({
             id: transaction.id,
             title: transaction.description,
             description: `$${transaction.amount} - ${transaction.type} - ${new Date(transaction.transaction_date).toLocaleDateString()}`,
             type: 'transaction',
             url: `/transactions/${transaction.id}`,
-            metadata: transaction
           })
         })
-      }
 
-      // Search offerings
-      const { data: offerings } = await supabase
-        .from('offerings')
-        .select('id, type, amount, service_date, notes')
-        .or(`type.ilike.%${searchQuery}%,notes.ilike.%${searchQuery}%`)
-        .order('service_date', { ascending: false })
-        .limit(5)
+        const { data: offerings } = await supabase
+          .from('offerings')
+          .select('id, type, amount, service_date, notes')
+          .or(`type.ilike.%${searchQuery}%,notes.ilike.%${searchQuery}%`)
+          .order('service_date', { ascending: false })
+          .limit(5)
 
-      if (offerings) {
-        offerings.forEach((offering: any) => {
+        offerings?.forEach((offering) => {
           searchResults.push({
             id: offering.id,
             title: offering.type,
             description: `$${offering.amount} - ${new Date(offering.service_date).toLocaleDateString()}`,
             type: 'offering',
             url: `/offerings/${offering.id}`,
-            metadata: offering
           })
         })
-      }
 
-      // Search bills
-      const { data: bills } = await supabase
-        .from('bills')
-        .select('id, description, amount, due_date, status')
-        .or(`description.ilike.%${searchQuery}%,status.ilike.%${searchQuery}%`)
-        .order('due_date', { ascending: false })
-        .limit(5)
+        const { data: bills } = await supabase
+          .from('bills')
+          .select('id, vendor_name, amount, due_date, status')
+          .or(`vendor_name.ilike.%${searchQuery}%,status.ilike.%${searchQuery}%`)
+          .order('due_date', { ascending: false })
+          .limit(5)
 
-      if (bills) {
-        (bills as any).forEach((bill: any) => {
+        bills?.forEach((bill) => {
           searchResults.push({
             id: bill.id,
-            title: bill.description,
+            title: bill.vendor_name,
             description: `$${bill.amount} - Due: ${new Date(bill.due_date).toLocaleDateString()} - ${bill.status}`,
             type: 'bill',
             url: `/bills/${bill.id}`,
-            metadata: bill
           })
         })
-      }
 
-      // Search advances
-      const { data: advances } = await supabase
-        .from('advances')
-        .select('id, description, amount, advance_date, status')
-        .or(`description.ilike.%${searchQuery}%,status.ilike.%${searchQuery}%`)
-        .order('advance_date', { ascending: false })
-        .limit(5)
+        const { data: advances } = await supabase
+          .from('advances')
+          .select('id, purpose, amount, advance_date, status, recipient_name')
+          .or(`purpose.ilike.%${searchQuery}%,recipient_name.ilike.%${searchQuery}%`)
+          .order('advance_date', { ascending: false })
+          .limit(5)
 
-      if (advances) {
-        (advances as any).forEach((advance: any) => {
+        advances?.forEach((advance) => {
           searchResults.push({
             id: advance.id,
-            title: advance.description,
-            description: `$${advance.amount} - ${new Date(advance.advance_date).toLocaleDateString()} - ${advance.status}`,
+            title: advance.recipient_name,
+            description: `$${advance.amount} - ${advance.status}`,
             type: 'advance',
             url: `/advances/${advance.id}`,
-            metadata: advance
           })
         })
-      }
 
-      setResults(searchResults)
-      setSelectedIndex(0)
-    } catch {
-      // Silently handle search error
-    } finally {
-      setLoading(false)
-    }
-  }, [user])
+        setResults(searchResults)
+        setSelectedIndex(0)
+      } catch {
+        // Silently handle search error
+      } finally {
+        setLoading(false)
+      }
+    },
+    [user]
+  )
 
   useEffect(() => {
     const searchWithQuery = async () => {
-      if (query.trim()) {
+      if (query.trim().length > 2) {
         await performSearch(query)
       } else {
         setResults([])
         setLoading(false)
       }
     }
-    searchWithQuery()
+    void searchWithQuery()
   }, [query, performSearch])
+
+  const selectItem = useCallback(
+    async (index: number) => {
+      const item = flatItems[index]
+      if (!item) return
+
+      if (item.kind === 'action') {
+        item.data.onSelect()
+      } else if (item.kind === 'church') {
+        await setSelectedChurch(item.data)
+        onClose()
+        setQuery('')
+        setChurchPickerOpen(false)
+      } else if (item.kind === 'result') {
+        navigateAndClose(item.data.url)
+      }
+    },
+    [flatItems, setSelectedChurch, onClose, navigateAndClose]
+  )
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'ArrowDown') {
       e.preventDefault()
-      setSelectedIndex(prev => Math.min(prev + 1, results.length - 1))
+      setSelectedIndex((prev) => Math.min(prev + 1, flatItems.length - 1))
     } else if (e.key === 'ArrowUp') {
       e.preventDefault()
-      setSelectedIndex(prev => Math.max(prev - 1, 0))
-    } else if (e.key === 'Enter' && results[selectedIndex]) {
-      handleResultClick(results[selectedIndex])
+      setSelectedIndex((prev) => Math.max(prev - 1, 0))
+    } else if (e.key === 'Enter' && flatItems.length > 0) {
+      e.preventDefault()
+      void selectItem(selectedIndex)
     } else if (e.key === 'Escape') {
-      onClose()
+      if (churchPickerOpen) {
+        setChurchPickerOpen(false)
+      } else {
+        onClose()
+      }
+    } else if (!query && !churchPickerOpen) {
+      const key = e.key.toUpperCase()
+      const action = quickActions.find((a) => a.shortcut === key)
+      if (action) {
+        e.preventDefault()
+        action.onSelect()
+      }
     }
-  }
-
-  const handleResultClick = (result: SearchResult) => {
-    router.push(result.url)
-    onClose()
-    setQuery('')
-    setResults([])
   }
 
   const getCategoryInfo = (type: string) => {
-    return searchCategories.find(cat => cat.type === type) || searchCategories[0]
+    return searchCategories.find((cat) => cat.type === type) || searchCategories[0]
   }
 
-  const groupedResults = results.reduce((acc, result) => {
-    if (!acc[result.type]) {
-      acc[result.type] = []
-    }
-    acc[result.type].push(result)
-    return acc
-  }, {} as Record<string, SearchResult[]>)
+  const groupedResults = results.reduce(
+    (acc, result) => {
+      if (!acc[result.type]) acc[result.type] = []
+      acc[result.type].push(result)
+      return acc
+    },
+    {} as Record<string, SearchResult[]>
+  )
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[80vh] p-0 overflow-hidden">
-        <DialogHeader className="p-6 pb-4">
-          <DialogTitle className="text-xl font-semibold">
-            Search Church Finance
+        <DialogHeader className="p-6 pb-4 border-b border-border">
+          <DialogTitle className="text-xl font-semibold flex items-center gap-2">
+            <Command className="h-5 w-5 text-primary" />
+            Command Palette
           </DialogTitle>
         </DialogHeader>
 
-        <div className="p-6 pt-4">
+        <div className="p-4">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-white/50" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               ref={inputRef}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Search members, transactions, offerings, bills..."
-              className="pl-10 bg-white/10 backdrop-blur-sm border border-white/20 text-white placeholder:text-white/60 focus:outline-none focus:ring-2 focus:ring-white/20 focus:border-white/30 transition-all duration-200"
+              placeholder={
+                churchPickerOpen
+                  ? 'Select a church...'
+                  : 'Search or type a command...'
+              }
+              className="pl-10 h-11"
             />
             {query && (
               <Button
                 variant="ghost"
-                size="sm"
+                size="icon"
                 onClick={() => {
                   setQuery('')
                   setResults([])
                 }}
-                className="absolute right-2 top-1/2 transform -translate-y-1/2 h-6 w-6 p-0 text-white/50 hover:text-white hover:bg-white/10 hover:scale-105 transition-all duration-300"
+                className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
               >
                 <X className="h-4 w-4" />
               </Button>
             )}
           </div>
 
+          {!query && !churchPickerOpen && (
+            <div className="mt-4">
+              <div className="flex items-center gap-2 mb-3 px-1">
+                <Zap className="h-4 w-4 text-primary" />
+                <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Quick Actions
+                </span>
+              </div>
+              <div className="space-y-1">
+                {quickActions.map((action, index) => {
+                  const Icon = action.icon
+                  return (
+                    <button
+                      key={action.id}
+                      type="button"
+                      onClick={() => action.onSelect()}
+                      className={cn(
+                        'w-full flex items-center justify-between p-3 rounded-lg text-left transition-colors',
+                        selectedIndex === index
+                          ? 'bg-primary/10 border border-primary/30'
+                          : 'hover:bg-accent border border-transparent'
+                      )}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 rounded-md bg-muted">
+                          <Icon className="h-4 w-4 text-foreground" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-sm text-foreground">{action.label}</p>
+                          <p className="text-xs text-muted-foreground">{action.description}</p>
+                        </div>
+                      </div>
+                      {action.shortcut && (
+                        <kbd className="text-xs px-1.5 py-0.5 rounded border border-border bg-muted text-muted-foreground">
+                          {action.shortcut}
+                        </kbd>
+                      )}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
+          {churchPickerOpen && (
+            <div className="mt-4 max-h-72 overflow-y-auto space-y-1">
+              {availableChurches.map((church, index) => (
+                <button
+                  key={church.id}
+                  type="button"
+                  onClick={() => void selectItem(index)}
+                  className={cn(
+                    'w-full flex items-center justify-between p-3 rounded-lg text-left transition-colors',
+                    selectedIndex === index
+                      ? 'bg-primary/10 border border-primary/30'
+                      : 'hover:bg-accent border border-transparent'
+                  )}
+                >
+                  <div className="flex items-center gap-3">
+                    <Building2 className="h-4 w-4 text-muted-foreground" />
+                    <div>
+                      <p className="font-medium text-sm">{church.name}</p>
+                      <p className="text-xs text-muted-foreground capitalize">
+                        {church.role_display_name ?? church.role_name ?? 'Member'}
+                      </p>
+                    </div>
+                  </div>
+                  {selectedChurch?.id === church.id && (
+                    <Badge variant="secondary" className="text-xs">
+                      Active
+                    </Badge>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
+
           {query.length > 0 && query.length <= 2 && (
-            <div className="glass-card-light p-4 rounded-xl mt-4">
-              <p className="text-white/80 text-sm text-center">
+            <div className="bg-muted/50 border border-border p-4 rounded-xl mt-4">
+              <p className="text-muted-foreground text-sm text-center">
                 Type at least 3 characters to search
               </p>
             </div>
@@ -268,22 +437,15 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
 
           {loading && (
             <div className="flex items-center justify-center py-8">
-              <div className="relative">
-                <div className="absolute inset-0 bg-purple-400/20 rounded-full blur-md animate-pulse" />
-                <div className="relative animate-spin rounded-full h-6 w-6 border-b-2 border-purple-400"></div>
-              </div>
-              <span className="ml-3 text-white/80">Searching...</span>
+              <div className="animate-spin rounded-full h-6 w-6 border-2 border-muted border-t-primary" />
+              <span className="ml-3 text-muted-foreground">Searching...</span>
             </div>
           )}
 
           {!loading && query.length > 2 && results.length === 0 && (
             <div className="text-center py-8">
-              <div className="relative mb-4">
-                <div className="absolute inset-0 bg-white/10 rounded-full blur-xl" />
-                <Search className="relative h-12 w-12 text-white/30 mx-auto" />
-              </div>
-              <p className="text-white/70">No results found for &quot;{query}&quot;</p>
-              <p className="text-white/50 text-sm mt-1">Try different keywords or check spelling</p>
+              <Search className="h-12 w-12 text-muted-foreground/40 mx-auto mb-4" />
+              <p className="text-foreground">No results found for &quot;{query}&quot;</p>
             </div>
           )}
 
@@ -292,51 +454,45 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
               {Object.entries(groupedResults).map(([type, typeResults]) => {
                 const categoryInfo = getCategoryInfo(type)
                 const Icon = categoryInfo.icon
-                
+
                 return (
                   <div key={type}>
-                    <div className="flex items-center mb-3">
-                      <div className={`relative mr-3`}>
-                        <div className="absolute inset-0 bg-white/10 rounded-full blur-md" />
-                        <div className={`relative p-2 rounded-full ${categoryInfo.color} backdrop-blur-sm border border-white/20`}>
-                          <Icon className="h-3 w-3 text-white" />
-                        </div>
+                    <div className="flex items-center mb-2 px-1">
+                      <div className={`mr-2 p-1.5 rounded-full ${categoryInfo.color}`}>
+                        <Icon className="h-3 w-3 text-white" />
                       </div>
-                      <h3 className="text-white/90 text-sm font-semibold">{categoryInfo.label}</h3>
+                      <h3 className="text-foreground text-xs font-semibold uppercase tracking-wide">
+                        {categoryInfo.label}
+                      </h3>
                     </div>
-                    
-                    <div className="space-y-2">
+
+                    <div className="space-y-1">
                       {typeResults.map((result) => {
-                        const globalIndex = results.indexOf(result)
+                        const globalIndex = flatItems.findIndex(
+                          (i) => i.kind === 'result' && i.data.id === result.id
+                        )
                         return (
                           <div
                             key={result.id}
-                            onClick={() => handleResultClick(result)}
-                            className={`group p-4 rounded-xl cursor-pointer transition-all duration-300 relative overflow-hidden ${
+                            onClick={() => navigateAndClose(result.url)}
+                            className={cn(
+                              'group p-3 rounded-lg cursor-pointer transition-colors',
                               selectedIndex === globalIndex
-                                ? 'bg-purple-500/20 border border-purple-400/30 shadow-lg backdrop-blur-sm'
-                                : 'bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 hover:scale-[1.02] hover:shadow-md'
-                            }`}
-                          >
-                            {selectedIndex === globalIndex && (
-                              <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-purple-400 to-blue-400 rounded-r-full" />
+                                ? 'bg-primary/10 border border-primary/30'
+                                : 'bg-card hover:bg-accent border border-border'
                             )}
+                          >
                             <div className="flex items-center justify-between">
                               <div className="flex-1 min-w-0">
-                                <h4 className="text-white font-semibold truncate group-hover:text-white transition-colors">{result.title}</h4>
-                                <p className="text-white/70 text-sm truncate mt-1">{result.description}</p>
+                                <h4 className="text-foreground font-medium text-sm truncate">
+                                  {result.title}
+                                </h4>
+                                <p className="text-muted-foreground text-xs truncate mt-0.5">
+                                  {result.description}
+                                </p>
                               </div>
-                              <div className="flex items-center ml-4">
-                                <Badge 
-                                  variant="secondary" 
-                                  className={`${categoryInfo.color} text-white text-xs mr-3 backdrop-blur-sm border-0 hover:scale-105 transition-all duration-200`}
-                                >
-                                  {categoryInfo.label.slice(0, -1)}
-                                </Badge>
-                                <ArrowRight className="h-4 w-4 text-white/50 group-hover:text-white/80 transition-colors" />
-                              </div>
+                              <ArrowRight className="h-4 w-4 text-muted-foreground ml-3 shrink-0" />
                             </div>
-                            <div className="absolute inset-0 bg-gradient-to-r from-white/5 to-white/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl" />
                           </div>
                         )
                       })}
@@ -347,13 +503,11 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
             </div>
           )}
 
-          {results.length > 0 && (
-            <div className="mt-4 pt-4 border-t border-white/10">
-              <p className="text-white/50 text-xs text-center">
-                Use up/down arrows to navigate, Enter to select, Esc to close
-              </p>
-            </div>
-          )}
+          <div className="mt-4 pt-3 border-t border-border">
+            <p className="text-muted-foreground text-xs text-center">
+              ↑↓ navigate · Enter select · Esc close · T/O/C quick actions when empty
+            </p>
+          </div>
         </div>
       </DialogContent>
     </Dialog>

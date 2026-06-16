@@ -387,32 +387,25 @@ export default function AdvancedReportsClient({ initialData, initialDateRange }:
   if (!selectedChurch) {
     return (
       <div className="flex flex-col items-center justify-center h-64 space-y-4">
-        <FileText className="h-16 w-16 text-gray-400" />
+        <FileText className="h-16 w-16 text-muted-foreground" />
         <div className="text-center">
-          <h3 className="text-lg font-semibold">No Church Selected</h3>
-          <p className="text-gray-600">Please select a church to view reports</p>
+          <h3 className="text-lg font-semibold text-foreground">No Church Selected</h3>
+          <p className="text-muted-foreground">Please select a church to view reports</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen relative overflow-hidden">
-      {/* Animated Background Elements */}
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-gradient-to-r from-blue-400/20 to-purple-400/20 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute top-3/4 right-1/4 w-96 h-96 bg-gradient-to-r from-green-400/15 to-blue-400/15 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }}></div>
-        <div className="absolute bottom-1/4 left-1/3 w-80 h-80 bg-gradient-to-r from-purple-400/10 to-pink-400/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '4s' }}></div>
-      </div>
-
-      <div className="relative z-10 container mx-auto p-6 space-y-6">
+    <div className="min-h-screen bg-background">
+      <div className="container mx-auto p-6 space-y-6">
         <div className="flex justify-between items-center animate-fade-in animate-slide-in-from-top-4">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent flex items-center gap-3">
-              <BarChart3 className="h-8 w-8 text-white" />
+            <h1 className="text-3xl font-bold tracking-tight text-foreground flex items-center gap-3">
+              <BarChart3 className="h-8 w-8 text-primary" />
               Advanced Reports
             </h1>
-            <p className="text-white/60">Comprehensive financial insights and analytics</p>
+            <p className="text-muted-foreground">Comprehensive financial insights and analytics</p>
             {selectedChurch && (
               <Badge variant="secondary" className="mt-2">
                 {selectedChurch.name}
@@ -440,32 +433,20 @@ export default function AdvancedReportsClient({ initialData, initialDateRange }:
         {/* Main Content Tabs */}
         <div className="animate-fade-in animate-slide-in-from-bottom-4" style={{ animationDelay: '200ms' }}>
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-            <TabsList className="grid w-full grid-cols-4 bg-white/10 backdrop-blur-xl border-white/20">
-              <TabsTrigger
-                value="dashboard"
-                className="data-[state=active]:bg-white/20 data-[state=active]:text-white"
-              >
+            <TabsList className="grid w-full grid-cols-4">
+              <TabsTrigger value="dashboard">
                 <TrendingUp className="h-4 w-4 mr-2" />
                 Dashboard
               </TabsTrigger>
-              <TabsTrigger
-                value="transactions"
-                className="data-[state=active]:bg-white/20 data-[state=active]:text-white"
-              >
+              <TabsTrigger value="transactions">
                 <FileText className="h-4 w-4 mr-2" />
                 Transactions
               </TabsTrigger>
-              <TabsTrigger
-                value="analysis"
-                className="data-[state=active]:bg-white/20 data-[state=active]:text-white"
-              >
+              <TabsTrigger value="analysis">
                 <BarChart3 className="h-4 w-4 mr-2" />
                 Analysis
               </TabsTrigger>
-              <TabsTrigger
-                value="settings"
-                className="data-[state=active]:bg-white/20 data-[state=active]:text-white"
-              >
+              <TabsTrigger value="settings">
                 <Settings className="h-4 w-4 mr-2" />
                 Settings
               </TabsTrigger>
@@ -481,65 +462,65 @@ export default function AdvancedReportsClient({ initialData, initialDateRange }:
             </TabsContent>
 
             <TabsContent value="transactions" className="space-y-4">
-              <Card className="bg-white/10 backdrop-blur-xl border-white/20">
+              <Card>
                 <CardHeader>
-                  <CardTitle className="text-white/90">Transaction Details</CardTitle>
-                  <CardDescription className="text-white/60">
+                  <CardTitle>Transaction Details</CardTitle>
+                  <CardDescription>
                     Detailed view of all filtered transactions
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="rounded-md border border-white/20">
+                  <div className="rounded-md border border-border">
                     <div className="overflow-x-auto">
                       <table className="w-full">
                         <thead>
-                          <tr className="border-b border-white/20 bg-white/5">
-                            <th className="h-12 px-4 text-left align-middle font-medium text-white/70">Date</th>
-                            <th className="h-12 px-4 text-left align-middle font-medium text-white/70">Type</th>
-                            <th className="h-12 px-4 text-left align-middle font-medium text-white/70">Category</th>
-                            <th className="h-12 px-4 text-left align-middle font-medium text-white/70">Description</th>
-                            <th className="h-12 px-4 text-left align-middle font-medium text-white/70">Amount</th>
-                            <th className="h-12 px-4 text-left align-middle font-medium text-white/70">Method</th>
+                          <tr className="border-b border-border bg-muted/50">
+                            <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Date</th>
+                            <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Type</th>
+                            <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Category</th>
+                            <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Description</th>
+                            <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Amount</th>
+                            <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Method</th>
                           </tr>
                         </thead>
                         <tbody>
                           {filteredData.transactions.slice(0, 50).map((transaction) => (
-                            <tr key={transaction.id} className="border-b border-white/10 hover:bg-white/5 transition-colors">
-                              <td className="p-4 text-white/90">
+                            <tr key={transaction.id} className="border-b border-border hover:bg-accent transition-colors">
+                              <td className="p-4 text-foreground">
                                 {new Date(transaction.transaction_date).toLocaleDateString()}
                               </td>
                               <td className="p-4">
                                 <Badge
                                   variant={transaction.type === 'income' ? 'success' : 'destructive'}
-                                  className={`${
+                                  className={
                                     transaction.type === 'income'
-                                      ? 'bg-green-500/20 text-green-300 border-green-500/30'
-                                      : 'bg-red-500/20 text-red-300 border-red-500/30'
-                                  } backdrop-blur-sm`}
+                                      ? 'bg-income/15 text-income border-income/30'
+                                      : 'bg-destructive/15 text-destructive border-destructive/30'
+                                  }
                                 >
                                   {transaction.type}
                                 </Badge>
                               </td>
-                              <td className="p-4 text-white/90">{transaction.category || 'N/A'}</td>
-                              <td className="p-4 text-white/90 max-w-xs truncate">
+                              <td className="p-4 text-foreground">{transaction.category || 'N/A'}</td>
+                              <td className="p-4 text-foreground max-w-xs truncate">
                                 {transaction.description || 'No description'}
                               </td>
-                              <td className="p-4 font-medium text-white/90">
+                              <td className="p-4 font-medium text-foreground">
                                 ${transaction.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                               </td>
-                              <td className="p-4 text-white/90">{transaction.payment_method || 'N/A'}</td>
+                              <td className="p-4 text-foreground">{transaction.payment_method || 'N/A'}</td>
                             </tr>
                           ))}
                         </tbody>
                       </table>
                     </div>
                     {filteredData.transactions.length === 0 && (
-                      <div className="text-center py-8 text-white/60">
+                      <div className="text-center py-8 text-muted-foreground">
                         No transactions found matching the current filters.
                       </div>
                     )}
                     {filteredData.transactions.length > 50 && (
-                      <div className="text-center py-4 text-white/60 border-t border-white/20">
+                      <div className="text-center py-4 text-muted-foreground border-t border-border">
                         Showing first 50 of {filteredData.transactions.length} transactions.
                         Use export to view all data.
                       </div>
@@ -550,7 +531,7 @@ export default function AdvancedReportsClient({ initialData, initialDateRange }:
             </TabsContent>
 
             <TabsContent value="analysis" className="space-y-4">
-              <div className="bg-white/10 backdrop-blur-xl border-white/20 rounded-lg p-6">
+              <div className="bg-card border border-border rounded-lg p-6">
                 <AdvancedAnalysis
                   data={filteredData}
                   dateRange={filters.dateRange}
@@ -560,7 +541,7 @@ export default function AdvancedReportsClient({ initialData, initialDateRange }:
             </TabsContent>
 
             <TabsContent value="settings" className="space-y-4">
-              <div className="bg-white/10 backdrop-blur-xl border-white/20 rounded-lg p-6">
+              <div className="bg-card border border-border rounded-lg p-6">
                 <ReportSettings
                   currentFilters={filters}
                   onApplyTemplate={handleApplyTemplate}

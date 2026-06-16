@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { GlassButton } from '@/components/ui/glass-button'
+import { Button } from '@/components/ui/button'
 import { LucideIcon } from 'lucide-react'
 
 interface AdminPageHeaderProps {
@@ -10,30 +10,26 @@ interface AdminPageHeaderProps {
   actions?: {
     label: string
     icon?: LucideIcon
-    variant?: 'primary' | 'success' | 'warning' | 'error' | 'info' | 'outline'
+    variant?: 'default' | 'secondary' | 'outline' | 'destructive' | 'ghost'
     onClick: () => void
   }[]
 }
 
 export function AdminPageHeader({ title, description, actions = [] }: AdminPageHeaderProps) {
   return (
-    <div className="flex justify-between items-center">
+    <div className="flex items-center justify-between">
       <div>
-        <h1 className="text-3xl font-bold text-white">{title}</h1>
-        <p className="text-white/70 mt-2">{description}</p>
+        <h1 className="text-3xl font-bold text-foreground">{title}</h1>
+        <p className="mt-2 text-muted-foreground">{description}</p>
       </div>
 
       {actions.length > 0 && (
         <div className="flex gap-2">
           {actions.map((action, index) => (
-            <GlassButton
-              key={index}
-              variant={action.variant || 'primary'}
-              onClick={action.onClick}
-            >
-              {action.icon && <action.icon className="w-4 h-4 mr-2" />}
+            <Button key={index} variant={action.variant || 'default'} onClick={action.onClick}>
+              {action.icon && <action.icon className="mr-2 h-4 w-4" />}
               {action.label}
-            </GlassButton>
+            </Button>
           ))}
         </div>
       )}

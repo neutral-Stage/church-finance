@@ -35,10 +35,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (response.ok) {
         const data = await response.json()
         if (data.user) {
-          console.log('AuthContext: User data loaded successfully:', data.user.email, 'with role:', data.user.role)
           setUser(data.user)
         } else {
-          console.log('AuthContext: No user data returned')
           setUser(null)
         }
       } else {
@@ -176,8 +174,8 @@ export function withAuth<P extends object>(Component: React.ComponentType<P>) {
     if (loading) {
       return (
         <div className="flex items-center justify-center min-h-screen">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-400"></div>
-          <span className="ml-3 text-white/70">Loading...</span>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          <span className="ml-3 text-muted-foreground">Loading...</span>
         </div>
       )
     }

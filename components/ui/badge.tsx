@@ -4,23 +4,23 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
 const badgeVariants = cva(
-  "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-white/30 focus:ring-offset-2",
+  "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
   {
     variants: {
       variant: {
         default:
-          "border-white/20 bg-white/10 backdrop-blur-xl text-white hover:bg-white/15",
+          "border-transparent bg-primary text-primary-foreground hover:bg-primary/90",
         secondary:
-          "border-white/20 bg-white/5 backdrop-blur-xl text-white hover:bg-white/10",
+          "border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80",
         destructive:
-          "border-red-500/30 bg-red-500/20 backdrop-blur-xl text-white hover:bg-red-500/30",
-        outline: "border-white/20 bg-transparent text-white hover:bg-white/5",
+          "border-transparent bg-destructive text-destructive-foreground hover:bg-destructive/90",
+        outline: "border-border bg-transparent text-foreground hover:bg-accent",
         success:
-          "border-green-500/30 bg-green-500/20 backdrop-blur-xl text-white hover:bg-green-500/30",
+          "border-transparent bg-income text-income-foreground hover:bg-income/90",
         warning:
-          "border-yellow-500/30 bg-yellow-500/20 backdrop-blur-xl text-white hover:bg-yellow-500/30",
+          "border-transparent bg-pending text-pending-foreground hover:bg-pending/90",
         info:
-          "border-blue-500/30 bg-blue-500/20 backdrop-blur-xl text-white hover:bg-blue-500/30",
+          "border-transparent bg-primary text-primary-foreground hover:bg-primary/90",
       },
     },
     defaultVariants: {
